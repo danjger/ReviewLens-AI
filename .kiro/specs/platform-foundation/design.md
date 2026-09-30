@@ -1,0 +1,267 @@
+# Design Document
+
+## Overview
+
+This design sets the technical foundation for ReviewLens AI. The brief asks for hosting that is inexpensive, easy to deploy, and able to call AI APIs, and it suggests AWS. It also requires that the backend scale horizontally and move between Lambda and containers without code changes.
+
+The design therefore follows three rules:
+
+1. **Every Service is a stateless container image.** HTTP Services are plain FastAPI apps. Background work is plain queue-message handlers.
+2. **Compute is an adapter, not a dependency.** The AWS Lambda Web Adapter runs the HTTP apps on Lambda unchanged. A small consumer runtime runs the same handlers from an SQS event (Lambda) or from a polling loop (container).
+3. **All shared state is external:** Aurora (Data API), S3, DynamoDB, SQS, and EventBridge. Any number of instances of any Service can run at once.
+
+The initial deployment is Lambda mode, which costs almost nothing when idle. Container mode (ECS Fargate) is designed for and tested locally, and its CDK stack is an optional task for when load requires it.
+
+The app has no sign-in. Everyone sees the same data. Abuse protection comes from AWS WAF on CloudFront, application rate limits in DynamoDB, a budget alarm, and an Anthropic spend limit.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[Visitor browser] -->|HTTPS| CF[CloudFront + AWS WAF<br/>per-IP rate rule]
+  CF -->|/| SPA[S3: React SPA]
+  CF -->|/api/*| APIGW[API Gateway HTTP API]
+  CF -->|/api/chat/*| CHATURL[Chat Function URL<br/>response streaming]
+  U <-->|WebSocket| WS[API Gateway WebSocket API]
+  U -->|pre-signed PUT| S3
+  APIGW --> API[API service<br/>FastAPI · LWA]
+  CHATURL --> CHAT[Chat service<br/>FastAPI · LWA streaming]
+  API --> DB[(Aurora PostgreSQL Serverless v2<br/>RDS Data API)]
+  API --> S3[(S3<br/>datasets/ · checks/ · uploads/)]
+  API --> DDB[(DynamoDB<br/>check-sessions · rate-limits · ws-connections)]
+  API --> CQ[SQS: check-queue]
+  API --> PQ[SQS FIFO: processing-queue]
+  CQ --> JW[Job workers image<br/>Playwright + Chromium<br/>check · analysis handlers]
+  PQ --> JW
+  JW --> DB
+  JW --> S3
+  JW --> DDB
+  JW --> CL[Anthropic Claude API]
+  CHAT --> CL
+  CHAT --> S3
+  CHAT --> DB
+  SCH[EventBridge Scheduler] --> SW[Sweeper job] --> DB
+  SW --> PQ
+  API --> EB[EventBridge bus<br/>dataset.status · check · chat events]
+  JW --> EB
+  SW --> EB
+  CHAT --> EB
+  EB --> XQ[SQS: push-queue] --> PUSH[Push consumer] --> WS
+  WS --> DDB
+  SM[Secrets Manager] -.-> API
+  SM -.-> CHAT
+  SM -.-> JW
+```
+
+No Service runs inside a VPC. The database is reached through the RDS Data API over HTTPS, so Services reach Claude and review sites directly with no NAT gateway. The Data API also avoids connection-pool exhaustion when many instances scale out, because it doesn't hold database connections per instance.
+
+### Services and images
+
+| Service | Image | Lambda mode | Container mode |
+|---|---|---|---|
+| API | `backend` | Lambda + LWA, behind API Gateway HTTP API | ECS service behind an ALB, `uvicorn app.api:app` |
+| Chat | `backend` | Lambda + LWA in response-streaming mode, Function URL | Same container as API or its own ECS service, `uvicorn app.chat:app` |
+| Job workers (check + analysis) | `workers` (backend + Playwright/Chromium) | Lambda with SQS event-source mappings, one function per queue | ECS service running `python -m app.consumer --queue check` / `--queue processing`, autoscaled on queue depth |
+| Push consumer | `backend` | Lambda with SQS event source | ECS service `python -m app.consumer --queue push` |
+| Sweeper | `backend` | Lambda invoked by EventBridge Scheduler every 5 minutes | ECS scheduled task `python -m app.jobs.sweep` |
+
+The Capture module (headless Chromium) runs in-process inside the job workers. It isn't a separate Service, so there is no internal HTTP hop and no extra auth to manage.
+
+### Technology choices
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| Frontend | React + TypeScript + Vite, served from S3 through CloudFront | Static, cheap, fast from the CDN |
+| HTTP services | Python 3.12, FastAPI, run on Lambda through the **AWS Lambda Web Adapter** | The same image runs as a normal HTTP server in a container; LWA also enables response streaming on Lambda |
+| Queue consumers | `app.consumer` runtime: an SQS event adapter for Lambda and a long-poll loop for containers, both calling the same `handle(message)` | One code path for both compute modes |
+| URL checks | SQS standard `check-queue`, one message per URL | Portable (containers can't receive Lambda async invokes); retries and DLQ come built in |
+| Dataset processing | **SQS FIFO** `processing-queue` (message group = dataset ID, dedup ID = `dataset_id:version`) with DLQ | One message per dataset at a time, across any number of worker instances |
+| Real-time push | EventBridge → SQS `push-queue` → push consumer → API Gateway WebSocket API; connection IDs in DynamoDB | Every async path is a queue consumer, so it scales the same way |
+| Relational store | **Aurora PostgreSQL Serverless v2** (minimum 0 ACU, auto-pause) through the **RDS Data API**; plain PostgreSQL 16 in Docker for local and CI | No VPC or NAT gateway, no connection pool to exhaust, near-zero idle cost. The first request after an auto-pause takes about 15 seconds while the database resumes |
+| Object store | S3, private, SSE-S3 | Required by the brief |
+| Shared counters and short-lived state | DynamoDB (on-demand) | Rate limits, check sessions, and WebSocket connections are shared across instances |
+| Edge protection | CloudFront + AWS WAF with a rate-based rule per IP and AWS managed common rules; CloudFront adds a secret `X-Origin-Verify` header that the Services require | Open app with no sign-in; stops direct calls that bypass the WAF |
+| AI | Anthropic Claude through the official Python SDK; model IDs set by config (a larger model for chat, a smaller one for page reading and classification) | Strong instruction-following for the scope guard; prompt caching fits whole-dataset context |
+| Infrastructure as code | AWS CDK (TypeScript) with a `computeMode` context value per Service (`lambda` now; `container` later) | One `cdk deploy`; the switch is in infrastructure only |
+| CI/CD | GitHub Actions with OIDC into AWS; images built once and pushed to ECR by digest | The same image digest is tested in containers and deployed to Lambda |
+| Migrations | Alembic, run as a one-off task before each deploy | Versioned schema changes |
+
+## Components and Interfaces
+
+### Repository layout
+
+```
+/infra            CDK app (stacks: Data, Edge, Api, Workers, Realtime, Frontend, Cost, TestFixtures; optional Containers)
+/backend
+  Dockerfile              backend image (API, chat, push, sweeper)
+  Dockerfile.workers      workers image (adds Playwright + Chromium)
+  /app
+    api.py        FastAPI app for the API service
+    chat.py       FastAPI app for the chat service
+    consumer.py   queue consumer runtime (Lambda SQS adapter + long-poll loop)
+    /handlers     check, processing, push message handlers
+    /jobs         sweep
+    /core         config, logging, db, rate_limit, origin_guard, errors, health
+    /db           SQLAlchemy models, Alembic migrations
+    /storage      S3 helpers and key builders
+    /events       EventBridge publisher
+    /capture      Playwright capture (used in-process by workers)
+    /extraction   page cleaning, AI review locator, extraction plans (review-extraction)
+  /tests          unit/, integration/, scale/
+/frontend
+  /src            React app
+  /tests          unit (Vitest + Testing Library)
+/e2e              Playwright end-to-end tests
+/fixtures-site    static review pages deployed to a public test site
+/evals            extraction and guardrail evaluation suites
+docker-compose.yml  every Service as a container + PostgreSQL + LocalStack + fixtures
+.github/workflows ci.yml, deploy.yml, evals.yml
+```
+
+### Shared backend modules
+
+- `core.config.Settings`: Pydantic settings from environment variables and Secrets Manager. Fields include:
+  - Crawl and data limits: `MAX_PAGES` (10), `MAX_REVIEWS` (1000), `MAX_URLS_PER_CHECK` (10), `CHECK_TIMEOUT_S` (60), `MAX_UPLOAD_MB` (10)
+  - Viability: `VIABILITY_MIN_REVIEWS` (5)
+  - Extraction: `EXTRACTION_STRATEGY` (`auto`), `EXTRACT_PAGE_TOKEN_BUDGET` (30000), `SELECTOR_MIN_AGREEMENT` (0.8)
+  - AI: `CLAUDE_CHAT_MODEL`, `CLAUDE_EXTRACT_MODEL`, `CLAUDE_PRECHECK_MODEL`, `CHAT_CORPUS_TOKEN_BUDGET` (150000)
+  - URL handling: `TRACKING_PARAMS`
+  - Rate limits: `RL_CHECKS_PER_IP_HOUR` (30), `RL_QUESTIONS_PER_IP_HOUR` (120), `RL_GLOBAL_AI_CALLS_PER_HOUR` (2000)
+  - Sweeper: `SWEEP_REQUESTED_AFTER_MIN` (5), `SWEEP_PROCESSING_STALE_MIN` (20)
+  - Environment: `SERVICE_NAME`, `ENV`, `ORIGIN_VERIFY_SECRET`, `SSRF_TEST_ALLOW_HOSTS` (empty; startup fails if set when `ENV=production`), `S3_BUCKET`, queue URLs, and the database connection (Data API ARNs in AWS, `DATABASE_URL` locally)
+- `core.db`: one SQLAlchemy engine factory. It uses the `sqlalchemy-aurora-data-api` driver in AWS and `psycopg` locally, so the rest of the code doesn't care which is in use.
+- `core.origin_guard`: FastAPI middleware that rejects requests without the correct `X-Origin-Verify` header (skipped for `/healthz` and `/readyz`, and in local development).
+- `core.rate_limit`: fixed-window counters in DynamoDB (`rate-limits`, TTL), keyed by action and by `sha256(client_ip)` or `global`. The client IP comes from CloudFront's `CloudFront-Viewer-Address` header. Exceeding a limit returns 429 with `Retry-After`.
+- `core.logging`: JSON logger to stdout with `service`, `instance_id`, `correlation_id`, and `dataset_id` from context variables.
+- `core.health`: `/healthz` (process alive) and `/readyz` (config loaded, database and S3 reachable).
+- `storage.keys`: the only place that builds S3 keys (see Data Models).
+- `db.status.transition(dataset_id, new_status, message, extra=None)`: updates `status` and appends to `status_detail` in one transaction, then publishes `dataset.status.changed`. Every status change goes through this function. `db.status.log_event()` appends a progress event without changing status.
+
+### Queue consumer runtime (`app.consumer`)
+
+```python
+class Handler(Protocol):
+    queue: str                                  # "check" | "processing" | "push"
+    def handle(self, body: dict, meta: MessageMeta) -> None: ...   # idempotent
+
+def lambda_entry(event, context): ...   # SQS event → handler, partial batch failures reported
+def run_poller(queue: str): ...         # long-poll loop for containers
+```
+
+- **Lambda mode:** SQS event-source mapping calls `lambda_entry`, which reports failed message IDs through `batchItemFailures`.
+- **Container mode:** `run_poller` long-polls (20 s), extends visibility while a handler is working (heartbeat every 30 s), deletes the message on success, and stops taking new messages on `SIGTERM`, finishing the current one within the ECS stop timeout.
+- `MessageMeta` carries the receive count, so handlers can detect the final attempt the same way in both modes.
+
+### Horizontal-scaling rules applied throughout
+
+| Concern | Rule |
+|---|---|
+| Duplicate or concurrent messages | Every handler is idempotent. Processing uses FIFO groups per dataset. Check items use a conditional DynamoDB update (`state = pending → checking`) so only one instance works on an item |
+| Races on creation | Unique indexes in Aurora (normalized URL), conditional writes in DynamoDB |
+| Scheduled jobs | The sweeper claims rows with `SELECT … FOR UPDATE SKIP LOCKED` inside a transaction, so several sweeper instances never act on the same row |
+| Caches | Only immutable data (a data version's review corpus) is cached in memory, keyed by `(dataset_id, version)` |
+| Local disk | Only `/tmp` for Chromium scratch files, cleared per message |
+| Configuration | Environment variables and Secrets Manager only |
+| Logs | stdout JSON; CloudWatch in both modes |
+
+## Data Models
+
+### `datasets` table
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | Generated by the server |
+| `name` | text | Page title by default; editable |
+| `page_title` | text null | From the captured page's `<title>` |
+| `source_type` | enum(`url`,`upload`) | |
+| `original_url` | text null | URL as entered; shown as the main URL |
+| `final_url` | text null | URL after redirects that returned 200 |
+| `normalized_url` | text null | Canonical form of `original_url`; unique for URL datasets (see dataset-ingestion) |
+| `normalized_final_url` | text null | Canonical form of `final_url`; indexed |
+| `platform` | text null | Host-derived label, for example `trustpilot.com`, or `csv` |
+| `status` | enum(`requested`,`processing`,`updated`,`failed`) | |
+| `status_detail` | JSONB | `{"events":[{"status","at","message","data"}], "redirects":[...], "viability":{...}}` |
+| `requested_at` | timestamptz | |
+| `updated_at` | timestamptz | Last update date (see note below) |
+| `archived_at` | timestamptz null | Soft archive |
+| `metrics` | JSONB null | Written by review-analysis, for the active version only |
+| `data_version` | int | Goes up on each refresh (latest version attempted) |
+| `active_version` | int null | Latest version that finished `updated`; read by the summary and chat (see review-analysis) |
+
+`updated_at` is set to the request time when the row is inserted, as the brief asks for a "last update date" on the new record. It is set again whenever processing completes.
+
+Indexes: `(archived_at, updated_at desc)`; a unique partial index on `normalized_url` where `source_type = 'url'`; an index on `normalized_final_url`; an index on `(status, updated_at)` for the sweeper.
+
+### `dataset_versions` table
+
+One row per data version: `(dataset_id, version)` PK, `trigger`, `requested_at`, `completed_at`, `review_count`, `extraction_method`, `outcome`. Columns are detailed in `dataset-ingestion`. It is written by the Refresh Service and ingestion, completed by review-analysis, and read by the Library and the chat refresh markers.
+
+### S3 key layout (`storage.keys`)
+
+```
+checks/{check_id}/{item_id}/page.html     temporary Check capture (deleted after 1 day)
+checks/{check_id}/{item_id}/snapshot.png  temporary Check screenshot
+checks/{check_id}/{item_id}/plan.json     temporary extraction plan from the Check
+uploads/{upload_id}/file                  pending upload via pre-signed PUT (deleted after 1 day)
+datasets/{id}/raw/v{n}/page-{k}.html      captured HTML per page
+datasets/{id}/raw/v{n}/plan.json          extraction plan used for this version
+datasets/{id}/raw/v{n}/upload.csv         uploaded file (upload datasets)
+datasets/{id}/raw/v{n}/mapping.json       column mapping for upload datasets
+datasets/{id}/snapshot/v{n}.png           above-the-fold screenshot
+datasets/{id}/reviews/v{n}.json           normalized reviews + entity profile
+datasets/{id}/chat/{iso_ts}-{uuid}.json   one object per Q&A exchange
+```
+
+### Event schemas
+
+All three are broadcast to every connected browser. The app has no users, so there's nothing to scope them to; each browser ignores events for checks or datasets it isn't displaying.
+
+`dataset.status.changed`:
+
+```json
+{ "dataset_id": "uuid", "status": "processing", "at": "ISO-8601",
+  "data_version": 3, "active_version": 2,
+  "message": "Fetching page 3 of 10", "metrics": { } }
+```
+
+`check.updated`:
+
+```json
+{ "check_id": "uuid", "item_id": "u1", "state": "done",
+  "verdict": { }, "existing_dataset": { } }
+```
+
+`chat.exchange.saved` (so everyone viewing a dataset sees new Q&A live):
+
+```json
+{ "dataset_id": "uuid", "exchange_id": "uuid", "data_version": 2, "asked_at": "ISO" }
+```
+
+## Correctness Properties
+
+Properties are tested with Hypothesis (backend).
+
+1. **Rate limits hold.** *For any* sequence of requests from any mix of client IPs within one window, the number allowed per IP SHALL NOT exceed the per-IP limit, and the total allowed SHALL NOT exceed the global limit. _Validates: Requirement 2.4_
+2. **No raw client IPs stored.** *For any* request, every rate-limit key, log line, and stored record SHALL contain only the hashed IP, never the raw IP. _Validates: Requirement 2.5_
+3. **Origin guard.** *For any* request whose `X-Origin-Verify` header is missing or differs from the secret, every non-health endpoint SHALL refuse it. _Validates: Requirement 2.3_
+4. **Batch failure reporting.** *For any* batch of SQS messages and any pattern of handler successes and failures, the Lambda adapter SHALL report exactly the failed message IDs, and the poller SHALL delete exactly the succeeded messages. _Validates: Requirements 3.4, 3.5_
+5. **Status history is append-only.** *For any* sequence of `transition()` and `log_event()` calls, `status_detail.events` SHALL be in time order, earlier events SHALL be unchanged, and the last status event SHALL equal the `status` column. _Validates: Requirement 4.4_
+6. **Keys stay in their prefix.** *For any* dataset ID, version, and page number, every permanent key SHALL start with `datasets/{id}/`, and different artifacts SHALL never produce the same key. _Validates: Requirement 5.1_
+
+## Error Handling
+
+- API errors return `{ "error": { "code": "...", "message": "..." } }` with the correct HTTP status. Stack traces appear only in logs.
+- Queue failures: SQS retries up to 3 times, then moves the message to a DLQ. On the final attempt (from `MessageMeta.receive_count`), handlers record a user-safe failure. A DLQ consumer also marks affected datasets `failed`, as a backstop for Lambda hard timeouts. SQS visibility timeouts are 6× the Lambda timeout, and in container mode the poller's heartbeat keeps messages invisible while they are being worked on.
+- A missing secret or configuration value stops startup with a clear log message, and `/readyz` reports not ready.
+- Abuse and cost protection: WAF rate-based rule (default 300 requests per 5 minutes per IP), application rate limits per IP and globally, an AWS Budgets alarm, and a spend limit in the Anthropic console.
+
+## Testing Strategy
+
+- **Backend unit tests (pytest):** config parsing (including the production allowlist refusal); key builders; the status transition function; the origin guard; rate-limit windows (per IP and global); the consumer runtime (Lambda batch failures, poller heartbeat, `SIGTERM` handling) with moto.
+- **Backend integration tests (pytest):** `docker-compose` runs PostgreSQL, LocalStack (S3, SQS, DynamoDB, EventBridge), the fixtures container, and every Service **as a container**. Tests call the API over HTTP and observe queues, S3, and the database.
+- **Scale test:** two instances of each queue consumer and two sweeper runs against the same queues; asserts no duplicate datasets, versions, check results, or Exchanges, and that FIFO processing never overlaps for one dataset.
+- **Frontend unit tests (Vitest + Testing Library).**
+- **End-to-end tests (Playwright):** against a deployed stack (Lambda mode) or local `docker-compose` (container mode), with the Claude client replaced by a recorded-fixture stub unless `E2E_LIVE_AI=1`.
+- **Fixture review pages:** SSRF protection blocks private addresses, so fixture pages served from `localhost` would always be refused. Deployed stacks point tests at `/fixtures-site`, published to a separate public S3 + CloudFront test site. Local runs set `SSRF_TEST_ALLOW_HOSTS=fixtures` for the compose fixture container. Production refuses to start with that setting.
+- **Data API parity:** integration tests run on plain PostgreSQL. A post-deploy smoke test runs reads and writes through the Data API driver to catch driver differences.
+- **CI:** lint (ruff, eslint), type checks (mypy, tsc), unit tests, image build, container integration tests, scale test, then `cdk synth`. Deploy runs only on `main` after every earlier step passes, and deploys the tested image digests. Coverage goes to the job summary.
