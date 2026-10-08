@@ -76,6 +76,14 @@ jobs:
     name: Deploy to production
     # Only deploy when the gating CI run succeeded (Req 1.4).
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Gate on the `production` GitHub Environment. This also makes the
+    # OIDC token `sub` claim deterministically
+    #   repo:OWNER/REPO:environment:production
+    # which the GithubOidc deploy-role trust policy already allows via its
+    # `repo:OWNER/REPO:environment:*` entry. A workflow_run-triggered job
+    # does NOT present `ref:refs/heads/main`, so the environment subject is
+    # the reliable match (and gives a place for deploy protection rules).
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

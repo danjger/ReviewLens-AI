@@ -146,3 +146,9 @@
   - Also clean up any Retain-policy leftovers a rolled-back attempt orphaned (the `check-sessions`/`rate-limits`/`ws-connections` tables and the stuck stack shell) before re-deploying.
   - Verify: `cdk synth ReviewLens-Data` builds; `cdk deploy ReviewLens-Data` creates the cluster + secrets + tables to `CREATE_COMPLETE`; CDK assertion tests stay green. DONE this session — Data stack deployed, Aurora 16.8 up, Data API enabled.
   - _Requirements: 6.1, 7.1_
+
+- [x] 19. Make the automated deploy assume the OIDC role (`workflow_run` subject) — see design.md → Known Issues
+  - Root cause (first automated deploy): CI passed and triggered Deploy, which failed at "Configure AWS credentials (OIDC)" with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. Role ARN, OIDC provider, and `aud` all matched; the `sub` condition rejected the token. `deploy.yml` runs on `workflow_run` (not `push`), so GitHub does NOT present `repo:danjger/ReviewLens-AI:ref:refs/heads/main`, and the trust policy's two allowed subjects didn't match.
+  - Fix (config only, no IAM change): add `environment: production` to the deploy job so the OIDC `sub` becomes `repo:OWNER/REPO:environment:production`, which the GithubOidc trust policy already allows via `repo:OWNER/REPO:environment:*`; and create the `production` environment in the repo (`gh api --method PUT .../environments/production`). Keep the trust policy least-privilege and unchanged.
+  - Verify: push to `main` → CI green → Deploy assumes the role past the OIDC step and proceeds to `cdk deploy`. DONE this session for the OIDC step; downstream deploy steps verified separately.
+  - _Requirements: 1.3, 1.4, 8.7_

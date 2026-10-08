@@ -327,3 +327,30 @@ every other stack), trivial fix. The rolled-back first attempt also left three
 Retain-policy DynamoDB tables (`check-sessions`, `rate-limits`,
 `ws-connections`) orphaned, which then blocked the retry with "already exists";
 they were empty, seconds-old, and deleted before re-deploying.
+
+### `workflow_run`-triggered deploy can't assume the OIDC role — subject mismatch
+
+Found by the first automated deploy (CI passed, Deploy failed at "Configure AWS
+credentials (OIDC)" with `Not authorized to perform
+sts:AssumeRoleWithWebIdentity`). The deploy role ARN, the OIDC provider, and the
+`aud` condition (`sts.amazonaws.com`) all matched; only the `sub` condition
+rejected the token.
+
+Root cause: `deploy.yml` is triggered by `workflow_run` (it waits for the CI
+workflow to finish), not by a direct `push`. The GithubOidc trust policy
+allowed `sub` of `repo:danjger/ReviewLens-AI:ref:refs/heads/main` and
+`...:environment:*`, but a `workflow_run`-triggered job does not present the
+`ref:refs/heads/main` subject, so neither allowed pattern matched.
+
+Fix (no IAM change): gate the deploy job on a GitHub Environment
+(`environment: production` in `deploy.yml`) and create that environment in the
+repo. GitHub then issues the token with
+`sub = repo:danjger/ReviewLens-AI:environment:production`, which the trust
+policy ALREADY allows via its `repo:OWNER/REPO:environment:*` entry. This keeps
+the trust least-privilege and unchanged, and gives a natural home for deploy
+protection rules later. (Alternative considered and rejected: widen the trust
+policy to a repo-scoped `sub` wildcard — looser than necessary when the
+environment subject is already trusted.)
+
+Severity: release-blocking for the automated deploy; config-only fix in
+`deploy.yml` + a one-time `gh api PUT .../environments/production`.
