@@ -161,6 +161,9 @@ export class ContainersStack extends cdk.Stack implements ComputeTier {
 
     this.checkDlq = new sqs.Queue(this, "CheckDlq", {
       queueName: "check-queue-dlq",
+      // Match the main queues' visibility so a 5-min consumer never has its
+      // dead-lettered message redelivered mid-flight.
+      visibilityTimeout: visibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });
@@ -177,6 +180,7 @@ export class ContainersStack extends cdk.Stack implements ComputeTier {
     this.processingDlq = new sqs.Queue(this, "ProcessingDlq", {
       queueName: "processing-queue-dlq.fifo",
       fifo: true,
+      visibilityTimeout: visibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });
@@ -194,6 +198,7 @@ export class ContainersStack extends cdk.Stack implements ComputeTier {
 
     this.pushDlq = new sqs.Queue(this, "PushDlq", {
       queueName: "push-queue-dlq",
+      visibilityTimeout: visibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });

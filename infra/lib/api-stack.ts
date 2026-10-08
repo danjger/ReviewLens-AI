@@ -163,6 +163,10 @@ export class ApiStack extends cdk.Stack implements ComputeTier {
     // check-queue (standard) + DLQ.
     this.checkDlq = new sqs.Queue(this, "CheckDlq", {
       queueName: "check-queue-dlq",
+      // The DLQ consumer Lambda has the worker timeout; a queue feeding a
+      // Lambda event source must have visibilityTimeout >= the function
+      // timeout, so match the main queues' 6x worker-timeout value.
+      visibilityTimeout: workerVisibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });
@@ -185,6 +189,8 @@ export class ApiStack extends cdk.Stack implements ComputeTier {
     this.processingDlq = new sqs.Queue(this, "ProcessingDlq", {
       queueName: "processing-queue-dlq.fifo",
       fifo: true,
+      // visibilityTimeout >= DLQ consumer Lambda timeout (see CheckDlq note).
+      visibilityTimeout: workerVisibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });
@@ -205,6 +211,8 @@ export class ApiStack extends cdk.Stack implements ComputeTier {
     // push-queue (standard) + DLQ.
     this.pushDlq = new sqs.Queue(this, "PushDlq", {
       queueName: "push-queue-dlq",
+      // visibilityTimeout >= DLQ consumer Lambda timeout (see CheckDlq note).
+      visibilityTimeout: workerVisibility,
       retentionPeriod: cdk.Duration.days(14),
       enforceSSL: true,
     });

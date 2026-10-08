@@ -165,3 +165,9 @@
   - Fix (adopt the newer, stricter mypy rather than pin): drop the redundant client casts in `app/storage/s3.py`, `app/realtime/connections.py`, `app/events/publisher.py`, `app/core/rate_limit.py`, `app/core/queue.py`, `app/handlers/push.py`, `app/ingestion/check_session.py`, removing the now-unused `cast` import where it was the only use (kept in `check_session.py`, which still casts elsewhere). For the two client factories that then tripped `[no-any-return]`, assign to an annotated local (`client: DynamoDBClient = boto3.client(...)`) and return it — keeps the type without a cast. Cross-spec note: these 7 files span several specs but this is one shared dev-tooling (mypy) drift, fixed here deliberately; behaviour unchanged.
   - Verify: `make lint` green against mypy 2.3.1 (ruff + format + `Success: no issues found in 94 source files`), frontend eslint/tsc green. `uv.lock` unchanged. DONE this session.
   - _Requirements: 8.1_
+
+- [x] 22. Set DLQ visibility timeout >= consumer Lambda timeout (deploy) — see design.md → Known Issues
+  - Root cause (first Workers deploy): the three DLQ event-source mappings failed with `Queue visibility timeout: 30 seconds is less than Function timeout: 300 seconds`. The DLQs had no `visibilityTimeout` (default 30s) while the DLQ consumer Lambda is 300s; AWS requires queue visibility >= function timeout for an SQS event source. Synth tests didn't catch it (runtime-only validation).
+  - Fix: add `visibilityTimeout: workerVisibility` to `CheckDlq`/`ProcessingDlq`/`PushDlq` in `api-stack.ts`; mirror on `containers-stack.ts` for parity. Delete the terminal `ROLLBACK_COMPLETE` Workers stack so the redeploy recreates it.
+  - Verify: 29 synth tests across api/workers/containers stacks pass; the Workers stack creates its DLQ event-source mappings. DONE this session (committed; next deploy validates).
+  - _Requirements: 1.3, 8.7_

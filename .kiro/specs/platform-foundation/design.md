@@ -387,3 +387,23 @@ the arm64 asset build runs under emulation. CI's `build-images` job was
 unaffected because it builds the images natively (no `--platform arm64`) just to
 validate and feed the container integration/scale tests; only the CDK asset
 build pins arm64.
+
+### DLQ event-source mapping rejected — DLQ visibility timeout < Lambda timeout
+
+Found by the first deploy that reached `ReviewLens-Workers` (images built, Data
+and Api stacks up). All three DLQ→DLQ-consumer `AWS::Lambda::EventSourceMapping`
+resources failed with: `Queue visibility timeout: 30 seconds is less than
+Function timeout: 300 seconds`, and the stack rolled back. AWS requires an SQS
+queue feeding a Lambda event source to have `visibilityTimeout >= the function
+timeout`. The MAIN queues set `visibilityTimeout = 6x worker timeout`, but the
+three DLQs (`CheckDlq`, `ProcessingDlq`, `PushDlq`) were created WITHOUT a
+visibility timeout, so they defaulted to 30s while the DLQ consumer Lambda has a
+300s timeout. CDK synth tests passed because this is a runtime AWS validation,
+not a synth-time one.
+
+Fix: set `visibilityTimeout: workerVisibility` on the three DLQs in
+`api-stack.ts` (and the same on `containers-stack.ts` for parity, where the DLQs
+feed ECS pollers rather than a Lambda event source — AWS does not enforce the
+rule there, but matching avoids mid-flight redelivery). The rolled-back
+`ReviewLens-Workers` stack (terminal `ROLLBACK_COMPLETE` from a failed initial
+create) was deleted so the next deploy recreates it cleanly.
