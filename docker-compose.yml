@@ -29,10 +29,16 @@ services:
       - localstack-data:/var/lib/localstack
       - ./infra/localstack-init:/etc/localstack/init/ready.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"running\"'"]
+      # Healthy only once LocalStack is running AND the init provisioning
+      # (infra/localstack-init/01-provision.sh) finished creating the queues,
+      # tables, and bus — signalled by the /tmp/localstack-ready sentinel.
+      # Dependents wait on `service_healthy`, so this closes the startup race
+      # where a consumer polled a not-yet-created SQS queue (QueueDoesNotExist)
+      # and crash-exited (seen intermittently in the CI scale test).
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"running\"' && test -f /tmp/localstack-ready"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 40
 
   # ── Fixtures web server (serves /fixtures-site for SSRF-safe test pages) ────
   fixtures:

@@ -60,3 +60,10 @@ echo "==> Creating EventBridge bus: reviewlens-events"
 $AWS events create-event-bus --name reviewlens-events 2>/dev/null || true
 
 echo "==> LocalStack provisioning complete"
+
+# Write a sentinel the compose healthcheck polls, so dependents that wait
+# for `localstack: service_healthy` only start AFTER every queue/table/bus
+# above exists. Without this, LocalStack reports "running" before these
+# init scripts finish, and a consumer can call ReceiveMessage on a
+# not-yet-created queue (QueueDoesNotExist) and crash on startup.
+touch /tmp/localstack-ready

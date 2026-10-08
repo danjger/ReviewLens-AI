@@ -183,3 +183,9 @@
   - Fix: make `app/core/health._check_database` mode-aware — in `settings.is_aws` run `SELECT 1` via the shared engine (Data API), else the psycopg path. `readiness()` signature unchanged so API + chat both get it. Added 2 unit tests for the AWS-mode branches.
   - Verify: `tests/unit/core/test_health.py` green (13 passed); lint/mypy clean; the deploy smoke test's `/readyz` returns 200. DONE this session (committed; next deploy validates the live smoke test).
   - _Requirements: 8.7_
+
+- [x] 25. Close the LocalStack provisioning race that flaked CI scale/integration — see design.md → Known Issues
+  - Root cause: `docker compose up -d --wait` intermittently failed because `push-consumer` polled an SQS queue before `infra/localstack-init/01-provision.sh` created it (`QueueDoesNotExist`) and crash-exited. LocalStack's healthcheck reported "running" before the init script finished, so `service_healthy` fired too early.
+  - Fix (compose only): init script `touch /tmp/localstack-ready` as its final step; LocalStack healthcheck requires `"running"` AND that sentinel (retries 40×5s). Dependents waiting on `service_healthy` now start only after queues/tables/bus exist.
+  - Verify: `make test-scale` from a fresh `-v` volume → all containers Healthy, push-consumer RestartCount 0, exit 0. DONE this session.
+  - _Requirements: 8.2, 8.8_

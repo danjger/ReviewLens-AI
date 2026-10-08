@@ -442,3 +442,24 @@ the app uses; otherwise keep the psycopg `DATABASE_URL` probe. Public
 `readiness()` signature unchanged, so both the API and chat services get the fix
 without touching their call sites. Added unit tests for both AWS-mode branches
 (healthy engine, and engine failure → unreachable).
+
+### Scale/integration CI flake: consumer polls an SQS queue before it exists
+
+The CI scale test (and intermittently integration) failed non-deterministically
+(~3 of 6 runs) during `docker compose up -d --wait`, before pytest ran:
+`push-consumer` exited (1) with `QueueDoesNotExist ... The specified queue does
+not exist` on its first `ReceiveMessage`. Root cause: consumers wait for
+`localstack: service_healthy`, but LocalStack's healthcheck only grepped the
+`/_localstack/health` "running" state, which flips true BEFORE the init script
+(`infra/localstack-init/01-provision.sh`, mounted at ready.d) finishes creating
+the queues/tables/bus. So a consumer could start and poll a not-yet-created
+queue and crash, failing `up --wait`.
+
+Fix (compose/test-harness only): the init script writes a `/tmp/localstack-ready`
+sentinel as its last step, and the LocalStack healthcheck requires both
+"running" AND that sentinel. `service_healthy` now means "provisioning
+complete", so no consumer starts early. Verified: `make test-scale` from a fresh
+volume brings every container up Healthy with push-consumer RestartCount 0 and
+exits 0. No runtime consumer code changed (a bounded startup retry in the
+consumer is a possible future hardening for production, where a missing queue is
+a real error rather than a startup-ordering artifact).
