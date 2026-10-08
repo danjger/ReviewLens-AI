@@ -151,8 +151,16 @@ export class GithubOidcStack extends cdk.Stack {
     // `sub` claim formats GitHub Actions presents:
     //   repo:OWNER/REPO:ref:refs/heads/main   – a run on the main branch
     //   repo:OWNER/REPO:environment:NAME      – a run in a GitHub Environment
-    // We allow both so the pipeline can optionally gate the deploy behind a
-    // GitHub Environment. The `aud` claim is pinned to sts.amazonaws.com.
+    // We allow both so the pipeline can gate the deploy behind a GitHub
+    // Environment. The `aud` claim is pinned to sts.amazonaws.com.
+    //
+    // IMMUTABLE SUBJECT CLAIMS: repos created, renamed, or transferred after
+    // mid-2026 emit the subject with immutable numeric owner/repo IDs, e.g.
+    //   repo:OWNER@<ownerId>/REPO@<repoId>:environment:production
+    // (verified live for this repo). The `OWNER*`/`REPO*` patterns below match
+    // BOTH the legacy name-only form and the immutable `@<id>` form, while the
+    // literal owner+repo names keep the trust scoped to this repository only.
+    // The `*` sits only where the optional `@<id>` suffix appears.
     const principal = new iam.OpenIdConnectPrincipal(
       // Reference the provider by ARN; works whether it was created here or
       // imported, without forcing a construct dependency on the import path.
@@ -167,8 +175,8 @@ export class GithubOidcStack extends cdk.Stack {
         },
         StringLike: {
           [`${GITHUB_OIDC_PROVIDER_DOMAIN}:sub`]: [
-            `repo:${owner}/${repo}:ref:refs/heads/main`,
-            `repo:${owner}/${repo}:environment:*`,
+            `repo:${owner}*/${repo}*:ref:refs/heads/main`,
+            `repo:${owner}*/${repo}*:environment:*`,
           ],
         },
       }

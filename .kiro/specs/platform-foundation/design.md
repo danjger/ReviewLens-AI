@@ -354,3 +354,18 @@ environment subject is already trusted.)
 
 Severity: release-blocking for the automated deploy; config-only fix in
 `deploy.yml` + a one-time `gh api PUT .../environments/production`.
+
+UPDATE (same session, after live debug): the environment gating alone did NOT
+fix it — a second deploy still failed at the OIDC step. A temporary debug step
+in `deploy.yml` printed the real token subject:
+`repo:danjger@984525/ReviewLens-AI@1398576857:environment:production`. The true
+root cause is GitHub's immutable subject claims: repos created/renamed/
+transferred after mid-2026 embed immutable numeric owner and repo IDs
+(`owner@<id>/repo@<id>`) in `sub`, so even the `environment:production` form did
+not match the name-only `repo:danjger/ReviewLens-AI:environment:*` pattern.
+Final fix: broaden the trust `sub` patterns to `repo:danjger*/ReviewLens-AI*:...`
+(the `*` covers the optional `@<id>` suffix on owner and repo while keeping the
+trust scoped to this owner+repo). Applied to the live role via
+`iam update-assume-role-policy` and to `infra/lib/github-oidc-stack.ts` so a
+future `cdk deploy ReviewLens-GithubOidc` reproduces it. The environment gating
+is kept — it makes the subject deterministic and a place for protection rules.
