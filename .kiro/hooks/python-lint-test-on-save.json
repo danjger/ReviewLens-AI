@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint and test on Python save",
+      "trigger": "PostFileSave",
+      "description": "On save of any backend/app Python file, run ruff lint+format check and the matching unit test file.",
+      "matcher": "backend/app/.*\\.py$",
+      "action": {
+        "type": "command",
+        "command": "#!/usr/bin/env zsh\nset -euo pipefail\n\n# Parse the saved file path from hook stdin\nSAVED_FILE=$(echo \"$KIRO_HOOK_INPUT\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file',''))\" 2>/dev/null || echo \"\")\n\nif [[ -z \"$SAVED_FILE\" ]]; then\n  echo \"No file path received; skipping.\"\n  exit 0\nfi\n\nWORKSPACE=\"/Users/dan/kiro/experiments/ReviewLens-AI\"\ncd \"$WORKSPACE\"\n\necho \"=== ruff: $SAVED_FILE ===\"\nuv run ruff check \"$SAVED_FILE\"\nuv run ruff format --check \"$SAVED_FILE\"\n\n# Derive the corresponding unit test file\n# backend/app/foo/bar.py -> tests/unit/foo/test_bar.py\nREL=\"${SAVED_FILE#backend/app/}\"          # foo/bar.py\nDIR=$(dirname \"$REL\")                     # foo\nBASE=$(basename \"$REL\" .py)               # bar\nTEST_FILE=\"backend/tests/unit/${DIR}/test_${BASE}.py\"\n\nif [[ -f \"$TEST_FILE\" ]]; then\n  echo \"\"\n  echo \"=== pytest: $TEST_FILE ===\"\n  uv run pytest \"$TEST_FILE\" -q\nelse\n  echo \"\"\n  echo \"(no unit test file found at $TEST_FILE; skipping pytest)\"\nfi\n",
+        "timeout": 60
+      }
+    }
+  ]
+}

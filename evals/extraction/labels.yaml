@@ -1,0 +1,223 @@
+# Extraction evaluation labels (review-extraction, Requirement 8.1).
+#
+# Each top-level key is a page name that matches a directory under pages/
+# (pages/<name>/page.html holds the saved, already-rendered HTML).
+#
+# Schema per page:
+#   url:        str   — the page's original URL (used as the extraction URL and
+#                       for same-domain next-page checks).
+#   verdict:    str   — hand-checked viability verdict, one of:
+#                         will_work | limited | wont_work
+#                       (The run.py scorer treats this column as OPTIONAL and
+#                        pluggable: dataset-ingestion's ingestion.viability.assess()
+#                        adds the verdict-accuracy column to the report LATER,
+#                        once that spec exists. run.py does not import viability.)
+#   type:       str   — primary layout type (free-form, see tags below).
+#   tags:       [str] — layout tags; the seed MUST cover every required tag in
+#                       REQUIRED_LAYOUT_TAGS (see run.py). A page may carry
+#                       several tags.
+#   next_page:  str|null — the expected absolute next-page URL, or null when the
+#                       page has no URL-based next page.
+#   reviews:    [ {prefix, rating?, date?, author?} ]
+#               — the hand-checked expected reviews, in page order. `prefix` is a
+#                 leading substring of the review's visible text (enough to match
+#                 unambiguously). rating/date/author are the expected field
+#                 values (omit a field when the page does not carry it). Ordering
+#                 of the list is not asserted; reviews are matched to extracted
+#                 reviews by normalized-text containment on `prefix`.
+#
+# Layout tags used across the seed (every one is represented at least once):
+#   structured_jsonld, structured_microdata, js_rendered, plain_list,
+#   no_ratings, multipage, mixed_qa_seller, blocker
+
+structured_jsonld:
+  url: https://acme.example.com/crm/reviews
+  verdict: will_work
+  type: structured_jsonld
+  tags: [structured_jsonld]
+  next_page: null
+  selectors:
+    item: "article.review-card"
+    text: ".review-body"
+    rating: ".stars"
+    date: "time"
+    author: ".reviewer-name"
+    title: "h3"
+  reviews:
+    - prefix: "Transformed our pipeline and the setup took one afternoon"
+      rating: 5
+      date: "2024-02-11"
+      author: "Dana Fox"
+    - prefix: "Solid product overall, though the reporting module is thin"
+      rating: 4
+      date: "2024-01-28"
+      author: "Priya N."
+    - prefix: "The mobile app lags badly on older phones"
+      rating: 2
+      date: "2023-12-05"
+      author: "Marcus Lee"
+
+structured_microdata:
+  url: https://orchid.example.com/hotel/reviews
+  verdict: will_work
+  type: structured_microdata
+  tags: [structured_microdata]
+  next_page: null
+  selectors:
+    item: ".guest-review"
+    text: "[itemprop='reviewBody']"
+    rating: ".stars"
+    date: "time"
+    author: "[itemprop='author'] [itemprop='name']"
+  reviews:
+    - prefix: "The rooftop breakfast overlooking the harbour was the highlight"
+      rating: 5
+      date: "2024-07-01"
+      author: "Isabelle M."
+    - prefix: "Central location and comfortable beds, but the walls are thin"
+      rating: 3
+      date: "2024-06-15"
+      author: "Hassan R."
+
+js_rendered:
+  url: https://nimbus.example.com/app/reviews
+  verdict: will_work
+  type: js_rendered
+  tags: [js_rendered, plain_list]
+  next_page: null
+  selectors:
+    item: ".rv"
+    text: ".rv-text"
+    rating: ".rv-score"
+    date: ".rv-date"
+    author: ".rv-author"
+  reviews:
+    - prefix: "Sync is instant across my laptop and phone"
+      rating: 5
+      date: "2024-05-14"
+      author: "Jordan P."
+    - prefix: "Clean interface and fast search, but I wish nested tags"
+      rating: 4
+      date: "2024-05-02"
+      author: "Lena S."
+    - prefix: "Lost a page of notes after an update and support was slow"
+      rating: 2
+      date: "2024-04-18"
+      author: "Kofi A."
+
+plain_list:
+  url: https://bluebird.example.com/grinder/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list]
+  next_page: null
+  selectors:
+    item: ".review"
+    text: ".text"
+    rating: ".rating"
+    date: ".date"
+    author: ".author"
+  reviews:
+    - prefix: "Grinds evenly and quietly, and the burrs feel genuinely sturdy"
+      rating: 5
+      date: "2024-03-03"
+      author: "Helen R."
+    - prefix: "Great grind consistency for pour-over, but the hopper is small"
+      rating: 4
+      date: "2024-02-19"
+      author: "Tomás G."
+    - prefix: "Decent machine for the price, though static makes grounds stick"
+      rating: 3
+      date: "2024-01-07"
+      author: "Wei Zhang"
+    - prefix: "Replaced a much pricier grinder and honestly cannot tell"
+      rating: 5
+      date: "2023-12-22"
+      author: "Sofia M."
+
+no_ratings:
+  url: https://harbor.example.com/books/lantern-keeper/comments
+  verdict: limited
+  type: no_ratings
+  tags: [no_ratings, plain_list]
+  next_page: null
+  selectors:
+    item: ".comment"
+    text: ".body"
+    date: ".when"
+    author: ".by"
+  reviews:
+    - prefix: "A quiet, patient novel that rewards slow reading"
+      author: "Nadia"
+    - prefix: "I could not put it down. The lighthouse setting"
+      author: "Oliver K."
+    - prefix: "Beautiful prose, thin plot. If you want atmosphere"
+      author: "Reader4821"
+
+multipage_listing:
+  url: https://shop.example.com/zephyr/reviews?page=1
+  verdict: will_work
+  type: multipage
+  tags: [multipage, plain_list]
+  next_page: https://shop.example.com/zephyr/reviews?page=2
+  selectors:
+    item: "article.review-card"
+    text: ".review-body"
+    rating: ".rating-badge"
+    date: "time"
+    author: ".reviewer-name"
+  reviews:
+    - prefix: "Light and springy on long runs, and the upper breathes"
+      rating: 4
+      date: "2024-04-02"
+      author: "Grace H."
+    - prefix: "Best trainer I have owned for tempo work"
+      rating: 5
+      date: "2024-03-30"
+      author: "Daniel O."
+    - prefix: "Comfortable but runs narrow. I usually take a nine"
+      rating: 3
+      date: "2024-03-21"
+      author: "Amara J."
+
+mixed_qa_seller:
+  url: https://outfitters.example.com/summit-tent-2p/reviews
+  verdict: will_work
+  type: mixed_qa_seller
+  tags: [mixed_qa_seller, plain_list]
+  next_page: null
+  selectors:
+    item: ".customer-reviews .entry.review"
+    text: ".prose"
+    rating: ".stars"
+    date: "time"
+    author: ".name"
+  reviews:
+    - prefix: "Pitched it in a storm on an exposed ridge and stayed bone dry"
+      rating: 5
+      date: "2024-06-10"
+      author: "Riley T."
+    - prefix: "Roomy for two with gear and the vestibule is huge"
+      rating: 4
+      date: "2024-05-27"
+      author: "Beatriz C."
+    - prefix: "Good tent but the zippers snag on the storm flap constantly"
+      rating: 3
+      date: "2024-05-09"
+      author: "Noah F."
+
+blocker_consent:
+  url: https://gatewall.example.com/product/reviews
+  verdict: wont_work
+  type: blocker
+  tags: [blocker]
+  next_page: null
+  reviews: []
+
+blocker_empty:
+  url: https://spa.example.com/reviews
+  verdict: wont_work
+  type: blocker
+  tags: [blocker]
+  next_page: null
+  reviews: []

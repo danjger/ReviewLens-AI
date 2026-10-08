@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Nimbus Notes App — Reviews</title>
+    <!--
+      This fixture represents the page AS CAPTURED after client-side rendering.
+      In production, rendering happens upstream (Playwright/Chromium in the
+      capture package); the Extraction Engine only ever sees post-render HTML.
+      The script below is the kind of hydration code that would have produced
+      the markup; it is inert here and is stripped by the cleaner.
+    -->
+    <script>
+      // Hydration placeholder — not executed by the extraction engine.
+      window.__REVIEWS__ = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    </script>
+  </head>
+  <body>
+    <div id="app" data-rendered="true">
+      <header><nav><a href="/">Nimbus</a></nav></header>
+      <main>
+        <h1>Nimbus Notes App</h1>
+        <div class="review-stream" data-hydrated="1">
+          <div class="rv" data-review-id="1">
+            <span class="rv-author">Jordan P.</span>
+            <span class="rv-score" data-rating="5">★★★★★</span>
+            <span class="rv-date">2024-05-14</span>
+            <div class="rv-text">Sync is instant across my laptop and phone, and offline edits merge cleanly every single time. A joy to use.</div>
+          </div>
+          <div class="rv" data-review-id="2">
+            <span class="rv-author">Lena S.</span>
+            <span class="rv-score" data-rating="4">★★★★☆</span>
+            <span class="rv-date">2024-05-02</span>
+            <div class="rv-text">Clean interface and fast search, but I wish nested tags were supported because my notebooks get large quickly.</div>
+          </div>
+          <div class="rv" data-review-id="3">
+            <span class="rv-author">Kofi A.</span>
+            <span class="rv-score" data-rating="2">★★☆☆☆</span>
+            <span class="rv-date">2024-04-18</span>
+            <div class="rv-text">Lost a page of notes after an update and support was slow to respond. The export options are also quite limited.</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

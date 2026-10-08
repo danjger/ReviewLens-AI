@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Scaffold the repository and tooling
+- [x] 1. Scaffold the repository and tooling
   - Create the `/infra`, `/backend`, `/frontend`, `/e2e`, `/fixtures-site`, and `/evals` directories as laid out in the design
   - Add ruff, mypy, and pytest config for the backend; eslint, tsc, and Vitest for the frontend
   - Add `.env.example` that lists every required variable
@@ -8,103 +8,134 @@
   - Write a README with local setup, environment variables, deploy steps, compute modes, cost controls, and an architecture summary
   - _Requirements: 1.2, 1.5, 6.2, 7.5_
 
-- [ ] 2. Build the container images and local environment
-  - [ ] 2.1 Write `Dockerfile` (backend) and `Dockerfile.workers` (backend plus Playwright and Chromium), both including the AWS Lambda Web Adapter so they run on Lambda and as plain containers
+- [x] 2. Build the container images and local environment
+  - [x] 2.1 Write `Dockerfile` (backend) and `Dockerfile.workers` (backend plus Playwright and Chromium), both including the AWS Lambda Web Adapter so they run on Lambda and as plain containers
     - _Requirements: 3.2, 3.3_
-  - [ ] 2.2 Write `docker-compose.yml` running the API, chat, job workers, push consumer, and sweeper as containers, plus PostgreSQL, LocalStack, and a fixtures container serving `/fixtures-site`
+  - [x] 2.2 Write `docker-compose.yml` running the API, chat, job workers, push consumer, and sweeper as containers, plus PostgreSQL, LocalStack, and a fixtures container serving `/fixtures-site`
     - _Requirements: 3.8, 8.6_
-  - [ ] 2.3 Add `/healthz` and `/readyz` to every HTTP Service and to the consumer runtime (small HTTP listener in container mode)
+  - [x] 2.3 Add `/healthz` and `/readyz` to every HTTP Service and to the consumer runtime (small HTTP listener in container mode)
     - _Requirements: 3.7_
 
-- [ ] 3. Implement shared backend core
-  - [ ] 3.1 Implement `core.config.Settings` with all tunable limits and Secrets Manager loading
+- [x] 3. Implement shared backend core
+  - [x] 3.1 Implement `core.config.Settings` with all tunable limits and Secrets Manager loading
     - Fail startup when `SSRF_TEST_ALLOW_HOSTS` is set and `ENV=production`
     - Write unit tests for defaults, overrides, a missing secret, and the production allowlist refusal
     - _Requirements: 6.1, 6.3, 8.6_
-  - [ ] 3.2 Implement the structured JSON logger with service, instance, correlation, and dataset context
+  - [x] 3.2 Implement the structured JSON logger with service, instance, correlation, and dataset context
     - Add FastAPI middleware that assigns a correlation ID to each request
     - Write unit tests that assert the log shape
     - _Requirements: 9.1_
-  - [ ] 3.3 Implement the global error handler that returns the generic error envelope
+  - [x] 3.3 Implement the global error handler that returns the generic error envelope
     - Write unit tests for handled errors and unhandled exceptions
     - _Requirements: 9.2_
-  - [ ] 3.4 Implement `storage.keys` and the S3 helper functions, including the `checks/` and `uploads/` prefixes
+  - [x] 3.4 Implement `storage.keys` and the S3 helper functions, including the `checks/` and `uploads/` prefixes
     - Write unit tests for every key builder
     - _Requirements: 5.1_
-  - [ ] 3.5 Implement `core.origin_guard` middleware
+  - [x] 3.5 Implement `core.origin_guard` middleware
     - Write unit tests for missing, wrong, and correct headers and the health-endpoint exemption
     - _Requirements: 2.3_
-  - [ ] 3.6 Implement `core.rate_limit` with DynamoDB fixed-window counters keyed by hashed client IP and globally, returning 429 with `Retry-After`
+  - [x] 3.6 Implement `core.rate_limit` with DynamoDB fixed-window counters keyed by hashed client IP and globally, returning 429 with `Retry-After`
     - Write unit tests for window rollover, per-IP limits, and global limits
     - _Requirements: 2.4, 2.5_
 
-- [ ] 4. Implement the queue consumer runtime
-  - [ ] 4.1 Implement `app.consumer` with the `Handler` protocol, the Lambda SQS adapter (partial batch failures), and the container long-poll loop (visibility heartbeat, graceful `SIGTERM`)
+- [x] 4. Implement the queue consumer runtime
+  - [x] 4.1 Implement `app.consumer` with the `Handler` protocol, the Lambda SQS adapter (partial batch failures), and the container long-poll loop (visibility heartbeat, graceful `SIGTERM`)
     - _Requirements: 3.4, 3.7_
-  - [ ] 4.2 Write unit tests for both adapters calling the same handler, final-attempt detection from the receive count, heartbeat extension, and shutdown mid-message
+  - [x] 4.2 Write unit tests for both adapters calling the same handler, final-attempt detection from the receive count, heartbeat extension, and shutdown mid-message
     - _Requirements: 3.4, 3.5, 3.7_
 
-- [ ] 5. Implement the data layer
-  - [ ] 5.1 Implement `core.db` with the Data API driver in AWS and psycopg locally
+- [x] 5. Implement the data layer
+  - [x] 5.1 Implement `core.db` with the Data API driver in AWS and psycopg locally
     - _Requirements: 4.1, 7.4_
-  - [ ] 5.2 Create the SQLAlchemy `Dataset` and `DatasetVersion` models and the first Alembic migration
+  - [x] 5.2 Create the SQLAlchemy `Dataset` and `DatasetVersion` models and the first Alembic migration
     - Include the status enum constraint, JSONB columns, `data_version` and `active_version`, the normalized URL columns, and indexes (the unique normalized-URL index can land here or in `dataset-ingestion` task 5)
     - _Requirements: 4.2, 4.3, 4.5, 4.6_
-  - [ ] 5.3 Implement `db.status.transition()` and `db.status.log_event()` with an atomic update, a `status_detail` append, and an EventBridge publish
+  - [x] 5.3 Implement `db.status.transition()` and `db.status.log_event()` with an atomic update, a `status_detail` append, and an EventBridge publish
     - Write unit tests with moto for EventBridge
     - Write integration tests against PostgreSQL that confirm the event history is kept in order
     - _Requirements: 4.4_
 
-- [ ] 6. Define infrastructure with CDK
-  - [ ] 6.1 Data stack: Aurora PostgreSQL Serverless v2 (min 0 ACU, Data API enabled), a private S3 bucket with SSE, public access blocked, and lifecycle rules deleting `checks/` and `uploads/` after 1 day, DynamoDB tables (`rate-limits`, `check-sessions`, `ws-connections`), and Secrets Manager entries
+- [x] 6. Define infrastructure with CDK
+  - [x] 6.1 Data stack: Aurora PostgreSQL Serverless v2 (min 0 ACU, Data API enabled), a private S3 bucket with SSE, public access blocked, and lifecycle rules deleting `checks/` and `uploads/` after 1 day, DynamoDB tables (`rate-limits`, `check-sessions`, `ws-connections`), and Secrets Manager entries
     - _Requirements: 4.1, 5.1, 5.2, 5.3, 6.1, 7.1, 7.4_
-  - [ ] 6.2 Edge stack: CloudFront distribution with behaviors for the SPA, `/api/*`, and `/api/chat/*`; AWS WAF with a per-IP rate-based rule and managed common rules; the `X-Origin-Verify` custom origin header
+  - [x] 6.2 Edge stack: CloudFront distribution with behaviors for the SPA, `/api/*`, and `/api/chat/*`; AWS WAF with a per-IP rate-based rule and managed common rules; the `X-Origin-Verify` custom origin header
     - _Requirements: 1.1, 2.2, 2.3, 7.2_
-  - [ ] 6.3 Api stack in Lambda mode: API service Lambda (container image, no VPC) behind an HTTP API; chat service Lambda with a streaming Function URL; EventBridge bus; `check-queue`, FIFO `processing-queue`, and `push-queue` with DLQs
+  - [x] 6.3 Api stack in Lambda mode: API service Lambda (container image, no VPC) behind an HTTP API; chat service Lambda with a streaming Function URL; EventBridge bus; `check-queue`, FIFO `processing-queue`, and `push-queue` with DLQs
     - _Requirements: 1.1, 3.2, 7.1, 7.4_
-  - [ ] 6.4 Workers stack in Lambda mode: job-worker Lambdas (workers image) with SQS event sources, the push consumer Lambda, the DLQ consumer, and the sweeper Lambda on an EventBridge Scheduler schedule
+  - [x] 6.4 Workers stack in Lambda mode: job-worker Lambdas (workers image) with SQS event sources, the push consumer Lambda, the DLQ consumer, and the sweeper Lambda on an EventBridge Scheduler schedule
     - _Requirements: 3.4, 3.6_
-  - [ ] 6.5 Organize the CDK code so each Service reads a `computeMode` context value, with `lambda` implemented and `container` wired to the optional Containers stack
+  - [x] 6.5 Organize the CDK code so each Service reads a `computeMode` context value, with `lambda` implemented and `container` wired to the optional Containers stack
     - _Requirements: 3.9_
-  - [ ] 6.6 Frontend stack: S3 origin for the SPA
+  - [x] 6.6 Frontend stack: S3 origin for the SPA
     - _Requirements: 7.2_
-  - [ ] 6.7 Cost stack: AWS Budgets monthly alarm with email notification
+  - [x] 6.7 Cost stack: AWS Budgets monthly alarm with email notification
     - _Requirements: 7.5_
-  - [ ] 6.8 Test fixtures stack: public S3 + CloudFront site publishing `/fixtures-site`, deployed only to non-production accounts
+  - [x] 6.8 Test fixtures stack: public S3 + CloudFront site publishing `/fixtures-site`, deployed only to non-production accounts
     - _Requirements: 8.6_
-  - [ ] 6.9 Write CDK assertion tests: bucket encryption, blocked public access, lifecycle rules, WAF attached with a rate rule, origin header configured, no Lambda attached to a VPC, no NAT gateway, and DLQs on every queue
+  - [x] 6.9 Write CDK assertion tests: bucket encryption, blocked public access, lifecycle rules, WAF attached with a rate rule, origin header configured, no Lambda attached to a VPC, no NAT gateway, and DLQs on every queue
     - _Requirements: 2.2, 2.3, 5.1, 5.2, 5.3, 7.4_
-  - [ ]* 6.10 Containers stack (optional until load requires it): ECS Fargate services for the API, chat, job workers, and push consumer using the same image digests, an ALB behind CloudFront, queue-depth autoscaling for workers, CPU autoscaling for HTTP services, and an ECS scheduled task for the sweeper
+  - [x] 6.10 Containers stack (optional until load requires it): ECS Fargate services for the API, chat, job workers, and push consumer using the same image digests, an ALB behind CloudFront, queue-depth autoscaling for workers, CPU autoscaling for HTTP services, and an ECS scheduled task for the sweeper
     - _Requirements: 3.2, 3.9_
 
-- [ ] 7. Set up the CI/CD pipeline
-  - [ ] 7.1 Create `ci.yml`: lint, type check, unit tests, build both images, run the container integration tests with `docker-compose`, run the scale test, coverage summary, and `cdk synth`
+- [x] 7. Set up the CI/CD pipeline
+  - [x] 7.1 Create `ci.yml`: lint, type check, unit tests, build both images, run the container integration tests with `docker-compose`, run the scale test, coverage summary, and `cdk synth`
     - _Requirements: 8.1, 8.2, 8.4, 8.5, 8.7, 8.8_
-  - [ ] 7.2 Add a `GithubOidc` CDK stack (OIDC provider and a least-privilege deploy role, deployed once by hand), and create `deploy.yml` that runs on `main` after CI passes: push the tested image digests to ECR, run Alembic migrations as a one-off task, `cdk deploy` with GitHub OIDC, upload the frontend, invalidate CloudFront, and run the Lambda-mode smoke test (including the Data API read and write)
+  - [x] 7.2 Add a `GithubOidc` CDK stack (OIDC provider and a least-privilege deploy role, deployed once by hand), and create `deploy.yml` that runs on `main` after CI passes: push the tested image digests to ECR, run Alembic migrations as a one-off task, `cdk deploy` with GitHub OIDC, upload the frontend, invalidate CloudFront, and run the Lambda-mode smoke test (including the Data API read and write)
     - _Requirements: 1.3, 1.4, 8.7_
 
-- [ ] 8. Add AI call instrumentation
+- [x] 8. Add AI call instrumentation
   - Wrap the Anthropic client in a service that logs purpose, model, input and output tokens, cache hits, and latency, and checks the global AI-call rate limit
   - Add `FakeClaude` in `tests/support/ai.py`, replaying recorded responses from `tests/fixtures/ai/`, and a `make record-ai` target that records new ones with the live model
   - Write unit tests for logging, the global limit, and the stub
   - _Requirements: 9.3, 2.4, 8.3_
 
-- [ ] 9. Write the scale test
+- [x] 9. Write the scale test
   - Start two instances of each queue consumer and run the sweeper twice concurrently against shared LocalStack queues and PostgreSQL
   - Assert no duplicate datasets, versions, check results, or Exchanges, and no overlapping processing of one dataset
   - _Requirements: 3.1, 3.5, 3.6, 8.8_
 
-- [ ] 10. Build the end-to-end test harness
+- [x] 10. Build the end-to-end test harness
   - Set up the Playwright project, the AI stub toggle, and the fixture-site base URL per environment
   - Write the smoke E2E test: open the app and see the empty dataset library without signing in
   - The full main-flow E2E test is completed in the `guardrailed-chat` spec
   - _Requirements: 2.1, 8.3, 8.6_
 
-- [ ] 11. Write the API performance test
+- [x] 11. Write the API performance test
   - Add `tests/perf/test_api_latency.py` that seeds 1,000 reviews and asserts p95 latency under 500 ms for the list and summary endpoints against the container integration environment
   - Run it in CI as a separate, non-blocking job that reports the numbers
   - _Requirements: 7.3_
 
-- [ ] 12. Write property-based tests for the Correctness Properties
+- [x] 12. Write property-based tests for the Correctness Properties
   - Implement one property test per property in the design (Hypothesis), each tagged with its property number
   - _Requirements: 2.3, 2.4, 2.5, 3.4, 3.5, 4.4, 5.1_
+- [x] 13. Make the shared DynamoDB test-table setup collision-safe
+  - Fix the `ResourceInUseException: Table already exists: rate-limits` failures that break the backend unit and property suites which create the `rate-limits` table under moto (`tests/unit/worker/ai/*`, `tests/unit/extraction/*`, `tests/unit/core/test_ai.py`, `tests/unit/core/test_rate_limit.py`, `tests/property/test_rate_limit.py`, and others). Root cause (verified): the moto backend persists across `@mock_aws`-decorated tests in the same process, so each test's `create_table` collides with a table a prior test created — a test fails even run on its own, and within one module the earliest tests pass while every later one fails.
+  - Replace the duplicated per-module `_create_rate_limit_table()` / `_create_table()` helpers with a single shared, idempotent setup (a fixture in `tests/conftest.py`, or an `ensure_table` helper) that either tolerates an already-existing table or guarantees a freshly-reset moto backend per test, so table creation is safe regardless of test order or what a prior test left behind. Keep the real provisioned schema (PK, PAY_PER_REQUEST, TTL) the current helpers use.
+  - Apply the same treatment to the other moto-created tables that use the copy-paste pattern (`check-sessions`, `ws-connections`) if they share the same hazard.
+  - Confirm `make test` (backend unit + property) runs green from a clean checkout and that no single test file fails in isolation; note any remaining failures that are genuinely about a different cause.
+  - _Requirements: 8.1_
+- [x] 14. Pin worker image dependencies to `uv.lock` and fix the capture greenlet crash
+  - Root cause (verified): `Dockerfile.workers` installs deps with `uv pip install --system "."`, which resolves from the open-ended `pyproject.toml` floors instead of `uv.lock`, so a rebuilt image floats above the locked versions. This is the common cause of `docs/known-issues-live-stack.md` Issues 1 (selectolax floated to 1.0) and 2 (newer Playwright/greenlet surfaced the capture crash). The lockfile already has the known-good versions (playwright 1.63.0, greenlet 3.5.6, selectolax 0.4.13).
+  - Make both images install the locked dependency set: copy `uv.lock` into the build context and install with `uv sync --frozen` (or an equivalent locked install) in `Dockerfile` and `Dockerfile.workers`, so the image matches `uv.lock` exactly and no transitive dependency (greenlet included) floats. Keep the selectolax `<1.0` floor from Issue 1 as a belt-and-braces guard.
+  - Fix the Playwright `greenlet.error: cannot switch to a different thread` in `app/capture/engine.py`. The sync Playwright API is not thread-safe and the engine caches one `sync_playwright().start()` browser in a module global reused across messages; a browser bound to the thread/greenlet that created it cannot be driven once that context changes (the per-message heartbeat thread in `app/consumer.py::_process_one` and process reuse make this fragile). Make capture own its Playwright lifecycle on the thread that drives `render` — e.g. run each capture in a dedicated worker thread that starts and stops its own `sync_playwright()` instance for its lifetime, or otherwise guarantee the Playwright object is created and used on one thread and never switched. Do not change the handler/consumer contract or import Lambda shapes into capture.
+  - Verify: `make lint` and `make test` (the `app/capture` unit tests) pass; `make test-int` for `tests/integration/capture/test_capture_int.py` passes against the Compose stack; and a live `make up` capture of a fixture page writes `page.html` + `snapshot.png` with no `greenlet.error` in `docker compose logs workers-check`. If the Compose/live parts can't run in this environment, run what you can and report what was and wasn't verified.
+  - Do NOT fix Issue 3 (dataset-ingestion) here — it is a separate spec and may be a downstream symptom; this task stops at a working capture.
+  - _Requirements: 3.2, 3.3_
+- [x] 15. Fix the enum/UUID bind-type mismatch in the application SQL (integration suite)
+  - Root cause (VERIFIED on a freshly recreated Postgres volume, so this is NOT stale state and NOT caused by task 14's Docker/capture change): raw SQL binds plain Python `str` values for the native `dataset_status` enum and `uuid` columns, so a stricter psycopg/SQLAlchemy (pulled in by the dependency rebuild) emits `status = %(status)s::VARCHAR` and `str`→`uuid` binds and the server rejects them — `operator does not exist: dataset_status = character varying` and `column "id" is of type uuid but expression is of type character varying`. ORM-based inserts/queries are fine; only the raw-SQL paths break. 37 integration failures + 12 errors across the sweeper, ingestion add/upload service, and the processing/collection/isolation handlers all trace to this.
+  - Fix the binds so enum and uuid columns are compared/inserted with the correct types — the smallest correct change (e.g. typed `bindparams` with `sqlalchemy.Uuid` / the `dataset_status` enum type, or explicit `:param::dataset_status` / `:param::uuid` casts) — in the app modules the failing tests exercise: `app/jobs/sweep.py` (`SELECT ... WHERE status = :status ... FOR UPDATE SKIP LOCKED` and the version-claim/update queries) and `app/ingestion/service.py` (`_insert_dataset`-style `INSERT INTO datasets (...)` / `dataset_versions (...)` in both the URL and upload paths, plus the status/claim queries in `create_from_check`). Grep for sibling raw SQL with the same pattern and fix those too. Behaviour must be identical — this is a bind-typing fix, not a logic change. Do not switch these paths to the ORM.
+  - Cross-spec note: `sweep.py` and `ingestion/service.py` are nominally dataset-ingestion/review-analysis files, but this is one shared data-layer (platform-foundation) defect, so it is fixed here deliberately; keep the change limited to the typed binds.
+  - Verify against a FRESH DB volume (`docker compose rm -sfv postgres && docker compose up -d postgres`) that `make test-int` is green for the previously-failing suites: `tests/integration/ingestion/test_add_service_int.py`, `tests/integration/ingestion/test_upload_service_int.py`, `tests/integration/jobs/test_sweep_int.py`, `tests/integration/handlers/test_processing_pipeline_int.py`, `tests/integration/handlers/test_collection_int.py`, `tests/integration/handlers/test_isolation_int.py`. Also confirm `make lint` and the unit/property suites stay green (1443 passed) and the capture integration tests still pass.
+  - PROGRESS (this session): the APP-CODE casts are DONE and verified — `app/jobs/sweep.py` and `app/ingestion/service.py` now use `CAST(:id AS uuid)` / `CAST(:status AS dataset_status)` / `CAST(:source_type AS source_type)`, and the add/sweep/upload service tests went from all-failing (enum/uuid errors) to passing (bar an unrelated origin-guard 403 and one concurrency-timing assertion). REMAINING: the SAME `str`→`uuid`/enum pattern also lives in the integration-test FIXTURE SQL (seed INSERT, teardown DELETE, SELECT/UPDATE `WHERE id = :id`) across `tests/integration/handlers/test_processing_pipeline_int.py`, `test_collection_int.py`, `test_isolation_int.py`, `test_check_handler_int.py`, `test_check_handler_refresh_origin_int.py`, `tests/integration/ingestion/test_upload_service_int.py`, `tests/integration/datasets/test_refresh_int.py`, `test_archive_int.py`, `tests/integration/chat/*`, and siblings — these must get the same `CAST(... AS uuid)` / enum casts so `make test-int` is green. This is the test harness (platform-foundation Req 8.2), fixed here deliberately; identical bind-typing fix, no logic change.
+  - Then confirm whether this clears Issue 3 in `docs/known-issues-live-stack.md` (Add returns `created` but inserts no dataset) — it is very likely the same root cause (the insert was being rolled back by this error). Re-run the Issue 3 repro and record the result; if a genuinely separate dataset-ingestion bug remains, document it rather than fixing it here.
+  - _Requirements: 8.2_
+- [x] 16. Stamp status-event `at` under the row lock (Property 5 time-order) — see design.md → Known Issues
+  - The scale test `tests/scale/test_concurrency_invariants.py::test_concurrent_status_writes_are_lossless_and_ordered` fails: concurrent `log_event`/`transition` on one dataset keep every event (lossless, verified) but their `at` timestamps can be out of order (~8 ms inversion), violating Correctness Property 5 ("events SHALL be in time order"). Root cause: `app/db/status.py::_build_event` stamps `at` via `_utc_now_iso()` BEFORE `_append_event` takes `SELECT ... FOR UPDATE`, so the array is ordered by commit, not by `at`.
+  - Fix: assign `at` INSIDE the lock at append time so timestamp order always matches append order — e.g. move the `at` stamp into `_append_event` after acquiring the lock, or set it in the append `UPDATE` using the row-locked transaction's clock. Keep the event shape (`status`, `at`, `message`, `data`), keep `transition` publishing exactly one `dataset.status.changed` per call, and keep "the last status event equals the `status` column". The published event payload's `at` must match the stored event's `at`.
+  - Verify (consumers can be up or down; this is DB-only): `tests/scale/test_concurrency_invariants.py` passes (the ordered-and-lossless test green), `tests/integration/db/test_status.py` stays green, `make lint`, and the unit/property suite stays green (`tests/property/test_status_history.py` included).
+  - _Requirements: 4.4_
+- [ ] 17. Make the live E2E able to seed a dataset locally (fixture host / SSRF mismatch)
+  - The Playwright E2E suite skips its 9 pipeline tests (`needs-record-ai`) because `seedDataset` cannot create a dataset. Verified root cause: the E2E addresses the fixtures site as `http://localhost:9090` (correct for a host browser), but the containerized backend's `SSRF_TEST_ALLOW_HOSTS=fixtures` (repo `.env`) only permits the Docker-internal host `http://fixtures`, so a Check for the E2E URL returns `wont_work: "Address not allowed"` and seeding yields nothing. The pipeline itself is proven working: a Check for `http://fixtures/extraction/plain_list/` returns `limited` and Add(`confirm_limited`) creates a dataset row (this also confirms the original Issue 3 "Add inserts nothing" is resolved).
+  - Fix (test/compose/config side only — do NOT weaken product SSRF): make the host the browser uses and the host the backend fetches reconcile under the local stack. Options to evaluate: (a) add `localhost` (and `localhost:9090`'s host) to the local E2E `SSRF_TEST_ALLOW_HOSTS` so the backend accepts the browser-facing fixture URL; and/or (b) set `E2E_FIXTURE_BASE_URL` to a host the backend can both resolve and is allowlisted (mirroring the Issue-4 registrable-domain approach, e.g. a compose alias). Ensure the Check actually renders the fixture (capture needs to reach the fixtures container from inside the Docker network). Keep production behavior unchanged (prod points at the real public CloudFront fixtures URL; `SSRF_TEST_ALLOW_HOSTS` must stay refused when `ENV=production`).
+  - Verify: with the full stack up and worker consumers RUNNING (E2E needs the real pipeline), `make e2e` (AI stubbed) runs the 9 currently-skipped tests to green instead of skipping — or, where a test genuinely needs a recorded Locator response, document precisely which and why. Do not require `ANTHROPIC_API_KEY` for the stubbed run.
+  - _Requirements: 8.3, 8.6_

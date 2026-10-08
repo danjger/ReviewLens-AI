@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Acme CRM Reviews — Structured JSON-LD</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "Acme CRM",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.3",
+          "reviewCount": "128"
+        },
+        "review": [
+          {
+            "@type": "Review",
+            "reviewRating": { "@type": "Rating", "ratingValue": "5" },
+            "author": { "@type": "Person", "name": "Dana Fox" },
+            "datePublished": "2024-02-11",
+            "name": "Transformed our pipeline",
+            "reviewBody": "Transformed our pipeline and the setup took one afternoon. Support answered within the hour and migration was painless."
+          },
+          {
+            "@type": "Review",
+            "reviewRating": { "@type": "Rating", "ratingValue": "4" },
+            "author": { "@type": "Person", "name": "Priya N." },
+            "datePublished": "2024-01-28",
+            "name": "Solid but reporting is thin",
+            "reviewBody": "Solid product overall, though the reporting module is thin and we had to export to a spreadsheet for anything custom."
+          },
+          {
+            "@type": "Review",
+            "reviewRating": { "@type": "Rating", "ratingValue": "2" },
+            "author": { "@type": "Person", "name": "Marcus Lee" },
+            "datePublished": "2023-12-05",
+            "name": "Mobile app lags",
+            "reviewBody": "The mobile app lags badly on older phones and crashed twice during a demo. The desktop experience is much better."
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header><nav><a href="/">Home</a> <a href="/pricing">Pricing</a></nav></header>
+    <main>
+      <h1>Acme CRM</h1>
+      <p>Rated 4.3 out of 5 from 128 reviews.</p>
+      <section class="reviews">
+        <article class="review-card">
+          <h3>Transformed our pipeline</h3>
+          <span class="reviewer-name">Dana Fox</span>
+          <time datetime="2024-02-11">Feb 11, 2024</time>
+          <span class="stars" aria-label="5 out of 5 stars">★★★★★</span>
+          <p class="review-body">Transformed our pipeline and the setup took one afternoon. Support answered within the hour and migration was painless.</p>
+        </article>
+        <article class="review-card">
+          <h3>Solid but reporting is thin</h3>
+          <span class="reviewer-name">Priya N.</span>
+          <time datetime="2024-01-28">Jan 28, 2024</time>
+          <span class="stars" aria-label="4 out of 5 stars">★★★★☆</span>
+          <p class="review-body">Solid product overall, though the reporting module is thin and we had to export to a spreadsheet for anything custom.</p>
+        </article>
+        <article class="review-card">
+          <h3>Mobile app lags</h3>
+          <span class="reviewer-name">Marcus Lee</span>
+          <time datetime="2023-12-05">Dec 5, 2023</time>
+          <span class="stars" aria-label="2 out of 5 stars">★★☆☆☆</span>
+          <p class="review-body">The mobile app lags badly on older phones and crashed twice during a demo. The desktop experience is much better.</p>
+        </article>
+      </section>
+    </main>
+    <footer><p>© Acme</p></footer>
+  </body>
+</html>

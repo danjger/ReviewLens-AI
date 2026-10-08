@@ -265,3 +265,37 @@ Properties are tested with Hypothesis (backend).
 - **Fixture review pages:** SSRF protection blocks private addresses, so fixture pages served from `localhost` would always be refused. Deployed stacks point tests at `/fixtures-site`, published to a separate public S3 + CloudFront test site. Local runs set `SSRF_TEST_ALLOW_HOSTS=fixtures` for the compose fixture container. Production refuses to start with that setting.
 - **Data API parity:** integration tests run on plain PostgreSQL. A post-deploy smoke test runs reads and writes through the Data API driver to catch driver differences.
 - **CI:** lint (ruff, eslint), type checks (mypy, tsc), unit tests, image build, container integration tests, scale test, then `cdk synth`. Deploy runs only on `main` after every earlier step passes, and deploys the tested image digests. Coverage goes to the job summary.
+
+## Known Issues
+
+### Status event timestamps can be out of order under concurrency — Property 5 gap
+
+Found 2026-10-04 by the scale test
+(`tests/scale/test_concurrency_invariants.py::test_concurrent_status_writes_are_lossless_and_ordered`).
+Correctness Property 5 states `status_detail.events` "SHALL be in time order".
+Under concurrent `log_event`/`transition` on one dataset, the stored events are
+LOSSLESS and never reshuffled (the `jsonb ||` append under `SELECT ... FOR
+UPDATE` serialises correctly, and the scale test confirms no event is lost), but
+their `at` timestamps can be slightly out of order (observed: an ~8 ms
+inversion). Root cause: `app/db/status.py::_build_event` stamps `at` (via
+`_utc_now_iso()`) in Python BEFORE `_append_event` acquires the row lock, so
+thread A can compute an earlier `at` yet win the lock after thread B — the array
+is ordered by commit/append, not by `at`. So append order is correct but `at`
+monotonicity is not guaranteed, which the literal Property 5 wording and the
+scale test require.
+
+Severity: low (a few-ms inversion in a progress log; no data loss, no reorder of
+the array, last-status-event-equals-column still holds). But it does violate the
+stated property. NOT caused by this session's refresh/keep-rule fixes — it is in
+the original `_append_event` design.
+
+Fix direction (platform-foundation, `app/db/status.py`): assign `at` INSIDE the
+lock at append time so timestamp order always matches append order — e.g. stamp
+`at` within `_append_event` (or in the same `UPDATE` via `now()`) rather than in
+`_build_event` before the lock. Keep the event shape and the
+last-status-event-equals-column invariant. Then
+`test_concurrent_status_writes_are_lossless_and_ordered` passes. Alternatively,
+if "time order" is meant as "append order preserved" rather than "at
+monotonic", relax the property wording and the test assertion — but assigning
+`at` under the lock is the smaller, more honest fix and keeps the property as
+written.

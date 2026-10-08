@@ -1,0 +1,576 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Write `prompts/system_v1.md` with the scope, evidence, and security clauses and the decline template; add a prompt loader with version tracking": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604597
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038613058
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038863998
+      }
+    ],
+    "1.2 Implement Corpus loading from `reviews/v{active_version}.json`, with a warm in-memory cache keyed by `(id, version)` and the `CHAT_CORPUS_TOKEN_BUDGET` truncation note": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604642
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038871214
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039075946
+      }
+    ],
+    "1.3 Implement message assembly: system prompt, cached `<reviews>` block, the last 6 Exchanges with the same `conversation_id` from the current data version only, wrapped question, optional pre-check hint": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604666
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039082792
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039491030
+      }
+    ],
+    "2. Implement the scope pre-check": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604692
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039498418
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039864113
+      }
+    ],
+    "3.1 Extract citations, remove IDs that are not in the Corpus, and attach a snippet (text, rating, date) for each remaining citation": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604719
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039871586
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040067280
+      }
+    ],
+    "3.2 Build the prompt-leak detector with the decline replacement": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604747
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040071352
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040332081
+      }
+    ],
+    "3.3 Implement decline detection and scope tagging: marker check, hidden `<scope>` tag stripping, pre-check merge": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604784
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040336351
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040586871
+      }
+    ],
+    "3.4 Write unit tests for all post-processors": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604804
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040591016
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040840022
+      }
+    ],
+    "4.1 Build the Chat Lambda: FastAPI behind the AWS Lambda Web Adapter in response-streaming mode on a Function URL behind CloudFront, the origin guard, per-IP and global rate limits, and the CDK construct; the same app runs as a container in `docker-compose`": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604828
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040848319
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791041418637
+      }
+    ],
+    "4.2 Implement the request flow: availability guard (active version and archived), rate limit, length validation, parallel load and pre-check, streaming Claude call, SSE `token`/`done`/`error` events": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604850
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791041423208
+      }
+    ],
+    "4.3 Save the Exchange to `chat/{iso_ts}-{uuid}.json` with full metadata and the conversation ID, sign the `done` payload with an HMAC, publish `chat.exchange.saved`; send `saved:false` when the save fails": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604871
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042076742
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042405220
+      }
+    ],
+    "4.4 Write integration tests with the AI stub: stream, saved object shape (including citation snippets), 409 for archived datasets and datasets with no active version, chat answering from v1 while v2 processes, another conversation's Exchanges excluded from context, 429, save-failure path, mid-stream error": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604894
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042409773
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042938207
+      }
+    ],
+    "5.1 Implement `GET /chat/history` as a merged timeline of Exchanges and refresh markers from `dataset_versions` (pending, completed, failed), with `is_stale` flags and backward paging by a shared timestamp cursor (page size 20)": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604916
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042947428
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791043350988
+      }
+    ],
+    "5.2 Implement `POST /datasets/{id}/chat/save` for retries, accepting only payloads with a valid HMAC signature": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604937
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791043358622
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791043632305
+      }
+    ],
+    "5.3 Implement `GET /chat/suggestions`, built from theme labels with templates, with general fallback questions when there are no themes": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604960
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791043636558
+      }
+    ],
+    "5.4 Write integration tests for history order, paging, and version labels, plus the refresh scenario: ask on v1, refresh to v2, confirm the v1 Exchange is stale, the v2 marker is present, and the next chat request excludes the v1 Exchange": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038604983
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791043985677
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791044331796
+      }
+    ],
+    "6.1 Build `HistoryPane`: virtualized list, loading earlier history on scroll, version labels, auto-scroll to the latest Exchange": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605011
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791044341293
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791044763495
+      }
+    ],
+    "6.2 Build citation chips with popovers from the saved snippets, and the \"Outside dataset scope\" tag on declined answers": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605037
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791044768098
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045042997
+      }
+    ],
+    "6.3 Build `ChatInput` and `VersionNote`: 1,000-character limit, Enter or Shift+Enter, empty-question guard, disabled states and messages for no active version and archived, the \"Answers use v{n}\" note during or after a refresh, and the 429 retry time": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605060
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045047884
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045299535
+      }
+    ],
+    "6.4 Build `StreamingExchange`: per-tab `conversation_id` in `sessionStorage`, SSE client, pending state, merge into history on `done`, interrupted-answer retry, unsaved warning with Retry; add other visitors' Exchanges live on `chat.exchange.saved`": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605083
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045304783
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045932533
+      }
+    ],
+    "6.5 Build `SuggestionChips`": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605104
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791045936897
+      }
+    ],
+    "6.6 Build `RefreshMarker` (pending, completed, and failed states with date and time, version, trigger, and before and after review counts) and the stale-Exchange styling with the \"Based on earlier data\" chip and tooltip": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605127
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791046187527
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791046551074
+      }
+    ],
+    "6.7 Build the history toolbar: jump to previous or next refresh marker, and collapse Exchanges from earlier versions": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605166
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791046555751
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791047033404
+      }
+    ],
+    "6.8 Refetch the latest timeline page when a `dataset.status.changed` event for this dataset starts, completes, or fails a refresh": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605194
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791047038197
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791047280875
+      }
+    ],
+    "6.9 Write component tests for all of the above, including a live marker change from pending to completed on a mock event": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605216
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791047285595
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791050138710
+      }
+    ],
+    "7.1 Create the fixture evaluation dataset, including a planted injection review, and `cases.yaml` with at least 60 labeled cases across all categories": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605237
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791050148011
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791050581221
+      }
+    ],
+    "7.2 Build the grader: deterministic checks plus an LLM-as-judge rubric; compute correct-decline, false-decline, injection-success, and citation-validity metrics; write a markdown report": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605260
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791050586431
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791051379438
+      }
+    ],
+    "7.3 Add a CI job that runs on prompt-file changes and on demand, with thresholds that fail the build and a report in the job summary": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605282
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791051383081
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791051589151
+      }
+    ],
+    "7.4 Run the evaluation with the live model, tune `system_v1.md` until every threshold passes, and record the results in the README (**needs** `ANTHROPIC_API_KEY`)": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605303
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791056948258
+      }
+    ],
+    "8. Write the chat performance test": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605321
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791059686324
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791060487745
+      }
+    ],
+    "9. Write the final main-flow E2E test": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605344
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791060490946
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791066870419
+      }
+    ],
+    "10. Write property-based tests for the Correctness Properties": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791038605366
+      },
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791066873809
+      },
+      {
+        "executionId": "0c6f1bbc-0e6c-4da8-880b-026edefc623e",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791067582091
+      },
+      {
+        "executionId": "0c6f1bbc-0e6c-4da8-880b-026edefc623e",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791067813777
+      }
+    ],
+    "1. Write the prompts and load the Corpus": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791039491079
+      }
+    ],
+    "3. Implement post-processing": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791040840071
+      }
+    ],
+    "4. Build the streaming chat endpoint": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791042938254
+      }
+    ],
+    "5. Build the history and suggestions APIs": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791044331832
+      }
+    ],
+    "6. Build the frontend ChatPanel": [
+      {
+        "executionId": "6f89fe81-4297-4f30-8968-d10b04dc0992",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791050138750
+      }
+    ],
+    "7. Build the guardrail evaluation suite": [
+      {
+        "executionId": "0c6f1bbc-0e6c-4da8-880b-026edefc623e",
+        "chatSessionId": "sess_68f6deae-b20c-4ff4-922e-432ddf0a62a7",
+        "timestamp": 1791067832619
+      }
+    ]
+  }
+}

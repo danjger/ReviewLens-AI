@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Summit Trail Running Shoe — Reviews</title>
+    <style>
+      /* A tall spacer forces the lazy reviews below the fold so they only
+         load once the page is scrolled. */
+      #spacer { height: 2000px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Summit Trail Running Shoe</h1>
+      <div id="spacer"></div>
+      <!-- Reviews are injected here only after the first scroll. -->
+      <div id="reviews" class="reviews"></div>
+    </main>
+    <script>
+      // Mimic a lazy-loading review widget: the reviews are not in the initial
+      // DOM and are appended the first time the user scrolls near the bottom.
+      // The capture module's single post-render scroll must surface them
+      // (dataset-ingestion Req 3.1 / 4.1).
+      var loaded = false;
+      function loadReviews() {
+        if (loaded) return;
+        loaded = true;
+        var html =
+          '<div class="review">' +
+          '<span class="author">Rafael C.</span>' +
+          '<span class="rating" aria-label="5 out of 5">5/5</span>' +
+          '<span class="date">June 1, 2024</span>' +
+          '<p class="text">Grippy on wet rock and surprisingly light, and the toe box has enough room for long descents.</p>' +
+          '</div>' +
+          '<div class="review">' +
+          '<span class="author">Nadia K.</span>' +
+          '<span class="rating" aria-label="4 out of 5">4/5</span>' +
+          '<span class="date">May 21, 2024</span>' +
+          '<p class="text">Great traction on technical trails, though they ran about half a size small for me.</p>' +
+          '</div>';
+        document.getElementById('reviews').innerHTML = html;
+      }
+      window.addEventListener('scroll', loadReviews, { passive: true });
+    </script>
+  </body>
+</html>

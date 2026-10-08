@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Harbor Point Hotel — Guest Reviews</title>
+  </head>
+  <body>
+    <main>
+      <h1>Harbor Point Hotel</h1>
+      <!--
+        The only sub-resource on this page is an image hosted on a loopback
+        address. The capture SSRF route guard must abort this request while the
+        document itself still renders. The port is arbitrary and no server need
+        be listening: the guard aborts before any connection is attempted.
+      -->
+      <img id="blocked" src="http://127.0.0.1:9/private-pixel.png" alt="internal" width="1" height="1" />
+      <div class="reviews">
+        <div class="review">
+          <span class="author">Elena V.</span>
+          <span class="rating" aria-label="5 out of 5">5/5</span>
+          <span class="date">May 9, 2024</span>
+          <p class="text">Spotless rooms, a harbor view from the balcony, and staff who remembered our names by the second day.</p>
+        </div>
+        <div class="review">
+          <span class="author">Jon A.</span>
+          <span class="rating" aria-label="4 out of 5">4/5</span>
+          <span class="date">April 30, 2024</span>
+          <p class="text">Breakfast was excellent and the location is unbeatable, though the lifts were slow at peak times.</p>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

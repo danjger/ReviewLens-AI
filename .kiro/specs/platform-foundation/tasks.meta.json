@@ -1,0 +1,588 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Scaffold the repository and tooling": [
+      {
+        "executionId": "47520b7f-08f0-4b84-a4a2-a10ce71f7732",
+        "chatSessionId": "sess_6fb3b6b4-6c39-4d89-8dab-97845dc42973",
+        "timestamp": 1790798120150
+      },
+      {
+        "executionId": "9ea27a17-b621-4c1f-8560-3517756838a8",
+        "chatSessionId": "sess_21698e72-d7d0-4bd2-8292-bc100558ca4e",
+        "timestamp": 1790804195665
+      },
+      {
+        "executionId": "9ea27a17-b621-4c1f-8560-3517756838a8",
+        "chatSessionId": "sess_21698e72-d7d0-4bd2-8292-bc100558ca4e",
+        "timestamp": 1790807213163
+      }
+    ],
+    "2.1 Write `Dockerfile` (backend) and `Dockerfile.workers` (backend plus Playwright and Chromium), both including the AWS Lambda Web Adapter so they run on Lambda and as plain containers": [
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807296890
+      },
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807811048
+      }
+    ],
+    "2.2 Write `docker-compose.yml` running the API, chat, job workers, push consumer, and sweeper as containers, plus PostgreSQL, LocalStack, and a fixtures container serving `/fixtures-site`": [
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807813684
+      },
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807816087
+      }
+    ],
+    "2.3 Add `/healthz` and `/readyz` to every HTTP Service and to the consumer runtime (small HTTP listener in container mode)": [
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807818705
+      },
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807821021
+      }
+    ],
+    "2. Build the container images and local environment": [
+      {
+        "executionId": "9efaa5d4-2f28-4fe8-8f29-f48c972d74a9",
+        "chatSessionId": "sess_cad16239-7852-4c35-823e-b54fc5d95c27",
+        "timestamp": 1790807821050
+      }
+    ],
+    "3.1 Implement `core.config.Settings` with all tunable limits and Secrets Manager loading": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112561
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808119131
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808262974
+      }
+    ],
+    "3.2 Implement the structured JSON logger with service, instance, correlation, and dataset context": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112597
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790809476763
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790809624447
+      }
+    ],
+    "3.3 Implement the global error handler that returns the generic error envelope": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112623
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790809629124
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810046530
+      }
+    ],
+    "3.4 Implement `storage.keys` and the S3 helper functions, including the `checks/` and `uploads/` prefixes": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112658
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810051720
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810195469
+      }
+    ],
+    "3.5 Implement `core.origin_guard` middleware": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112683
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810200362
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810688019
+      }
+    ],
+    "3.6 Implement `core.rate_limit` with DynamoDB fixed-window counters keyed by hashed client IP and globally, returning 429 with `Retry-After`": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112707
+      },
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790810693007
+      },
+      {
+        "executionId": "4d98d45e-be8f-4465-ba2d-abf48f1afd29",
+        "chatSessionId": "sess_9de357e9-4b43-4f26-814a-e0f8c1550ac3",
+        "timestamp": 1790812016879
+      },
+      {
+        "executionId": "4d98d45e-be8f-4465-ba2d-abf48f1afd29",
+        "chatSessionId": "sess_9de357e9-4b43-4f26-814a-e0f8c1550ac3",
+        "timestamp": 1790813707660
+      }
+    ],
+    "4.1 Implement `app.consumer` with the `Handler` protocol, the Lambda SQS adapter (partial batch failures), and the container long-poll loop (visibility heartbeat, graceful `SIGTERM`)": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112735
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790813912603
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814122044
+      }
+    ],
+    "4.2 Write unit tests for both adapters calling the same handler, final-attempt detection from the receive count, heartbeat extension, and shutdown mid-message": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112770
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814130622
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814340958
+      }
+    ],
+    "5.1 Implement `core.db` with the Data API driver in AWS and psycopg locally": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112795
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814347736
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814522817
+      }
+    ],
+    "5.2 Create the SQLAlchemy `Dataset` and `DatasetVersion` models and the first Alembic migration": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112816
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814526995
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817273161
+      }
+    ],
+    "5.3 Implement `db.status.transition()` and `db.status.log_event()` with an atomic update, a `status_detail` append, and an EventBridge publish": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112840
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817276838
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817589694
+      }
+    ],
+    "6.1 Data stack: Aurora PostgreSQL Serverless v2 (min 0 ACU, Data API enabled), a private S3 bucket with SSE, public access blocked, and lifecycle rules deleting `checks/` and `uploads/` after 1 day, DynamoDB tables (`rate-limits`, `check-sessions`, `ws-connections`), and Secrets Manager entries": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112863
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817599690
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817864506
+      }
+    ],
+    "6.2 Edge stack: CloudFront distribution with behaviors for the SPA, `/api/*`, and `/api/chat/*`; AWS WAF with a per-IP rate-based rule and managed common rules; the `X-Origin-Verify` custom origin header": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112885
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817872160
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790819087479
+      }
+    ],
+    "6.3 Api stack in Lambda mode: API service Lambda (container image, no VPC) behind an HTTP API; chat service Lambda with a streaming Function URL; EventBridge bus; `check-queue`, FIFO `processing-queue`, and `push-queue` with DLQs": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112907
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790819091400
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790819574541
+      }
+    ],
+    "6.4 Workers stack in Lambda mode: job-worker Lambdas (workers image) with SQS event sources, the push consumer Lambda, the DLQ consumer, and the sweeper Lambda on an EventBridge Scheduler schedule": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112928
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790819578777
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820058771
+      }
+    ],
+    "6.5 Organize the CDK code so each Service reads a `computeMode` context value, with `lambda` implemented and `container` wired to the optional Containers stack": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112950
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820064523
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820373914
+      }
+    ],
+    "6.6 Frontend stack: S3 origin for the SPA": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808112989
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820377263
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820984955
+      }
+    ],
+    "6.7 Cost stack: AWS Budgets monthly alarm with email notification": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113009
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790820988634
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790821316887
+      }
+    ],
+    "6.8 Test fixtures stack: public S3 + CloudFront site publishing `/fixtures-site`, deployed only to non-production accounts": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113032
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790821320919
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790822296130
+      }
+    ],
+    "6.9 Write CDK assertion tests: bucket encryption, blocked public access, lifecycle rules, WAF attached with a rate rule, origin header configured, no Lambda attached to a VPC, no NAT gateway, and DLQs on every queue": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113051
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790822305797
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790822515096
+      }
+    ],
+    "6.10 Containers stack (optional until load requires it): ECS Fargate services for the API, chat, job workers, and push consumer using the same image digests, an ALB behind CloudFront, queue-depth autoscaling for workers, CPU autoscaling for HTTP services, and an ECS scheduled task for the sweeper": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113074
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790822530317
+      }
+    ],
+    "7.1 Create `ci.yml`: lint, type check, unit tests, build both images, run the container integration tests with `docker-compose`, run the scale test, coverage summary, and `cdk synth`": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113096
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790824357354
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790824505428
+      }
+    ],
+    "7.2 Add a `GithubOidc` CDK stack (OIDC provider and a least-privilege deploy role, deployed once by hand), and create `deploy.yml` that runs on `main` after CI passes: push the tested image digests to ECR, run Alembic migrations as a one-off task, `cdk deploy` with GitHub OIDC, upload the frontend, invalidate CloudFront, and run the Lambda-mode smoke test (including the Data API read and write)": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113116
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790824577885
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829071142
+      }
+    ],
+    "8. Add AI call instrumentation": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113140
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829081300
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829438502
+      }
+    ],
+    "9. Write the scale test": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113163
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829447580
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829718882
+      }
+    ],
+    "10. Build the end-to-end test harness": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113184
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829727385
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829927874
+      }
+    ],
+    "11. Write the API performance test": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113208
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829932078
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790831752735
+      }
+    ],
+    "12. Write property-based tests for the Correctness Properties": [
+      {
+        "executionId": "c538d65d-c401-4693-b1a7-116216081a38",
+        "chatSessionId": "sess_5a49d8b7-19d5-4e44-94f6-f2bd4b9773f9",
+        "timestamp": 1790808113245
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790831757682
+      },
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790832665781
+      }
+    ],
+    "3. Implement shared backend core": [
+      {
+        "executionId": "4d98d45e-be8f-4465-ba2d-abf48f1afd29",
+        "chatSessionId": "sess_9de357e9-4b43-4f26-814a-e0f8c1550ac3",
+        "timestamp": 1790813707781
+      }
+    ],
+    "4. Implement the queue consumer runtime": [
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790814341025
+      }
+    ],
+    "5. Implement the data layer": [
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790817589737
+      }
+    ],
+    "7. Set up the CI/CD pipeline": [
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790829071171
+      }
+    ],
+    "6. Define infrastructure with CDK": [
+      {
+        "executionId": "44a1d43c-7411-41cd-8a48-7269893d884e",
+        "chatSessionId": "sess_c9ef0ee4-e4eb-4055-b2dd-de5ba975537e",
+        "timestamp": 1790832685240
+      }
+    ],
+    "13. Make the shared DynamoDB test-table setup collision-safe": [
+      {
+        "executionId": "c6ffd3fe-57d3-4f16-add4-2d71879f7da1",
+        "chatSessionId": "sess_2fa56c77-77a7-4cfd-aadc-95e441ba2264",
+        "timestamp": 1791037752222
+      },
+      {
+        "executionId": "c6ffd3fe-57d3-4f16-add4-2d71879f7da1",
+        "chatSessionId": "sess_2fa56c77-77a7-4cfd-aadc-95e441ba2264",
+        "timestamp": 1791038534368
+      }
+    ]
+  }
+}

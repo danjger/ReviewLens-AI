@@ -1,0 +1,29 @@
+# Keep the Docker build context (and the CDK image-asset staging that hashes
+# it) small: the Dockerfiles only COPY pyproject.toml, README.md, app/, and
+# prompts/, so everything else is pure context bloat. Excluding the local
+# virtualenv and tool caches shrinks the context from hundreds of MB to a few,
+# which keeps `cdk synth` asset staging fast and avoids filling the temp disk
+# when many image-asset functions stage the same context.
+
+# Local virtualenv and Python caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Tests and fixtures are not part of the runtime image
+tests/
+
+# Editor / OS cruft
+.DS_Store
+*.swp

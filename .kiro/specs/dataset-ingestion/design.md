@@ -238,3 +238,142 @@ A verdict is a prediction, not a guarantee. The actual outcome is recorded next 
 - **Verdict accuracy:** `assess()` is added to the extraction evaluation suite from `review-extraction`, which reports verdict accuracy against the labeled pages; the job fails below 0.90.
 - **Frontend tests:** multi-line parsing and the 10-line limit, verdict cards, badges, samples, and warnings, disabled `wont_work` checkbox, per-item Retry, limited-confirmation dialog, "Already tracked" notes, results summary, 429 message, reload keeping `?check=`, upload progress and over-limit note.
 - **E2E (against the public fixture site):** paste three fixture URLs (one of each verdict), check, add; confirm the `wont_work` URL is refused and the others appear in the Library. Paste an existing dataset's URL with `?utm_source=x`; confirm no new row appears and the existing row goes back to `requested`.
+
+## Known Issues
+
+Discovered 2026-10-04 while triaging the integration suite after the
+`platform-foundation` task 14/15 and `review-analysis` task 9 fixes. With the
+worker consumers stopped and a fresh DB, `tests/integration` is at **7 failed /
+133 passed**. Triage of those 7 (each reproduced in isolation):
+
+### A. Upload keep rule ignores the confirmed mapping — REAL PRODUCT BUG (this spec)
+
+`tests/integration/ingestion/test_upload_service_int.py::test_over_limit_upload_records_keep_rule`
+→ `assert 'first_in_file' == 'most_recent_by_date'`.
+
+`app/ingestion/service.py::create_from_upload` writes the analyst's **confirmed**
+`mapping` into `mapping.json` but takes `keep_rule` (and `suggested_mapping`,
+`will_keep`, `usable_rows`) from `upload_parser.preview_upload(upload_id)`, which
+re-derives everything from the parser's **auto-suggested** mapping and ignores
+the confirmed mapping. The keep rule is `KEEP_MOST_RECENT if DATE in mapping else
+KEEP_FIRST` computed over the *suggested* mapping. When the analyst maps a date
+column whose header the synonym table does not auto-detect (e.g. a column named
+`when`), the suggested mapping has no `date`, so `keep_rule=first_in_file` even
+though a date column IS mapped — violating Requirement 7.6 ("most recent by date
+when a date column is mapped"). Verified:
+`suggest_mapping(["review","when"]) → {'text':'review'}` (no date), while the
+test confirms `{"text":"review","date":"when"}`.
+
+**Fix (this spec):** derive the keep rule (and `will_keep`) from the
+**confirmed** mapping the caller passed, not the auto-suggested preview — e.g.
+recompute `keep_rule = most_recent_by_date if "date" in confirmed_mapping else
+first_in_file`, and build `mapping.json` + the `requested` event from the
+confirmed mapping consistently. Keep it a behaviour fix in
+`app/ingestion/service.py` (and, if cleaner, let `upload_parser` expose a
+keep-rule helper that takes an explicit mapping). Add/adjust a unit test so the
+confirmed-but-not-auto-detected date column is covered.
+
+### B. `will_work` vs `limited` — TEST BUG, not a product regression (owned by this spec's test)
+
+`tests/integration/handlers/test_check_handler_full_int.py::TestPlainListFullAiPath::test_will_work_with_selectors_plan_and_event`
+→ `assert 'limited' == 'will_work'`.
+
+`viability.assess` correctly returns `limited` with reason **"Fewer than 5
+reviews could be read"**: the `plain_list` fixture has exactly **4** reviews and
+`viability_min_reviews` defaults to **5** (`.env` and `.env.example` both set 5).
+The `will_work` rule (Requirement 3.4) requires `verified >= min_reviews`, so a
+4-review page is correctly `limited`. The evidence is otherwise ideal (verified
+4, rejected 0, confidence high, no blocker, reported_total 4, pagination none).
+The test's expectation ("Four verified reviews … → will_work") predates/ignores
+the 5-review threshold. It was masked until tasks 14/15 let the pipeline run far
+enough to reach the verdict assertion.
+
+**Fix (test-side, product-intent decision):** either give the `plain_list`
+fixture a 5th review (and point the scripted Locator at 5 refs + bump
+`reported_total`), OR set `VIABILITY_MIN_REVIEWS=4` in this test's env, OR change
+the assertion to `limited`. The first matches the test's evident intent (exercise
+the `will_work` selectors path), but which to choose is a product-intent call.
+
+### C. Two concurrency failures — DIAGNOSED (real product bug)
+
+Root-caused on 2026-10-04 — see "C (resolved to root cause)" below. Summary: the
+refresh concurrency guard is ineffective (the version bump and the status
+transition to `requested` are in separate transactions, so the `status NOT IN
+(...)` guard never fires for a concurrent racer). Real defect in
+`app/datasets/refresh_service.py`; the tests are correct.
+
+### D. Three origin-guard 403s — ENVIRONMENTAL, not a bug
+
+- `test_check_handler_full_int.py::TestCheckEndpointRateLimit::test_429_after_limit`
+- `test_add_service_int.py::test_add_endpoint_new_and_wont_work_mix`
+- `test_add_service_int.py::test_add_endpoint_expired_session_returns_expired`
+
+These call the API via `TestClient` with no `X-Origin-Verify` header; a loaded
+`ORIGIN_VERIFY_SECRET` makes `OriginGuardMiddleware` return 403. **Proven:** with
+`ORIGIN_VERIFY_SECRET=""` all three pass. Other HTTP integration suites
+(library/summary) clear the secret in a fixture; these do not. Low-priority test
+hygiene — make these suites clear the origin secret like their siblings.
+
+### Harness note (applies to all of the above)
+
+Run these integration suites with the SQS queues up but the worker *consumers*
+(`workers-check`, `workers-processing`, `push-consumer`, `sweeper`) STOPPED —
+otherwise the live Compose consumers drain the queue messages the tests assert
+on, giving spurious `_drain_processing_queue() == []` failures. `make test-int`
+brings the whole stack up with `--wait` (consumers included); stop them first.
+
+### C (resolved to root cause). Refresh concurrency guard is ineffective — REAL PRODUCT BUG (this spec, Correctness Property 7)
+
+Deep-dived 2026-10-04. Previously listed as "not yet diagnosed"; now root-caused.
+
+Failing tests (all encode Property 7 — "any number of concurrent refreshes
+produce exactly one new version"):
+- `tests/integration/datasets/test_refresh_service_int.py::test_two_concurrent_refreshes_produce_exactly_one_version` → `expected exactly one new version, got data_version=3`.
+- `tests/integration/datasets/test_refresh_service_int.py::test_many_concurrent_refreshes_produce_exactly_one_version` (6 racers) — same invariant.
+- `tests/integration/ingestion/test_add_service_int.py::test_concurrent_duplicate_new_url_yields_one_dataset` → `'already_refreshing' == 'created'` — the Add duplicate path routes to `refresh`, so it shares this root (its outcome mix is timing-dependent on the same window).
+
+**Root cause (real defect in `app/datasets/refresh_service.py`).** `refresh()`
+does the work in two SEPARATE transactions:
+1. `_claim_new_version()` runs `SELECT ... FOR UPDATE` then a guarded
+   `UPDATE datasets SET data_version = data_version + 1, ... WHERE id = :id AND
+   status NOT IN ('requested','processing') RETURNING data_version`, then
+   commits and RELEASES the row lock. Crucially this UPDATE bumps `data_version`
+   but does NOT change `status`.
+2. Only later, after `_copy_capture`, does `refresh()` call
+   `db.status.transition(..., REQUESTED, ...)` in a DIFFERENT transaction — that
+   is the only place `status` becomes `requested`.
+
+So the `status NOT IN ('requested','processing')` guard is INEFFECTIVE: nothing
+in the guarded transaction moves `status` into the guarded range, and the lock
+is released before the status transition. Two racers:
+- A locks, sees `status='updated'`, bumps 1→2, commits, releases lock (status
+  still `updated`).
+- B locks, STILL sees `status='updated'` (A hasn't transitioned yet), passes the
+  guard, bumps 2→3.
+
+The code comment claiming "the increment moves the status check out of the
+guarded range by the time the next waiter proceeds" is wrong — the increment
+changes `data_version`, not `status`. The test's docstring states the intended
+design correctly ("one thread wins — it bumps the version AND transitions to
+`requested` — the other sees an in-flight status"), so the TEST is right and the
+PRODUCT is wrong.
+
+**Fix direction (this spec).** Make the claim atomic with the in-flight marker:
+the guarded `UPDATE` in `_claim_new_version` should ALSO set
+`status = 'requested'` (and append the `refresh_requested` event, or otherwise
+record the transition) in the SAME guarded, row-locked write that bumps
+`data_version`, so a second racer's `status NOT IN ('requested','processing')`
+guard correctly fails and it returns `already_refreshing`. Reconcile this with
+`db.status.transition` so the status change still appends the event and
+publishes `dataset.status.changed` exactly once (e.g. move the transition inside
+the claim transaction, or have the claim set the status and let a single event
+be emitted). Keep it one transaction; preserve restore-on-refresh
+(`archived_at = NULL`) and the `refresh_check_id` key-drop. Then
+`test_two_concurrent_refreshes...`, `test_many_concurrent_refreshes...`, and the
+Add duplicate-race test must pass with worker consumers stopped.
+
+**Separately — same-file uuid bind:** `_claim_new_version` binds `:id` as a
+plain string against the `uuid` column (`WHERE id = :id`), the same class task
+15 fixed elsewhere; it works today only because these raw statements are not
+hitting the stricter-cast path the task-15 statements did — if touched, add the
+`CAST(:id AS uuid)` cast for consistency. (Not the cause of this bug.)

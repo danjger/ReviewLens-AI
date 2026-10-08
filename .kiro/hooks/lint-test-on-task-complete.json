@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint and test on task completion",
+      "trigger": "PostTaskExec",
+      "description": "After a spec task is marked complete, run make lint and make test.",
+      "action": {
+        "type": "command",
+        "command": "#!/usr/bin/env zsh\nset -euo pipefail\n\nWORKSPACE=\"/Users/dan/kiro/experiments/ReviewLens-AI\"\ncd \"$WORKSPACE\"\n\necho \"=== make lint ===\"\nmake lint\n\necho \"\"\necho \"=== make test ===\"\nmake test\n",
+        "timeout": 300
+      }
+    }
+  ]
+}

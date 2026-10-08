@@ -1,0 +1,132 @@
+[project]
+name = "reviewlens-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "sqlalchemy>=2.0.0,<2.2",
+    "alembic>=1.14.0",
+    "httpx>=0.28.0",
+    "anthropic>=0.42.0",
+    "boto3>=1.35.0",
+    "selectolax>=0.3.0,<1.0",  # 1.0 drops the selectolax.parser (Modest) backend this code uses
+    "extruct>=0.17.0",
+    "tldextract>=5.1.0",
+    "dateparser>=1.2.0",
+    "playwright>=1.49.0",
+    "psycopg[binary]>=3.2.0",
+    "sqlalchemy-aurora-data-api>=0.5.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.122.0",
+    "moto[all]>=5.0.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "boto3-stubs[s3,sqs,dynamodb,events,secretsmanager,rds-data,apigatewaymanagementapi]>=1.35.0",
+    "types-boto3>=1.35.0",
+    "types-PyYAML>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.122.0",
+    "moto[all]>=5.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "boto3-stubs[s3,sqs,dynamodb,events,secretsmanager,rds-data,apigatewaymanagementapi]>=1.35.0",
+    "types-boto3>=1.35.0",
+    "types-PyYAML>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "S",   # flake8-bandit (security)
+    "ANN", # flake8-annotations
+]
+ignore = [
+    "S101",    # allow assert (used in tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S", "ANN"]
+# The Extraction Engine's public error types are named per the design's public
+# API (AIUnavailable / LocatorUnavailable), which intentionally omits the
+# "Error" suffix N818 wants.
+"app/extraction/errors.py" = ["N818"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+exclude = ["tests/"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "selectolax.*",
+    "extruct.*",
+    "tldextract.*",
+    "dateparser.*",
+    "sqlalchemy_aurora_data_api.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "live_ai: marks tests that call the live AI API (skipped by default)",
+    "integration: marks integration tests",
+    "scale: marks scale tests",
+    "perf: marks API performance/latency tests (run as a separate CI job)",
+]
+addopts = "--cov=app --cov-report=term-missing --cov-report=xml -v"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/db/migrations/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING",
+    "raise NotImplementedError",
+]

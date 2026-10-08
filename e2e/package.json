@@ -1,0 +1,19 @@
+{
+  "name": "reviewlens-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright end-to-end tests for ReviewLens AI. AI is stubbed on the backend unless E2E_LIVE_AI=1.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "install-browsers": "playwright install --with-deps chromium",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

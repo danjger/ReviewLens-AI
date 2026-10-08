@@ -133,3 +133,130 @@ Properties are tested with Hypothesis against the pipeline stages, using generat
 - **AI tasks:** use the recorded-fixture stub. Add schema-validation tests with malformed outputs to exercise the repair and fallback paths.
 - **Integration tests:** LocalStack SQS, S3, and EventBridge plus PostgreSQL, with the worker running as a container and the Extraction Engine using recorded Locator responses. Enqueue a dataset whose fixture pages and plan are in S3, then assert the status sequence `requested → processing → updated`, the `status_detail` events, the published events, and the `reviews` JSON. Include: a `selectors` dataset with one fallback page; an `ai_direct` dataset; zero reviews ending `failed`; a later-page failure ending `updated` with a warning; the sweeper re-enqueue; the sweeper failing a stale `processing` row; two concurrent sweeper runs; a retry after a first-attempt exception completing without re-capturing pages; AI unavailable through every retry ending `failed` with the right message; a failed refresh leaving `active_version` and `metrics` unchanged; the upload path including an over-limit file.
 - **Isolation test:** run extraction and analysis with outbound network blocked, except for the stubbed AI client and LocalStack, to prove no external data is fetched after capture.
+
+## Known Issues
+
+### Collection integration tests stop at page 1 (bare-host fixture) — OPEN
+
+Discovered 2026-10-04 while verifying an unrelated data-layer fix. The page
+collection stage's integration/isolation tests (owned by this spec) fail because
+collection only ever gathers **page 1**:
+
+- `tests/integration/handlers/test_collection_int.py::test_collects_every_linked_page` → `assert [1] == [1, 2, 3]`
+- `tests/integration/handlers/test_processing_pipeline_int.py::test_selectors_happy_path_with_one_fallback_page` (and siblings) → the "Captured page 2 of up to 10" progress event never appears; collection records "More reviews load only by script" instead
+- `tests/integration/handlers/test_isolation_int.py::test_extraction_and_analysis_fetch_no_external_data`
+
+**Root cause (verified in isolation, NOT a product regression).** These tests
+paginate a fixture served at the **bare hostname** `http://fixtures`. The
+collection loop advances via `app.extraction.next_page` (review-extraction),
+which — by design (Requirement 5.3 / Property 7) — keeps a candidate next-page
+URL only when it is on the **same registrable domain** as the current page,
+computed with `tldextract`. A bare single-label host has no registrable domain
+(`tldextract("http://fixtures") → suffix=""`), so
+`pagination._same_registrable_domain("http://fixtures/…", "http://fixtures/…")`
+returns `False`; every `rel="next"` / "Next" candidate is dropped and
+`next_page` returns `url=None, reason_if_none="script_driven_no_url"`. Collection
+therefore stops after page 1. The `SSRF_TEST_ALLOW_HOSTS=fixtures` convention
+only satisfies the SSRF gate; the same-registrable-domain gate is separate and
+`fixtures` fails it. Direct repro:
+
+```python
+from app.extraction import pagination as p
+p._same_registrable_domain("http://fixtures/a", "http://fixtures/b")  # -> False
+```
+
+**Fix is test-side, in THIS spec's fixtures — do NOT weaken the product rule.**
+Serve/address the multi-page collection fixtures under a host that HAS a
+registrable domain (e.g. `http://fixtures.test/…`, or a `*.example.com` alias
+pointing at the Compose `fixtures` container) and keep that host on
+`SSRF_TEST_ALLOW_HOSTS`, so page N and page N+1 are same-site and `next_page`
+advances. Do not relax `_same_registrable_domain` to accept bare hosts — that
+would dilute the Requirement 5.3 same-site guarantee (review-extraction code,
+not this spec). The affected fixtures are the inline `_page_html(...)` builders
+and `_PAGE_URLS` in the three test files above.
+
+**Harness note (environmental, applies when running these suites).** Run the
+collection/processing integration tests with the SQS queues up but the worker
+*consumers* (`workers-check`, `workers-processing`, `push-consumer`, `sweeper`)
+**stopped** — otherwise the live Compose consumers drain the queue messages the
+tests assert on, giving spurious `_drain_processing_queue() == []` failures.
+`make test-int` as written brings the whole stack up with `--wait` (consumers
+included), so stop the consumers before running these queue-draining tests.
+
+See `docs/known-issues-live-stack.md` (Issue 4) for the full investigation and
+repro. The prerequisite enum/UUID bind-type fix (`platform-foundation` task 15)
+is already done; this is the remaining blocker for a green collection suite.
+
+### Processing queue message field mismatch — REAL RELEASE-BLOCKING BUG
+
+Found 2026-10-04 by running the live E2E against the Compose stack (the only
+tier that exercises the real ingestion → SQS → processing hop; unit/integration
+tests build the handler body or the enqueue in isolation, so neither caught it).
+
+Symptom: a dataset is created (`POST /add` → `created`, row inserted) but never
+processes — it stays `status=requested, active_version=None` forever. Every
+processing message fails in `workers-processing`:
+```
+ValueError: processing message missing 'version':
+  {'dataset_id': '...', 'data_version': 1}
+  at app/handlers/processing.py:110 (ProcessingMessage.from_body)
+```
+
+Root cause: a producer/consumer field-name mismatch on the FIFO processing
+queue body.
+- Consumers of the message — `app/handlers/processing.py::ProcessingMessage.from_body`
+  reads `body["version"]` (line ~108).
+- Producers — every enqueue sends `{"dataset_id", "data_version"}`:
+  `app/ingestion/service.py` (create_from_check line ~366, create_from_upload
+  line ~630) and `app/datasets/refresh_service.py` (line ~192).
+So `from_body` raises `KeyError('version')` → wrapped `ValueError` → the message
+fails every delivery and the dataset is never analyzed. This blocks the entire
+"process → summarize → chat" path end to end.
+
+Severity: release-blocking. Nothing gets a processed dataset in a real
+deployment; it only passed CI because the processing unit/integration tests hand
+the handler a `{"version": n}` body directly and the enqueue tests assert the
+sent body separately — no test asserts the producer and consumer agree.
+
+Fix direction: pick ONE canonical field name for the processing message body and
+make producers and consumer agree. Prefer standardizing on `data_version`
+(what all three producers already send and what the row column is called):
+update `ProcessingMessage.from_body` to read `body["data_version"]` (keep
+tolerant handling / a clear error). Audit every producer and consumer of the
+processing-queue body for the key. Owner: review-analysis owns the processing
+handler; the enqueuers are dataset-ingestion — coordinate the single agreed key.
+Add a test that asserts the enqueued body parses through `from_body` (a
+contract test across the hop), so this cannot regress. Verify by running the
+live E2E (`make e2e`, AI stubbed) with the DB migrated and consumers running: a
+seeded dataset must reach `status=updated` / `active_version=1`.
+
+Note (environment, not a bug): the live stack also requires Alembic migrations
+to be applied to its Postgres (`uv run alembic -c app/db/migrations/alembic.ini
+upgrade head`) — the worker containers use the real schema, unlike the
+integration/scale tests which `Base.metadata.create_all`. A fresh `docker
+compose` Postgres volume with no migration leaves workers crashing on `relation
+"datasets" does not exist`; the deploy pipeline runs migrations as a one-off
+task (platform-foundation task 7.2), and a local `make up` needs the same.
+
+#### Update (fix applied) + remaining E2E gaps are environmental
+
+The processing-message field mismatch is FIXED: `ProcessingMessage.from_body`
+now reads `data_version` (with `version` as a backward-compatible synonym,
+mirroring the DLQ handler), unit tests updated to the canonical key, and a
+producer/consumer contract test added. Verified end to end against the live
+Compose stack (DB migrated, workers rebuilt): a seeded dataset now goes
+`requested → processing → updated` with `active_version = 1`. Lint clean;
+unit/property 1447 passed.
+
+The remaining live-E2E failures are NOT product bugs of this class — they are
+local-environment/credential gaps, documented so they aren't mistaken for
+regressions:
+- **No WebSocket push locally.** The "live update without reload" tests
+  (library row goes live; detail page processing→ready live) rely on the API
+  Gateway WebSocket, which is a CDK/AWS construct with no docker-compose
+  equivalent; locally the frontend only has the polling fallback. These pass
+  against a deployed stack, not local `make e2e`.
+- **Chat Q&A needs live AI.** `main-flow`'s `askQuestion` step requires
+  `E2E_LIVE_AI=1` (or a recorded chat fixture via `make record-ai`); under the
+  default stub there is no streamed answer, so it times out. This is the
+  spec's documented "needs API key / needs a person" step.

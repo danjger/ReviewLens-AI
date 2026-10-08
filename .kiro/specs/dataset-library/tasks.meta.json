@@ -1,0 +1,361 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Build the list API": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914850894
+      },
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914858103
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920429248
+      }
+    ],
+    "2. Build the archive and restore API": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914850936
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920472666
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920916316
+      }
+    ],
+    "3.1 Implement `POST /datasets/{id}/refresh`: create a refresh-origin Check Session for the original URL, send its item to `check-queue`, return 202 `{check_id}`; 409 while requested, processing, or a refresh Check is running": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914850963
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920939459
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960314741
+      }
+    ],
+    "3.2 Implement `POST /datasets/{id}/refresh/confirm` for `limited` verdicts on datasets previously `will_work`": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914850987
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920942956
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960319874
+      }
+    ],
+    "3.3 Implement `POST /datasets/{id}/refresh/upload` using the pre-signed upload flow and `trigger=\"upload_replace\"`": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851028
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920946293
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960324519
+      }
+    ],
+    "3.4 Write integration tests: `will_work` refresh creates a version with no further client call; previous versions kept; 404 page → no version and data kept; 409 while processing; confirmation flow; the manual path and the duplicate-submission path produce the same kind of record": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851058
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790920950300
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960329676
+      }
+    ],
+    "4.1 Add the CDK WebSocket API with stage throttling, the connect and disconnect handlers, and the EventBridge rule to `push-queue`": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851081
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960361975
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790977967308
+      }
+    ],
+    "4.2 Build `handlers.push.PushHandler` on the shared consumer runtime: broadcast both event types with concurrent fan-out, clean up stale connections": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851100
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960365654
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790977972669
+      }
+    ],
+    "4.3 Write unit tests for fan-out and stale cleanup, and an integration test from an EventBridge event through `push-queue` to `postToConnection` calls, with the push consumer running as a container": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851124
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960370139
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790977977541
+      }
+    ],
+    "5. Build the real-time frontend": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851143
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790977984250
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980921082
+      }
+    ],
+    "6.1 Build the page layout with two labeled sections (\"Add new reviews\" and \"Tracked datasets ({count})\") and distinct visual treatments; stack on narrow screens": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851166
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980939841
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984632770
+      }
+    ],
+    "6.2 Build the `NewDatasetPanel` shell: URL and Upload tabs hosting the `dataset-ingestion` components; collapse and expand rules; expanded when the library is empty": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851187
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980943794
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984638467
+      }
+    ],
+    "6.3 Build `TrackedDatasetsSection`: search, sort, \"Show archived\" toggle, and `DatasetTable` with a `display_state` badge (including \"Ready · refreshing\" and \"Ready · last refresh failed\"), live progress, review count, version, last refreshed, and row navigation": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851214
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980948075
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984644040
+      }
+    ],
+    "6.4 Build the row actions: Open, Refresh (disabled while processing or checking; shows \"Checking page…\", the failure reason, or a \"Needs confirmation\" dialog with the verdict reasons), Archive with confirmation, Restore": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851233
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980952041
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984649243
+      }
+    ],
+    "6.5 Highlight and scroll to affected rows after Add or Refresh": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851274
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980956120
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984655260
+      }
+    ],
+    "6.6 Add empty, loading, and error-with-retry states": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851294
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980961097
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984659958
+      }
+    ],
+    "6.7 Write component tests: distinct sections, no URL input in the Tracked section, collapse rules, empty state, highlight, all actions, a live row update": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851316
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790980966025
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984665014
+      }
+    ],
+    "7. Write E2E tests": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851337
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790992499749
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1791010525334
+      }
+    ],
+    "8. Write property-based tests for the Correctness Properties": [
+      {
+        "executionId": "6241b060-0f02-4a80-a9a8-d28b2c78d31e",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790914851359
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984683870
+      },
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790991770973
+      }
+    ],
+    "3. Build the refresh API": [
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790960329719
+      }
+    ],
+    "4. Build the real-time backend": [
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790977977574
+      }
+    ],
+    "6. Build the Library page": [
+      {
+        "executionId": "34e98972-eb2b-4433-99ef-55dfc9e861b5",
+        "chatSessionId": "sess_f05fe0eb-43c8-413d-bb99-caa583e171c6",
+        "timestamp": 1790984665062
+      }
+    ],
+    "9. Expose `status_detail` and the upload description on the detail record": [
+      {
+        "executionId": "c6ffd3fe-57d3-4f16-add4-2d71879f7da1",
+        "chatSessionId": "sess_2fa56c77-77a7-4cfd-aadc-95e441ba2264",
+        "timestamp": 1791037359721
+      },
+      {
+        "executionId": "c6ffd3fe-57d3-4f16-add4-2d71879f7da1",
+        "chatSessionId": "sess_2fa56c77-77a7-4cfd-aadc-95e441ba2264",
+        "timestamp": 1791037747156
+      }
+    ]
+  }
+}

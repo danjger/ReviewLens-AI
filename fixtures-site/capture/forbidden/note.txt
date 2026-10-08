@@ -1,0 +1,7 @@
+This directory intentionally has no index.html.
+
+Static nginx (autoindex off, the default) returns HTTP 403 Forbidden when a
+directory with no index document is requested. The capture integration test
+requests `capture/forbidden/` to exercise a non-200 main document status
+(dataset-ingestion Requirement 2.7). This file exists only so the directory is
+tracked in git.

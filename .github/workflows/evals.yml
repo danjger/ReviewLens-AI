@@ -1,0 +1,196 @@
+# Evaluation pipelines – review-extraction task 9.2 and guardrailed-chat task 7.3
+#
+# Two STANDALONE quality-monitoring jobs that each run the LIVE model and FAIL
+# when quality drops below their thresholds, so a prompt or logic change can't
+# quietly make the product worse (both specs' Requirements 8.3 and 8.4):
+#
+#   - extraction-eval  (review-extraction): extraction precision/recall.
+#   - scope-guard-eval (guardrailed-chat):  the chat scope guard.
+#
+# This workflow is deliberately NOT part of the deploy-gating chain: deploy.yml
+# gates on a successful "CI" workflow_run, and this workflow is intentionally
+# named something other than "CI" so it never gates (or blocks) a deploy. It
+# only guards quality.
+#
+# Gating mechanism (Req 8.3): each gating step runs the `live_ai` pytest suite at
+# the repo-root /evals path. The relevant `test_run_live.py::test_live_evaluation`
+# scores with the live model, writes its report.md, and ASSERTS its thresholds;
+# when they aren't met, that assertion fails and so does the job.
+name: Quality evals
+
+on:
+  # On demand (Req 8.4): run the live evaluations whenever a human asks.
+  workflow_dispatch:
+
+  # On every change that can affect either evaluation's quality (Req 8.4). The
+  # paths filter below applies to push/pull_request only; workflow_dispatch
+  # always runs. Each path maps to one of the named triggers (plus the eval
+  # suites). GitHub runs every job in the workflow when any path matches; each
+  # job's own live test SKIPS without ANTHROPIC_API_KEY, so an unrelated change
+  # does not do real work in the other job.
+  push:
+    paths:
+      # --- Extraction evaluation inputs (review-extraction Req 8.4) ---
+      # The page cleaner.
+      - backend/app/extraction/cleaner.py
+      # The Locator prompt. The whole prompts directory is watched so a new
+      # prompt version (e.g. locator_v2.md) also triggers the evaluation.
+      - backend/prompts/**
+      # The Locator module itself: the prompt text and tool schema are wired up
+      # here, so a change to it changes what the Locator sees/returns.
+      - backend/app/extraction/locator.py
+      # The method-choice rules: plan.py holds _choose_method / _texts_agree,
+      # which decide selectors vs structured vs ai_direct.
+      - backend/app/extraction/plan.py
+      # The extraction evaluation suite (runner, scorer, labels, report).
+      - evals/extraction/**
+      # --- Scope-guard evaluation inputs (guardrailed-chat Req 8.4) ---
+      # The chat prompt files: the design says run "on every change to the chat
+      # prompt files". The whole directory is watched so a new version (e.g.
+      # system_v2.md) also triggers it (system_v1.md, precheck_v1.md).
+      - backend/app/chat/prompts/**
+      # The scope-guard evaluation suite itself (cases, fixtures, judge prompt,
+      # grader, report) — if the cases or the way we grade change, re-run so the
+      # recorded numbers stay honest.
+      - evals/scope_guard/**
+      # Re-run if this workflow definition changes.
+      - .github/workflows/evals.yml
+  pull_request:
+    paths:
+      - backend/app/extraction/cleaner.py
+      - backend/prompts/**
+      - backend/app/extraction/locator.py
+      - backend/app/extraction/plan.py
+      - evals/extraction/**
+      - backend/app/chat/prompts/**
+      - evals/scope_guard/**
+      - .github/workflows/evals.yml
+
+# Cancel superseded runs on the same ref so only the latest commit is evaluated.
+concurrency:
+  group: evals-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  extraction-eval:
+    name: Extraction evaluation (live model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      # Gating step (Req 8.3 + 8.4). Runs the live_ai suite against the repo-root
+      # /evals path per structure.md and run.py's documented invocation. NOTE: the
+      # Makefile `eval` target uses `pytest evals/` (backend-relative); the eval
+      # suite actually lives at the repo root, so we invoke `../evals` from backend.
+      # The Makefile is intentionally left unchanged.
+      #
+      # test_live_evaluation SKIPS when ANTHROPIC_API_KEY is absent, so the job
+      # only truly gates when the secret is configured (expected: the live run is
+      # review-extraction task 9.4). When the key is present and the thresholds
+      # are not met, test_run_live.py's assertion fails and this job fails.
+      - name: Run live extraction evaluation (gates on thresholds)
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run pytest ../evals/extraction -v -m live_ai
+
+      # Make the scores visible even on failure.
+      - name: Append report to the job summary
+        if: ${{ always() }}
+        run: |
+          if [ -f evals/extraction/report.md ]; then
+            {
+              echo "## Extraction evaluation report"
+              echo ""
+              cat evals/extraction/report.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No report.md produced (evaluation may have been skipped)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evaluation report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extraction-eval-report
+          path: evals/extraction/report.md
+          if-no-files-found: ignore
+
+  # Scope-guard evaluation (guardrailed-chat task 7.3). Mirrors extraction-eval:
+  # a standalone live-model quality gate that FAILS when the scope guard weakens,
+  # so a change to the chat prompts (system_v1.md / precheck_v1.md) or the eval
+  # cannot quietly let out-of-scope answers or injections through (Req 8.3, 8.4).
+  scope-guard-eval:
+    name: Scope-guard evaluation (live model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      # Gating step (Req 8.3 + 8.4). Runs the live_ai suite per structure.md and
+      # run.py's documented invocation, scoped to the scope_guard suite so this
+      # job gates on (and reports) only the scope guard — the extraction job owns
+      # the extraction suite in the same path.
+      #
+      # evals/scope_guard/test_run_live.py::test_live_evaluation grades every case
+      # with the live model, writes report.md, and ASSERTS the four Req 8.3
+      # thresholds (correct-decline ≥ 95%, false-decline ≤ 5%, 0 injection
+      # successes, citation-validity = 100%). It SKIPS when ANTHROPIC_API_KEY is
+      # absent, so the job only truly gates when the secret is configured
+      # (expected: the live run is guardrailed-chat task 7.4). When the key is
+      # present and a threshold is missed, that assertion fails and so does this
+      # job.
+      - name: Run live scope-guard evaluation (gates on thresholds)
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run pytest ../evals/scope_guard -v -m live_ai
+
+      # Make the scores visible even on failure (Req 8.4 "write a report").
+      - name: Append report to the job summary
+        if: ${{ always() }}
+        run: |
+          if [ -f evals/scope_guard/report.md ]; then
+            {
+              echo "## Scope-guard evaluation report"
+              echo ""
+              cat evals/scope_guard/report.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No report.md produced (evaluation may have been skipped)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload evaluation report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: scope-guard-eval-report
+          path: evals/scope_guard/report.md
+          if-no-files-found: ignore

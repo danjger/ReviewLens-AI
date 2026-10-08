@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Remind to run eval after prompt save",
+      "trigger": "PostFileSave",
+      "matcher": "backend/prompts/.*",
+      "action": {
+        "type": "agent",
+        "prompt": "A prompt file under backend/prompts/ was just saved. Remind the user that they must run `make eval` before marking any task that touches this prompt as done. Do not proceed to mark a task complete until they confirm the eval has been run."
+      }
+    }
+  ]
+}

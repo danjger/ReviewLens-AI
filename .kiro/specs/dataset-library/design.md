@@ -70,7 +70,7 @@ sequenceDiagram
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/datasets?archived=false&sort=activity&q=` | Returns `[{id, name, main_url, platform, status, display_state, last_message, review_count, data_version, active_version, requested_at, last_refreshed_at, archived_at, refresh_check_id}]` |
-| GET | `/datasets/{id}` | Full record (used by `ingestion-summary`), including `active_version` and the `dataset_versions` list |
+| GET | `/datasets/{id}` | Full record (used by `ingestion-summary`): every list field plus `source_type`, `original_url`, `final_url`, `page_title`, `metrics`, `active_version`, the `dataset_versions` list, the `status_detail` document (`events` for ProcessingTimeline, `redirects` for the DatasetHeader "Resolved to" hops, `viability` for the PredictionPanel), and `description` (the upload source description; `null` for URL datasets). The identified-entity profile is not on `metrics` — review-analysis writes it into `reviews/v{n}.json`, so EntityCard reads it from the reviews file |
 | PATCH | `/datasets/{id}` | `{name}` rename |
 | POST | `/datasets/{id}/refresh` | URL datasets; rate-limited like checks. Creates a Check Session with `origin="refresh"` for the original URL and sends its item to `check-queue`. Returns 202 `{check_id}`. The check handler then starts the refresh automatically, waits for confirmation, or records the failure (dataset-ingestion Requirement 6.9). 409 `ALREADY_REFRESHING` while `requested`, `processing`, or a refresh Check is running |
 | POST | `/datasets/{id}/refresh/confirm` | `{check_id}`. Confirms a `limited` refresh verdict; calls `refresh_service.refresh(..., trigger="manual_refresh")` with the Check's capture |

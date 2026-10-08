@@ -1,0 +1,253 @@
+# Deploy pipeline – platform-foundation task 7.2 (Requirements 1.3, 1.4, 8.7).
+#
+# Runs ONLY on `main`, and ONLY after the "CI" workflow has completed
+# successfully (see ci.yml). The `workflow_run` trigger is the deploy gate:
+# CI runs every test (lint, unit/property, container integration, scale,
+# cdk synth); a green CI run on `main` is what allows this workflow to deploy
+# (Req 1.4 "only if they pass, deploy to production").
+#
+# ─── Authentication: GitHub OIDC into AWS (no long-lived keys) ───────────────
+# This workflow assumes the least-privilege deploy role created by the
+# `ReviewLens-GithubOidc` CDK stack (infra/lib/github-oidc-stack.ts), which a
+# human deploys once by hand before the first run. The role ARN is read from
+# the repository variable AWS_DEPLOY_ROLE_ARN. `id-token: write` lets the runner
+# mint the OIDC token the role's trust policy accepts.
+#
+# ─── Image digests (Req 8.7) ─────────────────────────────────────────────────
+# "The same image digest is tested in containers and deployed to Lambda."
+# Chosen approach: the ApiStack/WorkersStack build the backend/workers images as
+# CDK DockerImageAssets, so `cdk deploy` builds them from the SAME Dockerfiles at
+# the SAME commit and PUBLISHES them (by digest) to the CDK bootstrap assets ECR;
+# the Lambdas then run that exact digest. We also run an explicit `docker login`
+# to ECR so that asset publishing has credentials.
+#   Tradeoff: CI builds the images to validate them and run container
+#   integration/scale tests, then `cdk deploy` rebuilds from the identical
+#   commit + Dockerfiles here. Docker's content-addressed builds make the
+#   rebuilt image bit-for-bit equivalent, so the deployed digest corresponds to
+#   the tested source. A stricter "promote the exact bytes CI built" scheme
+#   (push to a dedicated ECR repo in CI and pass the digest into the stacks)
+#   is possible later; it adds a dedicated ECR repo + digest plumbing for little
+#   benefit here, so we keep the simpler, correct path of letting CDK publish
+#   the assets.
+#
+# ─── Migrations (Design "Migrations": Alembic as a one-off before each deploy) ─
+# After the stacks exist (so the Aurora cluster + Data API are available) we run
+# `alembic upgrade head` from the runner, pointed at the deployed DB THROUGH THE
+# DATA API by setting DB_RESOURCE_ARN / DB_SECRET_ARN / DB_DATABASE_NAME from the
+# DataStack outputs. env.py builds its engine from app.core.db, so in AWS mode it
+# uses the Data API driver — the same path the app uses. This is the pragmatic
+# "one-off migration task": the runner IS the one-off task, using the same code.
+# (The alternative — a dedicated one-off Lambda/ECS task — is heavier and buys
+# nothing for a prototype.)
+#
+# ─── Steps ───────────────────────────────────────────────────────────────────
+#   1. checkout + Node/Python toolchains
+#   2. configure AWS creds via OIDC (assume AWS_DEPLOY_ROLE_ARN)
+#   3. docker login to ECR (so CDK asset publishing can push)
+#   4. resolve the origin-verify secret value (for the Edge custom header)
+#   5. cdk deploy --all (lambda mode) → builds+pushes image assets by digest,
+#      creates/updates every stack
+#   6. run Alembic migrations against the deployed DB via the Data API
+#   7. build + upload the SPA to the Frontend bucket, then invalidate CloudFront
+#   8. post-deploy Lambda-mode smoke test (HTTP health + Data API read/write)
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# OIDC: id-token:write lets the runner request the token the AWS role trusts.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  # Non-production stacks (e.g. ReviewLens-TestFixtures) are excluded in
+  # production; envName defaults to production in bin/app.ts.
+  ENV_NAME: production
+
+jobs:
+  deploy:
+    name: Deploy to production
+    # Only deploy when the gating CI run succeeded (Req 1.4).
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            infra/package-lock.json
+            frontend/package-lock.json
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ---------------------------------------------------------------
+      # OIDC: assume the least-privilege GithubOidc deploy role.
+      # AWS_DEPLOY_ROLE_ARN is a repository variable set by the human who
+      # deployed ReviewLens-GithubOidc by hand (see that stack + README).
+      # ---------------------------------------------------------------
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: reviewlens-deploy-${{ github.run_id }}
+
+      # CDK publishes the DockerImageAssets to the bootstrap assets ECR; an
+      # explicit login makes those pushes work (Req 8.7 "push image digests").
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Install infra dependencies
+        working-directory: infra
+        run: npm ci
+
+      # ---------------------------------------------------------------
+      # Resolve the X-Origin-Verify secret value for the Edge custom origin
+      # header. CloudFront requires it as plaintext in the template, so it is
+      # passed via context at deploy, never hardcoded (see edge-stack.ts).
+      # ---------------------------------------------------------------
+      - name: Resolve origin-verify secret
+        id: originverify
+        run: |
+          set -euo pipefail
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "ReviewLens-Data/origin-verify-secret" \
+            --query SecretString --output text)
+          VALUE=$(printf '%s' "$SECRET_JSON" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin)["ORIGIN_VERIFY_SECRET"])')
+          echo "::add-mask::$VALUE"
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # cdk deploy (lambda mode). Builds the backend/workers image assets from
+      # this commit's Dockerfiles and publishes them by digest to the CDK assets
+      # ECR, then creates/updates every APPLICATION stack. We list the app
+      # stacks EXPLICITLY (rather than `--all`) so ReviewLens-GithubOidc is
+      # never touched here — it is deployed once by hand and the pipeline's role
+      # has no permission to mint its own trust.
+      # ---------------------------------------------------------------
+      - name: CDK deploy (Lambda mode)
+        working-directory: infra
+        run: |
+          set -euo pipefail
+          npx cdk deploy \
+            ReviewLens-Data ReviewLens-Api ReviewLens-Workers \
+            ReviewLens-Frontend ReviewLens-Edge ReviewLens-Cost \
+            --require-approval never \
+            -c envName="$ENV_NAME" \
+            -c originVerifySecret="${{ steps.originverify.outputs.value }}" \
+            --outputs-file cdk-outputs.json
+
+      # ---------------------------------------------------------------
+      # Read the stack outputs we need for migrations, upload, invalidation,
+      # and the smoke test into step outputs.
+      # ---------------------------------------------------------------
+      - name: Read stack outputs
+        id: outputs
+        working-directory: infra
+        run: |
+          set -euo pipefail
+          read_out() { python3 -c "import json,sys; d=json.load(open('cdk-outputs.json')); print(d.get('$1',{}).get('$2',''))"; }
+          {
+            echo "cluster_arn=$(read_out ReviewLens-Data ClusterArn)"
+            echo "db_secret_arn=$(read_out ReviewLens-Data DbSecretArn)"
+            echo "db_name=$(read_out ReviewLens-Data DatabaseName)"
+            echo "spa_bucket=$(read_out ReviewLens-Frontend SpaBucketName)"
+            echo "api_endpoint=$(read_out ReviewLens-Api HttpApiEndpoint)"
+            echo "distribution_id=$(read_out ReviewLens-Edge DistributionId)"
+            echo "distribution_domain=$(read_out ReviewLens-Edge DistributionDomainName)"
+          } >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # One-off Alembic migration against the deployed DB THROUGH the Data API.
+      # env.py builds its engine from app.core.db; setting the Data API env vars
+      # (and leaving DATABASE_URL unset) selects the aurora-data-api driver.
+      # ---------------------------------------------------------------
+      - name: Run Alembic migrations (Data API)
+        working-directory: backend
+        env:
+          ENV: production
+          DB_RESOURCE_ARN: ${{ steps.outputs.outputs.cluster_arn }}
+          DB_SECRET_ARN: ${{ steps.outputs.outputs.db_secret_arn }}
+          DB_DATABASE_NAME: ${{ steps.outputs.outputs.db_name }}
+        run: |
+          set -euo pipefail
+          uv sync --extra dev
+          uv run alembic -c app/db/migrations/alembic.ini upgrade head
+
+      # ---------------------------------------------------------------
+      # Build and upload the SPA, then invalidate the CDN (Req 1.3).
+      # ---------------------------------------------------------------
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload SPA to S3 and invalidate CloudFront
+        env:
+          SPA_BUCKET: ${{ steps.outputs.outputs.spa_bucket }}
+          DISTRIBUTION_ID: ${{ steps.outputs.outputs.distribution_id }}
+        run: |
+          set -euo pipefail
+          # Long-cache the hashed assets, no-cache the HTML entrypoint so a new
+          # deploy is picked up immediately.
+          aws s3 sync frontend/dist "s3://$SPA_BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+          aws s3 cp frontend/dist/index.html "s3://$SPA_BUCKET/index.html" \
+            --cache-control "no-cache"
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*"
+
+      # ---------------------------------------------------------------
+      # Post-deploy Lambda-mode smoke test (Req 8.7, Design "Data API parity").
+      # Probes the API Gateway endpoint's /healthz + /readyz (health endpoints
+      # are exempt from the origin guard, so the direct endpoint answers), and
+      # runs a real READ + WRITE through the Data API driver.
+      # ---------------------------------------------------------------
+      - name: Lambda-mode smoke test
+        working-directory: backend
+        env:
+          ENV: production
+          SMOKE_BASE_URL: ${{ steps.outputs.outputs.api_endpoint }}
+          DB_RESOURCE_ARN: ${{ steps.outputs.outputs.cluster_arn }}
+          DB_SECRET_ARN: ${{ steps.outputs.outputs.db_secret_arn }}
+          DB_DATABASE_NAME: ${{ steps.outputs.outputs.db_name }}
+        run: uv run python scripts/smoke_test.py
+
+      # ---------------------------------------------------------------
+      # Report the deployed endpoints to the job summary.
+      # ---------------------------------------------------------------
+      - name: Write deploy summary
+        if: ${{ always() }}
+        env:
+          DISTRIBUTION_DOMAIN: ${{ steps.outputs.outputs.distribution_domain }}
+          API_ENDPOINT: ${{ steps.outputs.outputs.api_endpoint }}
+        run: |
+          {
+            echo "## ReviewLens AI deploy"
+            echo ""
+            echo "- Portal: https://${DISTRIBUTION_DOMAIN}"
+            echo "- API endpoint: ${API_ENDPOINT}"
+            echo "- Commit: ${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"

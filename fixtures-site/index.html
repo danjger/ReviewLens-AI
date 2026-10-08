@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReviewLens AI — Test Fixtures</title>
+  </head>
+  <body>
+    <main>
+      <h1>ReviewLens AI test fixtures</h1>
+      <p>
+        This is the public test-fixtures site. It serves the static review
+        pages under <code>/fixtures-site</code> over HTTPS so tests running
+        against deployed stacks (where SSRF protection blocks private
+        addresses) can fetch them. Individual fixture review pages are added by
+        the review-extraction and evaluation specs.
+      </p>
+
+      <h2>Extraction evaluation pages</h2>
+      <p>
+        Published copies of the labeled extraction evaluation pages. Each is a
+        byte-for-byte copy of
+        <code>/evals/extraction/pages/&lt;name&gt;/page.html</code>, served here
+        at <code>/extraction/&lt;name&gt;/</code> so integration and E2E tests
+        can load them over HTTP. If an eval page changes, regenerate its copy
+        here (see <code>/fixtures-site/extraction/README.md</code>).
+      </p>
+      <ul>
+        <li><a href="extraction/structured_jsonld/">structured_jsonld</a></li>
+        <li><a href="extraction/structured_microdata/">structured_microdata</a></li>
+        <li><a href="extraction/js_rendered/">js_rendered</a></li>
+        <li><a href="extraction/plain_list/">plain_list</a></li>
+        <li><a href="extraction/no_ratings/">no_ratings</a></li>
+        <li><a href="extraction/multipage_listing/">multipage_listing</a></li>
+        <li><a href="extraction/mixed_qa_seller/">mixed_qa_seller</a></li>
+        <li><a href="extraction/blocker_consent/">blocker_consent</a></li>
+        <li><a href="extraction/blocker_empty/">blocker_empty</a></li>
+      </ul>
+
+      <h2>Capture integration-test pages</h2>
+      <p>
+        Pages used by the headless-browser capture integration tests
+        (dataset-ingestion task 2.2). See
+        <code>/fixtures-site/capture/README.md</code>.
+      </p>
+      <ul>
+        <li><a href="capture/normal/">normal</a></li>
+        <li><a href="capture/localhost_image/">localhost_image</a></li>
+        <li><a href="capture/meta_refresh/">meta_refresh</a></li>
+        <li><a href="capture/forbidden/">forbidden (403)</a></li>
+        <li><a href="capture/lazy/">lazy</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

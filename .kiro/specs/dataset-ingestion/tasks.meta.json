@@ -1,0 +1,561 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Implement `url_normalizer.normalize()` with a configurable tracking-parameter list": [
+      {
+        "executionId": "731639d5-7c82-4346-8f80-15f5a2cc7c67",
+        "chatSessionId": "sess_8c2fdaf9-4fa7-499f-977a-7ff58e76d3d0",
+        "timestamp": 1790797729906
+      }
+    ],
+    "1. Implement URL normalization and validation": [
+      {
+        "executionId": "3bba16df-c434-4a1c-b4b5-7ee05c4652bc",
+        "chatSessionId": "sess_bb7876f7-986b-4fa5-a388-bdc4b4728423",
+        "timestamp": 1790868822049
+      },
+      {
+        "executionId": "3bba16df-c434-4a1c-b4b5-7ee05c4652bc",
+        "chatSessionId": "sess_bb7876f7-986b-4fa5-a388-bdc4b4728423",
+        "timestamp": 1790869372420
+      }
+    ],
+    "2.1 Implement `capture.render()` in the workers image: one reused browser per process with a fresh context per message, SSRF route guard on every browser request, render, one scroll for lazy content, save HTML and a 1280×900 screenshot, read the title, return the main response status and the browser's final URL": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861143
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869869636
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870225791
+      }
+    ],
+    "2.2 Write integration tests that render fixture pages: normal page, page loading a resource from `127.0.0.1` (blocked), meta-refresh redirect (recorded), 403 main response, lazy-loaded reviews": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861186
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870232115
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870634395
+      }
+    ],
+    "3.1 Implement the rule-based pre-scan for empty shells, challenge pages, and login walls": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861217
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870639448
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870922038
+      }
+    ],
+    "3.2 Implement `viability.assess()`: pre-scan, structured data, Review Locator, verification, selector validation, method choice, and the Extraction Plan (calling `extraction.build_plan()` from `review-extraction`)": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861246
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870926761
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871273593
+      }
+    ],
+    "3.3 Implement the verdict rules, plain-language reasons, warnings (robots), samples, and the evidence object, with thresholds from configuration": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861275
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871278216
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871495905
+      }
+    ],
+    "3.4 Implement the AI-unavailable fallback (structured data only, verdict at most `limited`)": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861300
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871500601
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871648895
+      }
+    ],
+    "3.5 Write unit tests for the verdict rules from a table of plan outcomes, and for the fallback": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861326
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871653140
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871864186
+      }
+    ],
+    "3.6 Add `assess()` to the extraction evaluation suite as a verdict-accuracy column with the 0.90 threshold": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861351
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790871882862
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790872197487
+      }
+    ],
+    "4.1 Create the DynamoDB `check-sessions` item layout (items as a map for per-item conditional updates) and the `check-queue` consumer wiring": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861378
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790872204932
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790873529644
+      }
+    ],
+    "4.2 Implement `handlers.check.CheckHandler`: conditional claim, probe, capture to the check prefix, client-redirect handling, assess, duplicate lookup, write the item and plan, publish `check.updated`; enforce `CHECK_TIMEOUT_S`; mark `error` on the final attempt": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861403
+      },
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790873549843
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790875825071
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790875833502
+      }
+    ],
+    "4.3 Add the `POST /ingest/checks`, `GET /ingest/checks/{id}`, and per-item retry endpoints with per-IP and global rate limiting": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861448
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790876538855
+      }
+    ],
+    "4.4 Write integration tests with the AI stub: each fixture ends in the expected item state, verdict, plan, and event; a crashed handler leaves the item in `error` and retry works; the same message delivered twice produces one result; 429 after the limit": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861470
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790878353175
+      }
+    ],
+    "5. Add the data model changes": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861491
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790878757615
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790878894997
+      }
+    ],
+    "6.1 Implement `refresh_service.refresh()` with a required capture: guard for already refreshing, restore when archived, a transactional version increment, copy the capture and plan, insert a `dataset_versions` row with the trigger, add the `refresh_requested` event, enqueue": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861513
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790878899881
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881246561
+      }
+    ],
+    "6.2 Implement refresh-origin handling in the check handler: automatic refresh, wait for confirmation, or failed-refresh event with no version row": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861542
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881250994
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881583789
+      }
+    ],
+    "6.3 Write unit and integration tests for each branch, including two concurrent refresh calls producing one version": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861660
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881588992
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881995791
+      }
+    ],
+    "7.1 Implement `add_items()`: refuse `wont_work`, require confirmation for `limited`, conditional `applied` marking, create new datasets from the check capture (copy page, plan, and snapshot, insert with viability in `status_detail`, version 1 row, enqueue), route tracked URLs to refresh": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861684
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882002761
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882370874
+      }
+    ],
+    "7.2 Handle the unique-constraint race by falling back to refresh": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861713
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882377613
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882648015
+      }
+    ],
+    "7.3 Add the `POST /ingest/checks/{id}/add` endpoint with per-item outcomes, including `expired`": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861736
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882652837
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882846764
+      }
+    ],
+    "7.4 Write integration tests: new → v1; tracked → refresh with no new row; archived → restored; processing → already refreshing; concurrent duplicate → one dataset; double-submitted Add → one dataset; `wont_work` refused; `limited` without confirmation refused": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861765
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790882851470
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883218075
+      }
+    ],
+    "8.1 Implement `POST /uploads` (pre-signed PUT with a content-length limit and rate limiting)": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861795
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883222186
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883526241
+      }
+    ],
+    "8.2 Implement `upload_parser` reading from S3, with delimiter sniffing, header synonym mapping, size and column checks, usable-row count, and the keep rule; delete the object when invalid": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861821
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883534947
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883820972
+      }
+    ],
+    "8.3 Add `POST /uploads/{id}/preview` and `POST /datasets/upload`, storing the file and `mapping.json` under the dataset and creating the version 1 record": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861850
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883825313
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790884203857
+      }
+    ],
+    "9.1 Build the URL tab: multi-line input and Check button, per-URL progress, verdict cards with reasons, warnings, evidence, and sample reviews, \"Already tracked\" notes with link, per-item Retry, selection checkboxes, the 429 message, and `?check=` persistence": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861876
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790884209499
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790886271410
+      }
+    ],
+    "9.2 Build Add selected: confirmation for `limited` items, per-item results summary, navigation for single versus multiple adds": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861901
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790886276617
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790886673547
+      }
+    ],
+    "9.3 Build the Upload tab: dropzone, direct upload with progress, preview with the over-limit note, column mapper, required name, submit": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861928
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790886678403
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887096624
+      }
+    ],
+    "9.4 Write component tests for parsing limits, verdict rendering with samples, disabled `wont_work`, the limited confirmation, the tracked notes, retry, the results summary, and the upload flow": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861953
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887104779
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887567212
+      }
+    ],
+    "10. Write E2E tests (against the public fixture site)": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869861979
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887575835
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790888062090
+      }
+    ],
+    "11. Write property-based tests for the Correctness Properties": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790869862005
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887584187
+      },
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790888063157
+      }
+    ],
+    "2. Build the in-process Capture module": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790870634443
+      }
+    ],
+    "3. Build the viability assessment": [
+      {
+        "executionId": "5ba8cef6-53f2-4d34-844e-d570e4d49cfd",
+        "chatSessionId": "sess_23f6a776-4c92-48ff-9382-5f9b06fc815e",
+        "timestamp": 1790872197539
+      }
+    ],
+    "6. Build the Refresh Service (shared with dataset-library)": [
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790881995837
+      }
+    ],
+    "7. Implement Add": [
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790883218126
+      }
+    ],
+    "8. Implement upload ingestion": [
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790884203892
+      }
+    ],
+    "9. Build the frontend contents of the New Dataset panel": [
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790887567273
+      }
+    ],
+    "4. Build Check Sessions and the check handler": [
+      {
+        "executionId": "6e101263-4bc3-4a05-85ee-2fa8d43cedc2",
+        "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
+        "timestamp": 1790888079311
+      }
+    ]
+  }
+}

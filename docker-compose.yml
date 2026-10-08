@@ -1,0 +1,279 @@
+services:
+  # ── PostgreSQL 16 ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: reviewlens
+      POSTGRES_PASSWORD: reviewlens
+      POSTGRES_DB: reviewlens
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reviewlens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── LocalStack (S3, SQS, DynamoDB, EventBridge, Secrets Manager) ────────────
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,sqs,dynamodb,events,secretsmanager
+      DEBUG: "0"
+      PERSISTENCE: "0"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./infra/localstack-init:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"running\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ── Fixtures web server (serves /fixtures-site for SSRF-safe test pages) ────
+  fixtures:
+    image: nginx:alpine
+    volumes:
+      - ./fixtures-site:/usr/share/nginx/html:ro
+    ports:
+      - "9090:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 0"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── API service ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: api
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_BUCKET: reviewlens-local
+      CHECK_QUEUE_URL: http://localstack:4566/000000000000/check-queue
+      PROCESSING_QUEUE_URL: http://localstack:4566/000000000000/processing-queue.fifo
+      PUSH_QUEUE_URL: http://localstack:4566/000000000000/push-queue
+      RATE_LIMITS_TABLE: rate-limits
+      CHECK_SESSIONS_TABLE: check-sessions
+      WS_CONNECTIONS_TABLE: ws-connections
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+      SSRF_TEST_ALLOW_HOSTS: fixtures
+      # Local dev: the origin guard is disabled (empty secret) so the SPA /
+      # browser can reach the API directly (see app/core/origin_guard.py:
+      # "In local docker-compose the secret is not set"). AWS sets the real
+      # secret via CDK; this empty value is local-only.
+      ORIGIN_VERIFY_SECRET: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Chat service ─────────────────────────────────────────────────────────────
+  chat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn app.chat:app --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "8001:8001"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: chat
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_BUCKET: reviewlens-local
+      RATE_LIMITS_TABLE: rate-limits
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+      # Local dev: the origin guard is disabled (empty secret) so the SPA /
+      # browser can reach the API directly (see app/core/origin_guard.py:
+      # "In local docker-compose the secret is not set"). AWS sets the real
+      # secret via CDK; this empty value is local-only.
+      ORIGIN_VERIFY_SECRET: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Job workers – check queue (Playwright + Chromium) ────────────────────────
+  workers-check:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.workers
+    command: python -m app.consumer --queue check
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: workers-check
+      HEALTH_PORT: "8080"
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_BUCKET: reviewlens-local
+      CHECK_QUEUE_URL: http://localstack:4566/000000000000/check-queue
+      RATE_LIMITS_TABLE: rate-limits
+      CHECK_SESSIONS_TABLE: check-sessions
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+      SSRF_TEST_ALLOW_HOSTS: fixtures
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Job workers – processing queue (Playwright + Chromium) ───────────────────
+  workers-processing:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.workers
+    command: python -m app.consumer --queue processing
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: workers-processing
+      HEALTH_PORT: "8080"
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      S3_BUCKET: reviewlens-local
+      PROCESSING_QUEUE_URL: http://localstack:4566/000000000000/processing-queue.fifo
+      RATE_LIMITS_TABLE: rate-limits
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+      SSRF_TEST_ALLOW_HOSTS: fixtures
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Push consumer ─────────────────────────────────────────────────────────────
+  push-consumer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python -m app.consumer --queue push
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: push-consumer
+      HEALTH_PORT: "8080"
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      PUSH_QUEUE_URL: http://localstack:4566/000000000000/push-queue
+      WS_CONNECTIONS_TABLE: ws-connections
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Sweeper (scheduled job, runs continuously with sleep between sweeps) ──────
+  sweeper:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python -m app.jobs.sweep --loop
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENV: local
+      SERVICE_NAME: sweeper
+      DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      PROCESSING_QUEUE_URL: http://localstack:4566/000000000000/processing-queue.fifo
+      EVENTBRIDGE_BUS_NAME: reviewlens-events
+      SWEEP_REQUESTED_AFTER_MIN: "5"
+      SWEEP_PROCESSING_STALE_MIN: "20"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/var/task/app
+
+volumes:
+  postgres-data:
+  localstack-data:

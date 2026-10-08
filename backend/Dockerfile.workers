@@ -1,0 +1,90 @@
+# workers image – extends the backend image with Playwright + Chromium
+#
+# Used by job workers (check handler, processing/analysis handler).
+# Inherits the Lambda Web Adapter from the base image so it can also run
+# as a Lambda with an SQS event-source mapping.
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023
+
+# ── System dependencies (Python + Chromium prerequisites) ────────────────────
+RUN dnf install -y \
+        python3.12 \
+        python3.12-pip \
+        python3.12-devel \
+        gcc \
+        # Chromium / Playwright runtime dependencies
+        atk \
+        cups-libs \
+        gtk3 \
+        libXcomposite \
+        libXcursor \
+        libXdamage \
+        libXext \
+        libXi \
+        libXrandr \
+        libXScrnSaver \
+        libXtst \
+        pango \
+        alsa-lib \
+        dbus-glib \
+        nss \
+        libdrm \
+        mesa-libgbm \
+    && dnf clean all
+
+# ── AWS Lambda Web Adapter ───────────────────────────────────────────────────
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 \
+     /lambda-adapter /opt/extensions/lambda-adapter
+
+# ── uv ───────────────────────────────────────────────────────────────────────
+RUN pip3.12 install --no-cache-dir "uv>=0.5"
+
+# Amazon Linux ships no bare `python`; the consumer command invokes
+# `python -m app.consumer`, so symlink it to the 3.12 interpreter.
+RUN ln -sf /usr/bin/python3.12 /usr/local/bin/python
+
+WORKDIR /var/task
+
+# ── Python dependencies (cached layer) ──────────────────────────────────────
+# Install the exact locked dependency set from `uv.lock` (NOT the open-ended
+# `pyproject.toml` floors) so a rebuilt image never floats above the
+# known-good versions — this pins the whole transitive tree, Playwright and
+# its (transitive) greenlet included, matching the capture engine's tested
+# versions. `--frozen` refuses to re-resolve a stale lock; `--no-dev` keeps
+# test/lint tooling out of the runtime image.
+#
+# Copy only the manifest + lockfile first so this layer is invalidated only
+# when the dependencies change; the throwaway package stub keeps it cacheable.
+COPY pyproject.toml uv.lock README.md ./
+RUN mkdir -p app && touch app/__init__.py \
+    && uv sync --frozen --no-dev --python python3.12 \
+    && rm -rf app
+
+# Put the project virtualenv created by `uv sync` on PATH so `python` and
+# `playwright` resolve to the locked interpreter/entry points.
+ENV VIRTUAL_ENV=/var/task/.venv
+ENV PATH=/var/task/.venv/bin:$PATH
+
+# ── Playwright browsers ──────────────────────────────────────────────────────
+# Install only Chromium (no Firefox/WebKit needed), using the locked Playwright
+# from the project venv so the browser build matches the pinned driver.
+# Chromium runtime libraries are installed above via dnf; Playwright's
+# own install-deps targets apt-based distros and fails on Amazon Linux,
+# so only the browser binary is fetched here.
+RUN python -m playwright install chromium
+
+# ── Application code ─────────────────────────────────────────────────────────
+COPY app/ ./app/
+COPY prompts/ ./prompts/
+
+# ── Runtime environment ──────────────────────────────────────────────────────
+ENV PYTHONPATH=/var/task
+ENV PORT=8080
+ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/extensions/lambda-adapter
+# Playwright looks for Chromium here (set by `playwright install`)
+ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+
+EXPOSE 8080
+
+# Default container-mode command for the processing queue worker.
+# Override to --queue check for the check worker.
+CMD ["python", "-m", "app.consumer", "--queue", "processing"]

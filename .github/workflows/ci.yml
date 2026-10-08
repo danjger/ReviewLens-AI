@@ -1,0 +1,290 @@
+# CI pipeline – platform-foundation task 7.1
+#
+# Stages run in order; each job `needs:` the previous one, so a failure in any
+# stage stops the pipeline and no later stage (and therefore no deploy) runs
+# (Req 8.4). deploy.yml triggers on `workflow_run` of this workflow completing
+# with conclusion == success on `main`, so a green run of CI is the deploy gate.
+#
+#   lint-and-typecheck → unit-tests → build-images → integration-tests
+#                      → scale-test → cdk-synth
+#
+# The workflow name MUST stay "CI" because deploy.yml references it by name in
+# its `workflow_run.workflows` trigger.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Cancel superseded runs on the same ref so only the latest commit is tested.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # 1. Lint + type checks: ruff, ruff format --check, mypy (backend); eslint, tsc (frontend).
+  lint-and-typecheck:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint and type check (make lint)
+        run: make lint
+
+  # 2. Unit + property tests with backend coverage (Req 8.1, 8.5) and frontend vitest.
+  unit-tests:
+    name: Unit and property tests
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # pyproject sets addopts "--cov=app --cov-report=term-missing --cov-report=xml".
+      # We mirror `make test-backend` here (rather than calling it) so we can also
+      # emit a markdown coverage summary into the GitHub job summary (Req 8.5).
+      - name: Backend unit + property tests with coverage
+        working-directory: backend
+        run: uv run pytest tests/unit tests/property
+
+      - name: Write backend coverage summary to job summary
+        if: ${{ always() }}
+        working-directory: backend
+        run: |
+          {
+            echo "## Backend coverage"
+            echo ""
+            echo '```'
+            uv run coverage report || echo "coverage report unavailable"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Frontend unit tests
+        working-directory: frontend
+        run: npm test
+
+  # 3. Build both container images (Req 8.7). Uses buildx so the integration job
+  # can rely on the same images via docker compose. We build to the local docker
+  # image store so compose can reuse them.
+  build-images:
+    name: Build container images
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: false
+          load: true
+          tags: reviewlens-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build workers image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile.workers
+          push: false
+          load: true
+          tags: reviewlens-workers:ci
+          cache-from: type=gha,scope=workers
+          cache-to: type=gha,mode=max,scope=workers
+
+  # 4. Container integration tests against PostgreSQL + LocalStack + fixtures
+  #    via docker-compose (Req 8.2, 8.7). `make test-int` runs
+  #    `docker compose up -d --wait` then pytest -m integration.
+  integration-tests:
+    name: Container integration tests
+    runs-on: ubuntu-latest
+    needs: build-images
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      - name: Run container integration tests (make test-int)
+        run: make test-int
+
+      - name: Dump compose logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs --no-color || true
+
+      - name: Tear down compose stack
+        if: ${{ always() }}
+        run: docker compose down -v || true
+
+  # 5. Scale test: two consumer instances against shared queues (Req 8.8).
+  scale-test:
+    name: Scale test
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      - name: Run scale test (make test-scale)
+        run: make test-scale
+
+      - name: Dump compose logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs --no-color || true
+
+      - name: Tear down compose stack
+        if: ${{ always() }}
+        run: docker compose down -v || true
+
+  # 6. CDK assertion tests + synth (Req: the synth gate). `make synth` runs
+  #    `cd infra && npm ci && npm test && npx cdk synth`.
+  cdk-synth:
+    name: CDK synth
+    runs-on: ubuntu-latest
+    needs: scale-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: CDK assertion tests and synth (make synth)
+        run: make synth
+
+  # 7. API performance test (platform-foundation task 11, Req 7.3).
+  #
+  # NON-BLOCKING by design:
+  #   * It is NOT on the deploy-gating chain – nothing `needs:` this job, and it
+  #     only `needs: build-images` so it can bring up the same compose stack in
+  #     parallel with the integration/scale/synth jobs.
+  #   * `continue-on-error: true` means a p95 regression (or a hard failure) is
+  #     reported but does NOT turn the workflow conclusion to failure, so it can
+  #     never block deploy.yml (which gates on a successful "CI" workflow_run).
+  #
+  # It reports the measured p50/p95 numbers to the GitHub job summary regardless
+  # of pass/fail. Today the list/summary endpoints land in the dataset-library
+  # and ingestion-summary specs, so the test seeds 1,000 reviews and SKIPS the
+  # bound until those endpoints exist; the numbers still get reported once they do.
+  perf-test:
+    name: API performance test (non-blocking)
+    runs-on: ubuntu-latest
+    needs: build-images
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --extra dev
+
+      - name: Bring up the container integration stack
+        run: docker compose up -d --wait
+
+      - name: Run API performance test (reports p95 to the job summary)
+        working-directory: backend
+        env:
+          # Measure the API container that compose maps to the host.
+          PERF_API_BASE_URL: http://localhost:8000
+          # Reach PostgreSQL / LocalStack on the host-mapped ports to seed data.
+          DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@localhost:5432/reviewlens
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          S3_BUCKET: reviewlens-local
+        run: uv run pytest tests/perf -m perf --no-cov
+
+      - name: Dump compose logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs --no-color || true
+
+      - name: Tear down compose stack
+        if: ${{ always() }}
+        run: docker compose down -v || true
