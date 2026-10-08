@@ -89,7 +89,9 @@ export class DataStack extends cdk.Stack {
     // ------------------------------------------------------------------
     this.cluster = new rds.DatabaseCluster(this, "Aurora", {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_16_4,
+        // 16.4 was removed from Aurora PostgreSQL availability; pin to
+        // 16.8 (lowest still-available 16.x in us-east-1 as of deploy).
+        version: rds.AuroraPostgresEngineVersion.VER_16_8,
       }),
       // Serverless v2 scaling: min 0 ACU allows the cluster to auto-pause when
       // idle (near-zero idle cost, Requirement 7.1). First request after a

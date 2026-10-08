@@ -299,3 +299,31 @@ if "time order" is meant as "append order preserved" rather than "at
 monotonic", relax the property wording and the test assertion — but assigning
 `at` under the lock is the smaller, more honest fix and keeps the property as
 written.
+
+### Aurora engine version `16.4` was removed and blocks the Data stack deploy
+
+Found during the first live `cdk deploy ReviewLens-Data` (platform-foundation
+task 7.2 bootstrap). `infra/lib/data-stack.ts` pinned the Aurora PostgreSQL
+cluster to `AuroraPostgresEngineVersion.VER_16_4`. AWS has since removed the
+plain `16.4` minor from `aurora-postgresql` availability (only `16.4-limitless`,
+a different offering, remains), so cluster creation failed with
+`Cannot find version 16.4 for aurora-postgresql` (RDS, 400 InvalidRequest) and
+CloudFormation rolled the stack back.
+
+`aws rds describe-db-engine-versions --engine aurora-postgresql` in us-east-1 at
+deploy time listed the available standard 16.x minors as 16.8, 16.9, 16.10,
+16.11, 16.13, 16.14, 16.15 (plus `*-limitless` variants). The product intent is
+unchanged: Aurora PostgreSQL 16, Serverless v2, Data API.
+
+Fix (platform-foundation, `infra/lib/data-stack.ts`): pin to `VER_16_8` — the
+lowest still-available standard 16.x, the most conservative jump from the
+intended 16.4. No test asserts the version string, so CDK synth/assertion tests
+are unaffected. Note AWS deprecates specific minors over time; a future deploy
+may need another bump, so prefer the lowest available in-support 16.x rather
+than chasing the newest.
+
+Severity: release-blocking for the first deploy (the Data stack is the root of
+every other stack), trivial fix. The rolled-back first attempt also left three
+Retain-policy DynamoDB tables (`check-sessions`, `rate-limits`,
+`ws-connections`) orphaned, which then blocked the retry with "already exists";
+they were empty, seconds-old, and deleted before re-deploying.
