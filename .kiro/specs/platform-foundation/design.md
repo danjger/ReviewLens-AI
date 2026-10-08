@@ -369,3 +369,21 @@ trust scoped to this owner+repo). Applied to the live role via
 `iam update-assume-role-policy` and to `infra/lib/github-oidc-stack.ts` so a
 future `cdk deploy ReviewLens-GithubOidc` reproduces it. The environment gating
 is kept — it makes the subject deterministic and a place for protection rules.
+
+### Deploy can't cross-build the arm64 Lambda/ECS images on the x86 runner
+
+Found by the first CDK deploy step to run (after the OIDC trust was fixed).
+`CDK deploy (Lambda mode)` failed building the API image asset with
+`exec /bin/sh: exec format error` during `docker build ... --platform
+linux/arm64`. All Lambdas and ECS tasks target arm64/Graviton
+(`lambda.Architecture.ARM_64`, `ecs.CpuArchitecture.ARM64`), so CDK builds the
+image assets for linux/arm64 — but the `ubuntu-latest` runner is x86_64 and the
+deploy workflow set up Buildx without QEMU, so the arm64 build layers (e.g.
+`dnf install`) couldn't execute.
+
+Fix: add `docker/setup-qemu-action@v3` (platforms: arm64) before
+`setup-buildx-action` in `deploy.yml` so binfmt/QEMU emulation is registered and
+the arm64 asset build runs under emulation. CI's `build-images` job was
+unaffected because it builds the images natively (no `--platform arm64`) just to
+validate and feed the container integration/scale tests; only the CDK asset
+build pins arm64.

@@ -153,3 +153,9 @@
   - Verify: push to `main` → CI green → Deploy assumes the role past the OIDC step and proceeds to `cdk deploy`. DONE this session for the OIDC step; downstream deploy steps verified separately.
   - UPDATE: environment gating alone was NOT sufficient. Live debug showed the real subject is `repo:danjger@984525/ReviewLens-AI@1398576857:environment:production` — GitHub immutable subject claims embed numeric owner/repo IDs. Final fix: broadened the trust `sub` patterns to `repo:danjger*/ReviewLens-AI*:ref:refs/heads/main` and `...:environment:*` (the `*` covers the `@<id>` suffix), applied to the live role and to `github-oidc-stack.ts`. Verified the deploy assumes the role after this change.
   - _Requirements: 1.3, 1.4, 8.7_
+
+- [x] 20. Cross-build the arm64 image assets in the deploy workflow (QEMU) — see design.md → Known Issues
+  - Root cause (first CDK deploy): `docker build ... --platform linux/arm64` failed with `exec /bin/sh: exec format error`. The Lambdas/ECS tasks are arm64 (Graviton), so CDK builds arm64 image assets, but the x86_64 `ubuntu-latest` runner had Buildx without QEMU, so arm64 layers couldn't run.
+  - Fix: add `docker/setup-qemu-action@v3` (platforms: arm64) before `setup-buildx-action` in `deploy.yml`. CI's `build-images` builds natively (no arm64 pin) so it was unaffected.
+  - Verify: deploy's `CDK deploy (Lambda mode)` builds the image assets past the arm64 step. DONE this session (committed; next deploy validates downstream stacks).
+  - _Requirements: 1.3, 8.7_
