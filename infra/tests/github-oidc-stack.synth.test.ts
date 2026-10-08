@@ -46,9 +46,12 @@ test("deploy role trusts only the configured repo on main and its environments",
               "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
             },
             StringLike: {
+              // Patterns include a trailing `*` after owner and repo to match
+              // GitHub's immutable subject claims (repo:OWNER@<id>/REPO@<id>:...)
+              // as well as the legacy name-only form.
               "token.actions.githubusercontent.com:sub": [
-                "repo:my-org/reviewlens:ref:refs/heads/main",
-                "repo:my-org/reviewlens:environment:*",
+                "repo:my-org*/reviewlens*:ref:refs/heads/main",
+                "repo:my-org*/reviewlens*:environment:*",
               ],
             },
           },
@@ -90,7 +93,7 @@ test("synthesizes with placeholder repo coordinates (no context supplied)", () =
           Condition: {
             StringLike: {
               "token.actions.githubusercontent.com:sub": Match.arrayWith([
-                "repo:OWNER-PLACEHOLDER/REPO-PLACEHOLDER:ref:refs/heads/main",
+                "repo:OWNER-PLACEHOLDER*/REPO-PLACEHOLDER*:ref:refs/heads/main",
               ]),
             },
           },
