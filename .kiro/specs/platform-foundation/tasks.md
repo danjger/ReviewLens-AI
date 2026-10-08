@@ -189,3 +189,9 @@
   - Fix (compose only): init script `touch /tmp/localstack-ready` as its final step; LocalStack healthcheck requires `"running"` AND that sentinel (retries 40×5s). Dependents waiting on `service_healthy` now start only after queues/tables/bus exist.
   - Verify: `make test-scale` from a fresh `-v` volume → all containers Healthy, push-consumer RestartCount 0, exit 0. DONE this session.
   - _Requirements: 8.2, 8.8_
+
+- [x] 26. Retry at the data layer on Aurora auto-pause cold start (runtime 500s) — see design.md → Known Issues
+  - Root cause (live E2E): `GET /api/datasets` returned 500 — `DatabaseResumingException` from the Data API when the first request after idle hit a resuming Serverless v2 cluster (minCapacity 0). Affects every cold request, not just migrations; `/readyz` masked it by warming the cluster itself.
+  - Fix: `app/core/db` registers an AWS-mode `engine_connect` warm-up that runs `SELECT 1` and retries on resume (12×5s) before any real statement — covering API, chat, and workers. Only the connection warm-up retries (no business-logic re-execution). Added 4 unit tests (install-only-in-aws, retry-then-succeed, give-up, non-resume reraise).
+  - Verify: `tests/unit/core/test_db.py` green (22 passed); lint/mypy clean; live `GET /api/datasets` returns 200 after a cold start. DONE this session (committed; live re-verify after deploy).
+  - _Requirements: 4.1, 7.1_

@@ -169,3 +169,83 @@ def test_reset_engine_rebuilds(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_reset_engine_safe_when_unbuilt() -> None:
     # Should not raise even though no engine exists yet.
     db.reset_engine()
+
+
+# ---------------------------------------------------------------------------
+# Aurora Serverless v2 resume-retry warm-up (AWS mode only)
+# ---------------------------------------------------------------------------
+
+
+class _ResumingError(Exception):
+    """Stand-in whose repr contains DatabaseResumingException."""
+
+    def __repr__(self) -> str:
+        return "botocore.errorfactory.DatabaseResumingException('resuming')"
+
+
+class _FakeConnection:
+    """Minimal connection: execute() raises `fail_times` resume errors first."""
+
+    def __init__(self, fail_times: int) -> None:
+        self.fail_times = fail_times
+        self.execute_calls = 0
+        self.rollback_calls = 0
+
+    def execute(self, _stmt: object) -> None:
+        self.execute_calls += 1
+        if self.execute_calls <= self.fail_times:
+            raise _ResumingError()
+
+    def rollback(self) -> None:
+        self.rollback_calls += 1
+
+
+def test_resume_retry_installed_only_in_aws_mode() -> None:
+    """create_db_engine registers the engine_connect warm-up only in AWS mode."""
+    aws_engine = db.create_db_engine(_aws_settings())
+    assert aws_engine.dispatch.engine_connect  # has listeners
+
+    local_engine = db.create_db_engine(_local_settings())
+    assert not local_engine.dispatch.engine_connect  # none registered
+
+
+def test_warm_up_retries_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The warm-up retries on DatabaseResumingException then returns cleanly."""
+    sleeps: list[float] = []
+    monkeypatch.setattr(db.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(db, "_RESUME_MAX_ATTEMPTS", 5)
+
+    engine = db.create_db_engine(_aws_settings())
+    conn = _FakeConnection(fail_times=2)
+    engine.dispatch.engine_connect(conn)
+
+    assert conn.execute_calls == 3  # 2 failures + 1 success
+    assert sleeps == [db._RESUME_WAIT_SECONDS, db._RESUME_WAIT_SECONDS]
+
+
+def test_warm_up_gives_up_after_max_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A cluster that never resumes raises _ResumingError after bounded attempts."""
+    monkeypatch.setattr(db.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(db, "_RESUME_MAX_ATTEMPTS", 3)
+
+    engine = db.create_db_engine(_aws_settings())
+    conn = _FakeConnection(fail_times=99)
+    with pytest.raises(_ResumingError):
+        engine.dispatch.engine_connect(conn)
+    assert conn.execute_calls == 3
+
+
+def test_warm_up_reraises_non_resume_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-resume error is raised immediately, not retried."""
+    monkeypatch.setattr(db.time, "sleep", lambda _s: None)
+
+    class _OtherConn(_FakeConnection):
+        def execute(self, _stmt: object) -> None:
+            self.execute_calls += 1
+            raise ValueError("not a resume")
+
+    engine = db.create_db_engine(_aws_settings())
+    conn = _OtherConn(fail_times=0)
+    with pytest.raises(ValueError, match="not a resume"):
+        engine.dispatch.engine_connect(conn)
+    assert conn.execute_calls == 1  # no retry

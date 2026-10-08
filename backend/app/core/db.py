@@ -27,17 +27,26 @@ The engine and sessionmaker are built once per process and memoised. Call
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from sqlalchemy import URL, create_engine, make_url
+from sqlalchemy import URL, create_engine, event, make_url, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+
+# Aurora Serverless v2 with min 0 ACU auto-pauses when idle; the first Data
+# API call after a pause fails with DatabaseResumingException while the
+# cluster wakes (~15s). We retry the CONNECTION warm-up (a trivial SELECT 1)
+# until the cluster is awake, so no real statement — and no business logic —
+# is ever retried. Bounded so a genuinely-down cluster still fails.
+_RESUME_MAX_ATTEMPTS = 12
+_RESUME_WAIT_SECONDS = 5.0
 
 
 # ---------------------------------------------------------------------------
@@ -136,12 +145,50 @@ def create_db_engine(settings: Settings | None = None) -> Engine:
     url = build_engine_url(settings)
     connect_args = build_connect_args(settings)
     logger.info("Creating database engine (dialect=%s)", url.drivername)
-    return create_engine(
+    engine = create_engine(
         url,
         connect_args=connect_args,
         pool_pre_ping=True,
         future=True,
     )
+    if settings.is_aws:
+        _install_resume_retry(engine)
+    return engine
+
+
+def _install_resume_retry(engine: Engine) -> None:
+    """Retry a new connection's first statement while Aurora is resuming.
+
+    Registered only in Data API (AWS) mode. On ``engine_connect`` we issue a
+    trivial ``SELECT 1`` and, if the cluster is mid-resume
+    (``DatabaseResumingException``), wait and retry up to a bounded number of
+    attempts. This keeps the wake-up delay inside connection setup, so callers
+    (API, chat, workers) see a short pause instead of a 500, and no application
+    statement is ever re-executed.
+    """
+
+    @event.listens_for(engine, "engine_connect")
+    def _warm_up(connection: Any) -> None:  # noqa: ANN401
+        last_exc: Exception | None = None
+        for attempt in range(1, _RESUME_MAX_ATTEMPTS + 1):
+            try:
+                connection.execute(text("SELECT 1"))
+                connection.rollback()
+                return
+            except Exception as exc:  # noqa: BLE001
+                if "DatabaseResumingException" not in repr(exc):
+                    raise
+                last_exc = exc
+                logger.warning(
+                    "Aurora resuming (attempt %d/%d); waiting %.0fs",
+                    attempt,
+                    _RESUME_MAX_ATTEMPTS,
+                    _RESUME_WAIT_SECONDS,
+                )
+                connection.rollback()
+                time.sleep(_RESUME_WAIT_SECONDS)
+        if last_exc is not None:
+            raise last_exc
 
 
 def get_engine() -> Engine:

@@ -463,3 +463,23 @@ volume brings every container up Healthy with push-consumer RestartCount 0 and
 exits 0. No runtime consumer code changed (a bounded startup retry in the
 consumer is a possible future hardening for production, where a missing queue is
 a real error rather than a startup-ordering artifact).
+
+### Runtime 500s on Aurora auto-pause cold start (not just migrations)
+
+Found by the live end-to-end check: `GET /api/datasets` returned 500 after the
+stack had been idle. CloudWatch showed `DatabaseResumingException ... resuming
+after being auto-paused` raised at the aurora-data-api `BeginTransaction`, i.e.
+the SAME auto-pause cold start as the migration step — but now in the running
+app. With `serverlessV2MinCapacity: 0`, every first request after an idle period
+hits a resuming cluster, so an analyst opening the portal after a quiet spell
+would get a 500 (confirmed: a retry ~15s later returned `200 {"datasets":[]}`).
+`/readyz` masked it because the health probe's `SELECT 1` is itself what warms
+the cluster.
+
+Fix (data layer, covers API + chat + workers): in `app/core/db`, register an
+`engine_connect` warm-up (AWS mode only) that runs `SELECT 1` on each new
+connection and retries on `DatabaseResumingException` (bounded: 12 × 5s) before
+any application statement runs. Only the connection warm-up is retried — never
+business logic — so there is no double-write risk. Non-resume errors propagate
+immediately. The deploy's migration bash-retry (task 23) is kept as a belt-and-
+braces for the one-off migration context.
