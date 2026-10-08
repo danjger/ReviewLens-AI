@@ -59,7 +59,28 @@ def liveness() -> JSONResponse:
 
 
 def _check_database(database_url: str | None) -> str | None:
-    """Return an error string if the database is unreachable, else None."""
+    """Return an error string if the database is unreachable, else None.
+
+    In AWS (Data API) mode the DB is reached through the RDS Data API, not a
+    ``DATABASE_URL`` connection string (which is intentionally unset), so probe
+    via the shared SQLAlchemy engine — the same path the app uses. In local /
+    container mode probe the ``DATABASE_URL`` with a minimal psycopg connection.
+    """
+    from app.core.config import get_settings
+
+    if get_settings().is_aws:
+        try:
+            from sqlalchemy import text
+
+            from app.core.db import get_engine
+
+            with get_engine().connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("readyz: Data API database probe failed: %s", exc)
+            return f"database unreachable: {exc}"
+
     if not database_url:
         return "DATABASE_URL not configured"
     try:

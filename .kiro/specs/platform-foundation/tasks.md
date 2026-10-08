@@ -177,3 +177,9 @@
   - Fix: wrap `alembic upgrade head` in a bash `until` retry (12 attempts × 10s) in `deploy.yml`, so a cold start waits for the cluster to wake. Warms the DB for the smoke test too.
   - Verify: deploy's migration step completes; `alembic upgrade head` reaches head. DONE this session (committed; next deploy validates).
   - _Requirements: 1.3_
+
+- [x] 24. Fix /readyz for Data API mode (smoke test) — see design.md → Known Issues
+  - Root cause (post-deploy smoke test; all stacks/migrations/SPA already succeeded): `/readyz` returned 503 "DATABASE_URL not configured". `_check_database` required a psycopg `DATABASE_URL`, but AWS mode uses the RDS Data API and leaves `DATABASE_URL` unset, so readiness always failed on Lambda despite a reachable DB (/healthz 200, Data API read/write ok).
+  - Fix: make `app/core/health._check_database` mode-aware — in `settings.is_aws` run `SELECT 1` via the shared engine (Data API), else the psycopg path. `readiness()` signature unchanged so API + chat both get it. Added 2 unit tests for the AWS-mode branches.
+  - Verify: `tests/unit/core/test_health.py` green (13 passed); lint/mypy clean; the deploy smoke test's `/readyz` returns 200. DONE this session (committed; next deploy validates the live smoke test).
+  - _Requirements: 8.7_

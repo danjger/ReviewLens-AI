@@ -73,6 +73,50 @@ def test_readiness_503_when_database_url_missing() -> None:
     assert response.status_code == 503
 
 
+def test_check_database_aws_mode_probes_engine_not_database_url() -> None:
+    """In Data API (AWS) mode, a missing DATABASE_URL must NOT fail readiness.
+
+    AWS mode reaches the DB through the RDS Data API, so the probe runs
+    SELECT 1 via the shared engine rather than requiring DATABASE_URL.
+    """
+    from unittest.mock import MagicMock
+
+    from app.core.health import _check_database
+
+    settings = MagicMock()
+    settings.is_aws = True
+    engine = MagicMock()
+    conn_cm = engine.connect.return_value
+    conn_cm.__enter__.return_value = MagicMock()
+
+    with (
+        patch("app.core.config.get_settings", return_value=settings),
+        patch("app.core.db.get_engine", return_value=engine),
+    ):
+        assert _check_database(None) is None
+    conn_cm.__enter__.return_value.execute.assert_called_once()
+
+
+def test_check_database_aws_mode_reports_engine_failure() -> None:
+    """In Data API mode, an engine failure is reported as unreachable."""
+    from unittest.mock import MagicMock
+
+    from app.core.health import _check_database
+
+    settings = MagicMock()
+    settings.is_aws = True
+    engine = MagicMock()
+    engine.connect.side_effect = RuntimeError("data api down")
+
+    with (
+        patch("app.core.config.get_settings", return_value=settings),
+        patch("app.core.db.get_engine", return_value=engine),
+    ):
+        err = _check_database(None)
+    assert err is not None
+    assert "database unreachable" in err
+
+
 def test_readiness_503_when_s3_bucket_missing() -> None:
     """readiness() must fail if S3_BUCKET is not configured."""
     with patch("app.core.health._check_database", return_value=None):

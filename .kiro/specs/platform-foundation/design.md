@@ -423,3 +423,22 @@ retry (up to 12 attempts, 10s apart) so a cold start waits for the cluster to
 wake instead of failing the deploy. The migration also warms the cluster for the
 later smoke test. (Pure bash retry chosen over a Python/boto3 pre-check to avoid
 a heredoc-indentation hazard inside the YAML block scalar.)
+
+### /readyz reports "not ready" in AWS (Data API) mode — false negative
+
+Found by the post-deploy smoke test (the LAST deploy step; everything else —
+all six stacks, migrations, SPA upload + CloudFront invalidation — succeeded).
+`/healthz` returned 200 and the Data API read/write round-trip passed, but
+`/readyz` returned 503 `{"status":"not ready","reason":"DATABASE_URL not
+configured"}`. Root cause: `app/core/health._check_database` assumed a
+`DATABASE_URL` psycopg connection, but in AWS mode (`settings.is_aws`, i.e.
+`DB_RESOURCE_ARN` + `DB_SECRET_ARN` set) the DB is reached through the RDS Data
+API and `DATABASE_URL` is intentionally unset — so the probe always failed on
+Lambda even though the database was reachable.
+
+Fix: make `_check_database` mode-aware. In AWS mode run `SELECT 1` via the
+shared SQLAlchemy engine (`app.core.db.get_engine()`), the same Data API path
+the app uses; otherwise keep the psycopg `DATABASE_URL` probe. Public
+`readiness()` signature unchanged, so both the API and chat services get the fix
+without touching their call sites. Added unit tests for both AWS-mode branches
+(healthy engine, and engine failure → unreachable).
