@@ -159,8 +159,8 @@ def _get_dynamodb_client() -> DynamoDBClient:
     """Return a DynamoDB client, honouring ``aws_endpoint_url`` for LocalStack."""
     settings = get_settings()
     endpoint_url = settings.aws_endpoint_url or None
-    client = boto3.client("dynamodb", endpoint_url=endpoint_url)
-    return cast("DynamoDBClient", client)
+    client: DynamoDBClient = boto3.client("dynamodb", endpoint_url=endpoint_url)
+    return client
 
 
 def _table_name() -> str:

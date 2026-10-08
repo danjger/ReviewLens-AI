@@ -159,3 +159,9 @@
   - Fix: add `docker/setup-qemu-action@v3` (platforms: arm64) before `setup-buildx-action` in `deploy.yml`. CI's `build-images` builds natively (no arm64 pin) so it was unaffected.
   - Verify: deploy's `CDK deploy (Lambda mode)` builds the image assets past the arm64 step. DONE this session (committed; next deploy validates downstream stacks).
   - _Requirements: 1.3, 8.7_
+
+- [x] 21. Adopt mypy 2.x: remove redundant boto3-client casts (CI lint)
+  - Root cause: `mypy>=1.13.0` (open floor) resolved to mypy 2.3.1 in CI, which flagged 7 `cast("<Client>", boto3.client(...))` calls as `[redundant-cast]` — the current boto3-stubs type `boto3.client("<svc>")` directly, so the casts are redundant. Lint went red (`make lint` → mypy) with no product change behind it.
+  - Fix (adopt the newer, stricter mypy rather than pin): drop the redundant client casts in `app/storage/s3.py`, `app/realtime/connections.py`, `app/events/publisher.py`, `app/core/rate_limit.py`, `app/core/queue.py`, `app/handlers/push.py`, `app/ingestion/check_session.py`, removing the now-unused `cast` import where it was the only use (kept in `check_session.py`, which still casts elsewhere). For the two client factories that then tripped `[no-any-return]`, assign to an annotated local (`client: DynamoDBClient = boto3.client(...)`) and return it — keeps the type without a cast. Cross-spec note: these 7 files span several specs but this is one shared dev-tooling (mypy) drift, fixed here deliberately; behaviour unchanged.
+  - Verify: `make lint` green against mypy 2.3.1 (ruff + format + `Success: no issues found in 94 source files`), frontend eslint/tsc green. `uv.lock` unchanged. DONE this session.
+  - _Requirements: 8.1_

@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.exceptions import ClientError
@@ -51,7 +51,7 @@ def _get_client() -> DynamoDBClient:
     if _client is None:
         settings = get_settings()
         endpoint_url = settings.aws_endpoint_url or None
-        _client = cast("DynamoDBClient", boto3.client("dynamodb", endpoint_url=endpoint_url))
+        _client = boto3.client("dynamodb", endpoint_url=endpoint_url)
     return _client
 
 

@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import ClientError
@@ -81,10 +81,7 @@ def _get_mgmt_client() -> ApiGatewayManagementApiClient:
     if _mgmt_client is None:
         settings = get_settings()
         endpoint_url = settings.aws_endpoint_url or settings.ws_api_endpoint
-        _mgmt_client = cast(
-            "ApiGatewayManagementApiClient",
-            boto3.client("apigatewaymanagementapi", endpoint_url=endpoint_url),
-        )
+        _mgmt_client = boto3.client("apigatewaymanagementapi", endpoint_url=endpoint_url)
     return _mgmt_client
 
 

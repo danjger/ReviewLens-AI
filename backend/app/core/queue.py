@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import boto3
 
@@ -47,7 +47,7 @@ def _get_sqs_client() -> SQSClient:
     if _client is None:
         settings = get_settings()
         endpoint_url = settings.aws_endpoint_url or None
-        _client = cast("SQSClient", boto3.client("sqs", endpoint_url=endpoint_url))
+        _client = boto3.client("sqs", endpoint_url=endpoint_url)
     return _client
 
 

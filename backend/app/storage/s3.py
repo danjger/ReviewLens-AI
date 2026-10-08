@@ -16,7 +16,7 @@ is the boto3 client handle, which is a connection pool, not application state.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import boto3
 
@@ -41,7 +41,7 @@ def _get_s3_client() -> S3Client:
     if _client is None:
         settings = get_settings()
         endpoint_url = settings.aws_endpoint_url or None
-        _client = cast("S3Client", boto3.client("s3", endpoint_url=endpoint_url))
+        _client = boto3.client("s3", endpoint_url=endpoint_url)
     return _client
 
 
