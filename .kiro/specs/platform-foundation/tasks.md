@@ -171,3 +171,9 @@
   - Fix: add `visibilityTimeout: workerVisibility` to `CheckDlq`/`ProcessingDlq`/`PushDlq` in `api-stack.ts`; mirror on `containers-stack.ts` for parity. Delete the terminal `ROLLBACK_COMPLETE` Workers stack so the redeploy recreates it.
   - Verify: 29 synth tests across api/workers/containers stacks pass; the Workers stack creates its DLQ event-source mappings. DONE this session (committed; next deploy validates).
   - _Requirements: 1.3, 8.7_
+
+- [x] 23. Retry migrations past Aurora Serverless v2 auto-pause cold start (deploy) — see design.md → Known Issues
+  - Root cause (first deploy to reach migrations; all stacks already up): `alembic upgrade head` failed with `DatabaseResumingException` — Aurora (minCapacity 0 ACU) had auto-paused during the long deploy and the first Data API call hit it mid-resume. Expected cold-start, not a bug.
+  - Fix: wrap `alembic upgrade head` in a bash `until` retry (12 attempts × 10s) in `deploy.yml`, so a cold start waits for the cluster to wake. Warms the DB for the smoke test too.
+  - Verify: deploy's migration step completes; `alembic upgrade head` reaches head. DONE this session (committed; next deploy validates).
+  - _Requirements: 1.3_

@@ -211,7 +211,20 @@ jobs:
         run: |
           set -euo pipefail
           uv sync --extra dev
-          uv run alembic -c app/db/migrations/alembic.ini upgrade head
+          # Aurora Serverless v2 (min 0 ACU) auto-pauses when idle, so the first
+          # Data API call after a deploy can fail with DatabaseResumingException
+          # while the cluster wakes (~15s). Retry the migration a few times so a
+          # cold start doesn't fail the deploy.
+          n=0
+          until uv run alembic -c app/db/migrations/alembic.ini upgrade head; do
+            n=$((n+1))
+            if [ "$n" -ge 12 ]; then
+              echo "alembic upgrade still failing after $n attempts" >&2
+              exit 1
+            fi
+            echo "migration attempt $n failed (DB may be resuming); retrying in 10s..."
+            sleep 10
+          done
 
       # ---------------------------------------------------------------
       # Build and upload the SPA, then invalidate the CDN (Req 1.3).

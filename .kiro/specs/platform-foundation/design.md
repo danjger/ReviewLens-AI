@@ -407,3 +407,19 @@ feed ECS pollers rather than a Lambda event source — AWS does not enforce the
 rule there, but matching avoids mid-flight redelivery). The rolled-back
 `ReviewLens-Workers` stack (terminal `ROLLBACK_COMPLETE` from a failed initial
 create) was deleted so the next deploy recreates it cleanly.
+
+### Migration step fails on Aurora Serverless v2 auto-pause cold start
+
+Found by the first deploy to reach the migration step (all six stacks deployed
+successfully first). `alembic upgrade head` failed immediately with
+`DatabaseResumingException: The Aurora DB instance ... is resuming after being
+auto-paused. Please wait a few seconds and try again.` The Data stack sets
+`serverlessV2MinCapacity: 0`, so the cluster auto-pauses when idle; during the
+~20-min deploy it scaled to zero, and the migration's first Data API call hit it
+mid-resume. This is expected cold-start behaviour, not a defect.
+
+Fix: wrap the `alembic upgrade head` call in `deploy.yml` in a bash `until`
+retry (up to 12 attempts, 10s apart) so a cold start waits for the cluster to
+wake instead of failing the deploy. The migration also warms the cluster for the
+later smoke test. (Pure bash retry chosen over a Python/boto3 pre-check to avoid
+a heredoc-indentation hazard inside the YAML block scalar.)
