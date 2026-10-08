@@ -88,6 +88,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # TEMP DEBUG: print the OIDC token subject so we can match the trust
+      # policy to the real claim. Remove once the trust is fixed.
+      - name: Debug OIDC subject
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          # base64url pad + decode
+          PAD=$(( (4 - ${#PAYLOAD} % 4) % 4 )); PAYLOAD="$PAYLOAD$(printf '=%.0s' $(seq 1 $PAD))"
+          echo "$PAYLOAD" | tr '_-' '/+' | base64 -d 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print("SUB=", d.get("sub")); print("AUD=", d.get("aud")); print("REF=", d.get("ref")); print("EVENT=", d.get("event_name")); print("WORKFLOW_REF=", d.get("job_workflow_ref"))'
+
       - name: Set up Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
