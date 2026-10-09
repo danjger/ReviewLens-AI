@@ -1,8 +1,12 @@
-# workers image – extends the backend image with Playwright + Chromium
+# workers image – backend + Playwright + Chromium for the queue consumers.
 #
-# Used by job workers (check handler, processing/analysis handler).
-# Inherits the Lambda Web Adapter from the base image so it can also run
-# as a Lambda with an SQS event-source mapping.
+# Used by ALL worker Lambdas (check, processing, push, dlq, sweeper) and their
+# container-mode equivalents. Workers are native SQS/event handlers dispatched
+# to app.consumer.lambda_entry via the AWS Lambda Runtime Interface Client
+# (awslambdaric) — the function configuration sets the RIC entrypoint. This
+# image deliberately does NOT bundle the Lambda Web Adapter (that is only for
+# the HTTP services' base image); shipping it here added dead init-time weight
+# and pushed cold start past the 10s init limit.
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023
 
 # ── System dependencies (Python + Chromium prerequisites) ────────────────────
@@ -30,10 +34,6 @@ RUN dnf install -y \
         libdrm \
         mesa-libgbm \
     && dnf clean all
-
-# ── AWS Lambda Web Adapter ───────────────────────────────────────────────────
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 \
-     /lambda-adapter /opt/extensions/lambda-adapter
 
 # ── uv ───────────────────────────────────────────────────────────────────────
 RUN pip3.12 install --no-cache-dir "uv>=0.5"
@@ -79,7 +79,6 @@ COPY prompts/ ./prompts/
 # ── Runtime environment ──────────────────────────────────────────────────────
 ENV PYTHONPATH=/var/task
 ENV PORT=8080
-ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/extensions/lambda-adapter
 # Playwright looks for Chromium here (set by `playwright install`)
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 

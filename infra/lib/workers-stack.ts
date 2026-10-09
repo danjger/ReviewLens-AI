@@ -275,6 +275,7 @@ export class WorkersStack extends cdk.Stack {
     this.pushConsumer = new lambda.DockerImageFunction(this, "PushConsumer", {
       functionName: "reviewlens-push-consumer",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        file: "Dockerfile.workers",
         entrypoint: RIC_ENTRYPOINT,
         cmd: CONSUMER_HANDLER_CMD,
       }),
@@ -328,6 +329,7 @@ export class WorkersStack extends cdk.Stack {
     this.dlqConsumer = new lambda.DockerImageFunction(this, "DlqConsumer", {
       functionName: "reviewlens-dlq-consumer",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        file: "Dockerfile.workers",
         entrypoint: RIC_ENTRYPOINT,
         cmd: CONSUMER_HANDLER_CMD,
       }),
@@ -362,6 +364,7 @@ export class WorkersStack extends cdk.Stack {
     this.sweeper = new lambda.DockerImageFunction(this, "Sweeper", {
       functionName: "reviewlens-sweeper",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        file: "Dockerfile.workers",
         entrypoint: RIC_ENTRYPOINT,
         cmd: SWEEPER_HANDLER_CMD,
       }),

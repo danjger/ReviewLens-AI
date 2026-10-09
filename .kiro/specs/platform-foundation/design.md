@@ -510,3 +510,15 @@ untouched and keep LWA. Container mode (`python -m app.consumer --queue ...`) is
 unaffected (Compose/ECS override the command). Verified in the synthesized
 template: all five functions now carry the RIC EntryPoint, the correct Command,
 and a blank exec wrapper. Needs a rebuild + redeploy to take effect.
+
+UPDATE (same session): after switching to the RIC the workers stopped crashing
+with InvalidEntrypoint but then hit `INIT_REPORT ... Status: timeout` (~10s init
+cap). Cause: the Lambda Web Adapter was COPIED into `/opt/extensions/` in the
+images, and anything under `/opt/extensions/` loads as a Lambda extension at
+init regardless of `AWS_LAMBDA_EXEC_WRAPPER` — so LWA still ran and ate init
+time on the heavy (Playwright/Chromium) image. Fix: remove the LWA COPY from
+`Dockerfile.workers` entirely and build ALL five worker Lambdas from that
+LWA-free image (push/dlq/sweeper switched from the base `Dockerfile` to
+`Dockerfile.workers`). api/chat keep the base image with LWA. Handler modules
+already import lazily (`_load_handler`), so RIC init only imports the light
+`app.consumer`, keeping cold start under the init cap.
