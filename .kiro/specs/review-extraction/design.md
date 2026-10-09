@@ -231,3 +231,26 @@ container (STATUS 200, title read, clean teardown).
 Separately confirmed the remaining real-site 403/429s (Trustpilot, Etsy, Winnie,
 good.store) are blocked at the HTTP PROBE before capture — anti-bot, not this
 bug; those correctly return `wont_work`.
+
+### Client-rendered review widgets captured as an empty shell
+
+Found on judge.me after the capture crash was fixed: the live Lambda capture
+produced an 11.5 KB page with only ~119 chars of visible text (just the title)
+and the extractor correctly reported `blocker: "empty"`. Judge.me ships a
+JavaScript app shell and fetches/renders the reviews client-side AFTER load, so
+capturing at `networkidle` + a single scroll can grab the page before the
+reviews appear. (In a desktop/container render the content was present within
+networkidle — the Lambda environment's timing is what truncated it.)
+
+Fix (`app/capture/engine._wait_for_content`): after scrolling, poll
+`document.body.innerText.length`, scrolling again between polls, and return once
+the rendered text stops growing (settled) or a bounded attempt cap elapses. It
+is generic and selector-free — no site-specific parser — so it only gives
+late-rendered reviews a bounded chance to appear before capture, consistent with
+the AI-first extraction rule. Verified in-container that it does not disturb an
+already-populated page (text length stable), and it is a safety net for the
+sparse-capture case.
+
+NOTE: judge.me renders reviews WITHOUT `jdgm-rev`/`data-review` class markers in
+the captured DOM; the AI extractor works from rendered text, not those markers,
+so this is about getting the text captured, not about parsing a specific widget.

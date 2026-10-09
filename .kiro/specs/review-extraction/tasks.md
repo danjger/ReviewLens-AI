@@ -70,3 +70,9 @@
   - Fix: launch with `--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--no-zygote`, `--disable-gpu`, `--disable-software-rasterizer`, `--disable-background-networking`, `--disable-extensions`, `--crash-dumps-dir=/tmp/...`; do NOT pass `--user-data-dir` (Playwright rejects it). Set `context.set_default_timeout(NAVIGATION_TIMEOUT_MS)` as a fast-fail guard.
   - Verify: capture unit tests green; built the workers image and ran launch→new_page→goto(example.com)→title in the arm64 container (STATUS 200, CAPTURE OK). Live: a renderable Check now reaches a content-based verdict. DONE (code + local container proof); live re-verify after deploy.
   - _Requirements: 3.1_
+
+- [x] 12. Wait for client-rendered review content before capture — see design.md → Known Issues
+  - Root cause (judge.me, live): the Lambda capture grabbed a near-empty JS shell (~119 chars visible) before client-side reviews rendered; extractor said `blocker: "empty"`.
+  - Fix: `_wait_for_content` polls rendered text length (scrolling between polls) until it settles or a bounded cap, after networkidle+scroll. Generic/selector-free. Verified in-container it leaves an already-populated page unchanged.
+  - Verify: capture unit tests green; live judge.me capture now carries the rendered review text (re-verify after deploy).
+  - _Requirements: 3.1_

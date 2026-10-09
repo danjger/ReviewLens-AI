@@ -86,6 +86,18 @@ NETWORKIDLE_TIMEOUT_MS = 15_000
 #: per-URL budget.
 NAVIGATION_TIMEOUT_MS = 15_000
 
+#: Client-side-rendered review widgets (e.g. Judge.me) ship a near-empty HTML
+#: shell and fetch/render the reviews with JavaScript AFTER load, so capturing
+#: at ``networkidle`` can grab a page with only the title. After scrolling we
+#: therefore poll the rendered text length until it stops growing (content has
+#: settled) or a bounded number of attempts elapse — a generic, selector-free
+#: wait that surfaces late-rendered reviews without any site-specific parser.
+_CONTENT_SETTLE_ATTEMPTS = 6
+_CONTENT_SETTLE_INTERVAL_MS = 1_000
+#: Below this rendered-text length the page looks like an unfilled shell, so we
+#: keep waiting (up to the attempt cap) for content to appear.
+_CONTENT_MIN_TEXT_LEN = 500
+
 #: Chrome ``User-Agent`` presented by the browser, matching the probe's
 #: headers so a site judges capture the same way the probe reached it
 #: (consistent with Requirement 2.6).
@@ -436,6 +448,7 @@ def _render_blocking(url: str) -> _Rendered:
                 logger.info("networkidle not reached within cap; continuing", extra={"url": url})
 
             _scroll_once(page)
+            _wait_for_content(page)
 
             html = page.content()
             title = page.title()
@@ -466,3 +479,33 @@ def _scroll_once(page: Page) -> None:
         page.wait_for_timeout(1_000)
     except PlaywrightError:  # pragma: no cover - a page may block evaluation
         logger.debug("Scroll step failed; continuing with current content")
+
+
+def _wait_for_content(page: Page) -> None:
+    """Wait (bounded) for client-side-rendered content to appear and settle.
+
+    Many review widgets render their reviews with JavaScript after the initial
+    load, so the HTML at ``networkidle`` can be a near-empty shell. This polls
+    the rendered ``document.body.innerText`` length, scrolling again between
+    polls, and returns as soon as the text stops growing (settled) — or after
+    ``_CONTENT_SETTLE_ATTEMPTS``. It is generic and selector-free, so it adds no
+    site-specific knowledge (consistent with the AI-first extraction rule); it
+    only gives late-rendered reviews a bounded chance to show up before capture.
+    """
+    previous = -1
+    for _ in range(_CONTENT_SETTLE_ATTEMPTS):
+        try:
+            length = int(page.evaluate("document.body ? document.body.innerText.length : 0"))
+        except PlaywrightError:  # pragma: no cover - a page may block evaluation
+            return
+        # Stop once content has settled (stopped growing) AND there is a
+        # reasonable amount of it, so a genuinely sparse page doesn't spin the
+        # full attempt budget needlessly.
+        if length == previous and length >= _CONTENT_MIN_TEXT_LEN:
+            return
+        previous = length
+        try:
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(_CONTENT_SETTLE_INTERVAL_MS)
+        except PlaywrightError:  # pragma: no cover
+            return
