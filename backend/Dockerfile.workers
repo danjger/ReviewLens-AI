@@ -65,12 +65,15 @@ ENV VIRTUAL_ENV=/var/task/.venv
 ENV PATH=/var/task/.venv/bin:$PATH
 
 # ── Playwright browsers ──────────────────────────────────────────────────────
-# Install only Chromium (no Firefox/WebKit needed), using the locked Playwright
+# Install Chromium AND the chrome-headless-shell, using the locked Playwright
 # from the project venv so the browser build matches the pinned driver.
-# Chromium runtime libraries are installed above via dnf; Playwright's
-# own install-deps targets apt-based distros and fails on Amazon Linux,
-# so only the browser binary is fetched here.
-RUN python -m playwright install chromium
+# Modern Playwright's `launch(headless=True)` runs the separate
+# `chrome-headless-shell` binary, which is NOT included by `install chromium`
+# alone — omitting it fails at launch with "Executable doesn't exist at
+# .../chrome-headless-shell". Chromium runtime libraries are installed above via
+# dnf; Playwright's own install-deps targets apt-based distros and fails on
+# Amazon Linux, so only the browser binaries are fetched here.
+RUN python -m playwright install chromium chromium-headless-shell
 
 # ── Application code ─────────────────────────────────────────────────────────
 COPY app/ ./app/

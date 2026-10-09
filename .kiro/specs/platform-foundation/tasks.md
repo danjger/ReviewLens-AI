@@ -202,3 +202,9 @@
   - Verify: `cdk synth` + 8 workers synth tests pass; synthesized template shows RIC EntryPoint + blank exec wrapper on all five; `app.consumer.lambda_entry` imports. DONE this session; live pipeline re-verified after rebuild/redeploy.
   - UPDATE: RIC fixed InvalidEntrypoint but exposed a 10s INIT timeout — the LWA binary under /opt/extensions/ loads as an extension at init regardless of the exec-wrapper env, eating init time on the heavy image. Removed the LWA COPY from Dockerfile.workers and pointed all 5 workers at that LWA-free image (push/dlq/sweeper moved off the base Dockerfile). Handlers import lazily so RIC init stays light.
   - _Requirements: 1.1, 1.2, 7.4_
+
+- [x] 28. Install chrome-headless-shell in the workers image (capture launch crash) — see design.md → Known Issues
+  - Root cause (first full render, Judge.me): `launch(headless=True)` crashed — Playwright 1.63 uses the separate `chrome-headless-shell` binary, which `playwright install chromium` doesn't include; item stuck `checking` on retry.
+  - Fix: `python -m playwright install chromium chromium-headless-shell` in `Dockerfile.workers`.
+  - Verify: image rebuild deploys; a renderable Check reaches a non-crash capture (title/reviews populated or a real content-based verdict). DONE (code); live re-verify after deploy.
+  - _Requirements: 3.1_

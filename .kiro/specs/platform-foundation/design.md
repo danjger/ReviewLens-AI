@@ -522,3 +522,21 @@ LWA-free image (push/dlq/sweeper switched from the base `Dockerfile` to
 `Dockerfile.workers`). api/chat keep the base image with LWA. Handler modules
 already import lazily (`_load_handler`), so RIC init only imports the light
 `app.consumer`, keeping cold start under the init cap.
+
+### Capture crashes: chrome-headless-shell not installed in the workers image
+
+Found when a renderable site (Judge.me) finally reached a full capture: the
+check worker crashed in `playwright.chromium.launch(headless=True)` with
+`Executable doesn't exist at .../chrome-headless-shell-linux-arm64/
+chrome-headless-shell`, leaving the item stuck in `checking` (retry loop). The
+earlier 403/429 sites never surfaced this because they failed at the HTTP hop
+before a successful render path.
+
+Root cause: modern Playwright (1.63) runs `launch(headless=True)` via the
+separate `chrome-headless-shell` binary, but `Dockerfile.workers` ran only
+`playwright install chromium`, which no longer includes the headless shell.
+
+Fix: `playwright install chromium chromium-headless-shell` in
+`Dockerfile.workers` so the headless shell binary is present. (Alternative — pin
+to full-Chromium headless via launch args — was rejected as more brittle than
+simply installing what Playwright expects.)
