@@ -580,3 +580,22 @@ belong to dataset-ingestion / dataset-library / review-analysis respectively,
 but it is one shared queue-contract defect, fixed together. Consider also
 flipping the local provision script to content-based-dedup OFF so local matches
 prod (follow-up); for now an explicit dedup id is valid under both.
+
+### Status writes crash on Data API: `db.status._append_event` bound id as text
+
+Found when the first dataset reached processing in prod: the processing worker
+crashed at `db.status.transition` → `_append_event` with
+`operator does not exist: uuid = text` on
+`SELECT 1 FROM datasets WHERE id = :id FOR UPDATE`. A comment in `_append_event`
+asserted that binding `id` through the execute params dict (not `.bindparams`)
+keeps the comparison `uuid = uuid` — true under local psycopg, but the
+aurora-data-api driver binds it as text and PostgreSQL rejects `uuid = text`.
+Both raw queries in `_append_event` (the `FOR UPDATE` lock and the jsonb_set
+`UPDATE`) were affected. Task 15 fixed this class across sweep/ingestion but did
+not cover `status.py`; the integration tests run on local psycopg (lenient), so
+only the Data API surfaced it — the same "local masks prod" gap as the FIFO
+dedup issue (task 30).
+
+Fix: `CAST(:id AS uuid)` in both `_append_event` queries. Since every status
+write (`transition`, `log_event`) funnels through `_append_event`, this unblocks
+all status transitions in Data API mode. Status unit + property tests stay green.

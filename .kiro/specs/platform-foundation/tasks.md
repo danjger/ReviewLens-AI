@@ -220,3 +220,9 @@
   - Fix: `ingestion/service.py` (URL add + upload), `datasets/refresh_service.py`, `jobs/sweep.py` now pass `message_deduplication_id=f"{dataset_id}:{version}"`. Cross-spec (dataset-ingestion/dataset-library/review-analysis), one shared defect.
   - Verify: ruff/mypy clean; add-service unit test asserts the dedup id; live upload submit succeeds (dataset reaches processing). DONE (code); live re-verify after deploy. Follow-up: align the local provision script's FIFO dedup setting with prod.
   - _Requirements: 1.3_
+
+- [x] 31. Cast id to uuid in db.status._append_event (Data API) — see design.md → Known Issues
+  - Root cause (first prod processing): `_append_event` ran `SELECT 1 FROM datasets WHERE id = :id FOR UPDATE` (and a jsonb_set UPDATE) binding `id` as text; the Data API driver made it `uuid = text` → `ER_UNDEF_FUNC`. A stale comment claimed the params-dict bind stays `uuid = uuid` (only true on local psycopg). Task 15 missed status.py; integration tests on local psycopg didn't catch it.
+  - Fix: `CAST(:id AS uuid)` in both `_append_event` queries. All status writes go through it, so every transition/log_event is unblocked in Data API mode.
+  - Verify: status unit (8) + property (1) tests green; live dataset reaches `updated` after deploy. DONE (code); live re-verify after deploy.
+  - _Requirements: 8.2_

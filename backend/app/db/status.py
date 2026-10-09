@@ -91,12 +91,15 @@ def _append_event(session: Session, dataset_id: str, event: dict[str, Any]) -> N
     """
     # Lock the row for the duration of the transaction so concurrent appends
     # to the same dataset serialise rather than overwrite each other.
-    # NOTE: bind ``id`` via the execute params dict (not ``.bindparams(id=...)``)
-    # so the comparison stays ``uuid = uuid``. Binding a plain ``str`` through
-    # ``.bindparams`` makes SQLAlchemy render ``id = :id::VARCHAR``, which has no
-    # operator against the native ``uuid`` ``datasets.id`` column.
+    # Compare against the native ``uuid`` column with an explicit CAST so the
+    # bound ``str`` id works under BOTH drivers. (An earlier note here assumed a
+    # bare ``:id`` stays ``uuid = uuid`` on the Data API — it does not: the
+    # aurora-data-api driver binds it as text and PostgreSQL rejects
+    # ``uuid = text``. The CAST is the same fix applied across the raw-SQL paths
+    # in platform-foundation task 15.)
     locked = session.execute(
-        text("SELECT 1 FROM datasets WHERE id = :id FOR UPDATE"), {"id": dataset_id}
+        text("SELECT 1 FROM datasets WHERE id = CAST(:id AS uuid) FOR UPDATE"),
+        {"id": dataset_id},
     ).first()
     if locked is None:
         raise ValueError(f"Dataset {dataset_id!r} does not exist")
@@ -118,13 +121,13 @@ def _append_event(session: Session, dataset_id: str, event: dict[str, Any]) -> N
             COALESCE(status_detail -> 'events', '[]'::jsonb) || :event,
             true
         )
-        WHERE id = :id
+        WHERE id = CAST(:id AS uuid)
         """
     ).bindparams(
         bindparam("event", type_=JSONB),
     )
-    # ``id`` is bound through the params dict (see the note above) so it is
-    # compared as a native ``uuid`` rather than cast to ``VARCHAR``.
+    # ``id`` is CAST to uuid in the SQL so the bound str compares against the
+    # native ``uuid`` column under both the psycopg and Data API drivers.
     session.execute(stmt, {"event": [event], "id": dataset_id})
 
 
