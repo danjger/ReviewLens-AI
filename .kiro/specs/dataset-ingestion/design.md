@@ -241,6 +241,22 @@ A verdict is a prediction, not a guarantee. The actual outcome is recorded next 
 
 ## Known Issues
 
+### Upload column detection missed `review_text` (separator mismatch)
+
+Found verifying the live CSV-upload path: a real export whose text column was
+`review_text` was rejected at preview with "No review text column was found".
+The synonym table had `"review text"` (space) but header matching used exact
+equality after only lower/trim, so `review_text` (underscore) matched nothing.
+`review_text` is one of the most common export headers.
+
+Fix (`app/ingestion/upload_parser._normalize_header`): collapse underscores,
+hyphens, and repeated whitespace to a single space before matching, so
+`review_text`, `review-text`, and `Review  Text` all match `review text`. This
+generalizes across the whole synonym table (e.g. `star_rating`, `review_date`).
+Verified against the live sample: text/rating/date/author all auto-detect, 31
+usable rows, keep_rule most_recent_by_date.
+
+
 Discovered 2026-10-04 while triaging the integration suite after the
 `platform-foundation` task 14/15 and `review-analysis` task 9 fixes. With the
 worker consumers stopped and a fresh DB, `tests/integration` is at **7 failed /

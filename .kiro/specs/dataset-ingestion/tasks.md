@@ -115,3 +115,9 @@
   - Keep restore-on-refresh (`archived_at = NULL` → `restored_and_refreshed`) working, and the `refresh_check_id` key-drop. While editing these raw statements, add `CAST(:id AS uuid)` to the `:id` binds in `_claim_new_version` (same uuid-cast class as task 15) so they stay correct — flag if any bind is left uncast.
   - Verify with the worker CONSUMERS STOPPED and a fresh DB (do NOT run `make test-int` with `--wait`): `tests/integration/datasets/test_refresh_service_int.py` (incl. `test_two_concurrent_refreshes_produce_exactly_one_version` and `test_many_concurrent_refreshes_produce_exactly_one_version`) and `tests/integration/ingestion/test_add_service_int.py::test_concurrent_duplicate_new_url_yields_one_dataset` must pass; the rest of those files stay green; `make lint` passes; and the unit/property suite stays green (expect 1446 — update `tests/unit/datasets/test_refresh_service.py` only if the claim's control flow changed in a way its fakes assert on, without weakening what it checks). Confirm exactly one `dataset.status.changed` event per new version (the refresh integration test already asserts a single enqueue; also sanity-check the event count if feasible).
   - _Requirements: 6.6, 6.8, 4.4_
+
+- [x] 14. Match separator variants in upload column detection (`review_text`) — see design.md → Known Issues
+  - Root cause (live CSV upload): header `review_text` was rejected ("No review text column") — matching was exact-equality on a lower/trimmed header, and the synonym was `"review text"` (space), so the underscore form matched nothing.
+  - Fix: `_normalize_header` now collapses `_`/`-`/repeated spaces to a single space, so `review_text`/`review-text`/`Review  Text` match. Generalizes to `star_rating`, `review_date`, etc. Added 6 regression cases.
+  - Verify: parser unit tests green (44); live preview auto-detects text/rating/date/author on the sample. DONE (code + local proof); live re-verify after deploy.
+  - _Requirements: 7.2_

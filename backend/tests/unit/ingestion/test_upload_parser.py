@@ -66,6 +66,26 @@ def test_suggest_mapping_is_case_insensitive_and_trims() -> None:
 @pytest.mark.parametrize(
     ("header", "expected"),
     [
+        ("review_text", "text"),  # the common export header that regressed live
+        ("review-text", "text"),
+        ("Review_Text", "text"),
+        ("review  text", "text"),
+        ("star_rating", "rating"),
+        ("review_date", "date"),
+    ],
+)
+def test_suggest_mapping_normalizes_separators(header: str, expected: str) -> None:
+    """Underscores/hyphens/repeated spaces in a header match the space synonym.
+
+    `review_text` is one of the most common review-export column names; it must
+    auto-detect as the text column (regression from a live CSV upload).
+    """
+    assert suggest_mapping([header]).get(expected) == header
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
         ("review", "text"),
         ("text", "text"),
         ("comment", "text"),

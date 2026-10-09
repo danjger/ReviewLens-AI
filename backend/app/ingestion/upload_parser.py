@@ -43,6 +43,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import re
 from dataclasses import dataclass, field
 
 from app.core.config import get_settings
@@ -148,8 +149,14 @@ class UploadPreview:
 
 
 def _normalize_header(name: str) -> str:
-    """Lower-case and trim a header for case-insensitive synonym matching."""
-    return name.strip().lower()
+    """Normalize a header for case-insensitive synonym matching.
+
+    Lower-cases, trims, and treats underscores/hyphens as spaces with repeated
+    whitespace collapsed, so common export headers like ``review_text``,
+    ``review-text``, and ``Review  Text`` all match the ``review text`` synonym.
+    """
+    collapsed = re.sub(r"[\s_\-]+", " ", name.strip().lower())
+    return collapsed.strip()
 
 
 def keep_rule_for(mapping: dict[str, str]) -> str:
