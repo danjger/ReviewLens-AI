@@ -483,3 +483,30 @@ any application statement runs. Only the connection warm-up is retried — never
 business logic — so there is no double-write risk. Non-resume errors propagate
 immediately. The deploy's migration bash-retry (task 23) is kept as a belt-and-
 braces for the one-off migration context.
+
+### All worker Lambdas crash: Runtime.InvalidEntrypoint (web adapter vs RIC)
+
+Found by the live end-to-end run: a submitted Check stayed `pending` forever.
+CloudWatch showed EVERY worker Lambda (check, processing, push, dlq, sweeper)
+failing at init with `Runtime.InvalidEntrypoint`. The HTTP tier (api/chat) was
+healthy, so the control plane worked but the entire background pipeline was
+dead. The smoke test missed it because it only probes HTTP + a direct Data API
+round-trip, never a queue consumer.
+
+Root cause: both container images bake in the AWS Lambda Web Adapter
+(`AWS_LAMBDA_EXEC_WRAPPER=/opt/extensions/lambda-adapter`), which is correct for
+the HTTP services (uvicorn behind LWA). But the worker functions are configured
+with `cmd=["app.consumer.lambda_entry"]` — a native Lambda handler path for an
+SQS event source (exactly as `app/consumer.py` documents). LWA can't dispatch a
+dotted-path handler; it expects to front an HTTP server. So Lambda could not
+start the container → InvalidEntrypoint on every invoke.
+
+Fix (keep one image per the "same code, both modes" rule): add the Lambda
+Runtime Interface Client (`awslambdaric`) to the runtime deps, and in CDK give
+the five worker functions `entrypoint=["/var/task/.venv/bin/python","-m",
+"awslambdaric"]` plus `AWS_LAMBDA_EXEC_WRAPPER=""` so they run under the RIC
+(dispatching SQS events to `lambda_entry`) instead of LWA. api/chat are
+untouched and keep LWA. Container mode (`python -m app.consumer --queue ...`) is
+unaffected (Compose/ECS override the command). Verified in the synthesized
+template: all five functions now carry the RIC EntryPoint, the correct Command,
+and a blank exec wrapper. Needs a rebuild + redeploy to take effect.

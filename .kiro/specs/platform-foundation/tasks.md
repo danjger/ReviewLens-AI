@@ -195,3 +195,9 @@
   - Fix: `app/core/db` registers an AWS-mode `engine_connect` warm-up that runs `SELECT 1` and retries on resume (12×5s) before any real statement — covering API, chat, and workers. Only the connection warm-up retries (no business-logic re-execution). Added 4 unit tests (install-only-in-aws, retry-then-succeed, give-up, non-resume reraise).
   - Verify: `tests/unit/core/test_db.py` green (22 passed); lint/mypy clean; live `GET /api/datasets` returns 200 after a cold start. DONE this session (committed; live re-verify after deploy).
   - _Requirements: 4.1, 7.1_
+
+- [x] 27. Run worker Lambdas under the Lambda RIC, not the web adapter (dead pipeline) — see design.md → Known Issues
+  - Root cause (live E2E; Check stuck `pending`): all 5 worker Lambdas (check/processing/push/dlq/sweeper) crashed at init with `Runtime.InvalidEntrypoint`. The images bake in the Lambda Web Adapter (right for the HTTP api/chat), but workers are configured with `cmd=app.consumer.lambda_entry` — a native handler LWA can't dispatch. HTTP tier healthy, entire background pipeline dead; smoke test didn't exercise a queue consumer.
+  - Fix: add `awslambdaric` to runtime deps; in `workers-stack.ts` set each worker's container `entrypoint` to the RIC (`python -m awslambdaric`) and blank `AWS_LAMBDA_EXEC_WRAPPER` to disable LWA. One image, both modes preserved; api/chat unchanged; container poller unchanged.
+  - Verify: `cdk synth` + 8 workers synth tests pass; synthesized template shows RIC EntryPoint + blank exec wrapper on all five; `app.consumer.lambda_entry` imports. DONE this session; live pipeline re-verified after rebuild/redeploy.
+  - _Requirements: 1.1, 1.2, 7.4_

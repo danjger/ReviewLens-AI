@@ -83,6 +83,21 @@ const CONSUMER_HANDLER_CMD = ["app.consumer.lambda_entry"];
 /** The Lambda handler for the sweeper (implemented in review-analysis). */
 const SWEEPER_HANDLER_CMD = ["app.jobs.sweep.lambda_entry"];
 
+// The backend/workers container images bake in the AWS Lambda Web Adapter
+// (AWS_LAMBDA_EXEC_WRAPPER) for the HTTP services (api/chat). Worker functions
+// are NOT HTTP servers — they are native SQS/event handlers dispatched to
+// `app.consumer.lambda_entry` — so they must run under the Lambda Runtime
+// Interface Client (awslambdaric), not the web adapter. For each worker we
+// therefore override the container ENTRYPOINT to the RIC and blank out the web
+// adapter exec wrapper. (Without this the functions crash on init with
+// Runtime.InvalidEntrypoint, since LWA can't dispatch a dotted-path handler.)
+const RIC_ENTRYPOINT = ["/var/task/.venv/bin/python", "-m", "awslambdaric"];
+
+/** Env overrides that disable the baked-in Lambda Web Adapter for workers. */
+const DISABLE_WEB_ADAPTER: Record<string, string> = {
+  AWS_LAMBDA_EXEC_WRAPPER: "",
+};
+
 /** How often the sweeper runs. Requirement 3.6 / design: every 5 minutes. */
 const SWEEP_RATE = cdk.Duration.minutes(5);
 
@@ -181,6 +196,7 @@ export class WorkersStack extends cdk.Stack {
       functionName: "reviewlens-check-worker",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
         file: "Dockerfile.workers",
+        entrypoint: RIC_ENTRYPOINT,
         cmd: CONSUMER_HANDLER_CMD,
       }),
       architecture: lambda.Architecture.ARM_64,
@@ -191,6 +207,7 @@ export class WorkersStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         SERVICE_NAME: "check-worker",
+        ...DISABLE_WEB_ADAPTER,
       },
     });
 
@@ -201,6 +218,7 @@ export class WorkersStack extends cdk.Stack {
         functionName: "reviewlens-processing-worker",
         code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
           file: "Dockerfile.workers",
+          entrypoint: RIC_ENTRYPOINT,
           cmd: CONSUMER_HANDLER_CMD,
         }),
         architecture: lambda.Architecture.ARM_64,
@@ -210,6 +228,7 @@ export class WorkersStack extends cdk.Stack {
         environment: {
           ...commonEnv,
           SERVICE_NAME: "processing-worker",
+        ...DISABLE_WEB_ADAPTER,
         },
       }
     );
@@ -256,6 +275,7 @@ export class WorkersStack extends cdk.Stack {
     this.pushConsumer = new lambda.DockerImageFunction(this, "PushConsumer", {
       functionName: "reviewlens-push-consumer",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        entrypoint: RIC_ENTRYPOINT,
         cmd: CONSUMER_HANDLER_CMD,
       }),
       architecture: lambda.Architecture.ARM_64,
@@ -264,6 +284,7 @@ export class WorkersStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         SERVICE_NAME: "push-consumer",
+        ...DISABLE_WEB_ADAPTER,
         // The WebSocket callback URL the handler posts to connections through.
         // Supplied by the RealtimeStack when wired; empty otherwise (the
         // handler then has no channel to deliver on — see app.handlers.push).
@@ -307,6 +328,7 @@ export class WorkersStack extends cdk.Stack {
     this.dlqConsumer = new lambda.DockerImageFunction(this, "DlqConsumer", {
       functionName: "reviewlens-dlq-consumer",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        entrypoint: RIC_ENTRYPOINT,
         cmd: CONSUMER_HANDLER_CMD,
       }),
       architecture: lambda.Architecture.ARM_64,
@@ -315,6 +337,7 @@ export class WorkersStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         SERVICE_NAME: "dlq-consumer",
+        ...DISABLE_WEB_ADAPTER,
       },
     });
     for (const dlq of [api.checkDlq, api.processingDlq, api.pushDlq]) {
@@ -339,6 +362,7 @@ export class WorkersStack extends cdk.Stack {
     this.sweeper = new lambda.DockerImageFunction(this, "Sweeper", {
       functionName: "reviewlens-sweeper",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        entrypoint: RIC_ENTRYPOINT,
         cmd: SWEEPER_HANDLER_CMD,
       }),
       architecture: lambda.Architecture.ARM_64,
@@ -347,6 +371,7 @@ export class WorkersStack extends cdk.Stack {
       environment: {
         ...commonEnv,
         SERVICE_NAME: "sweeper",
+        ...DISABLE_WEB_ADAPTER,
         // Sweeper thresholds come from Settings defaults; expose them here so
         // they are overridable per deploy without an app change.
         SWEEP_REQUESTED_AFTER_MIN: "5",

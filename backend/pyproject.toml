@@ -20,6 +20,10 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
     "sqlalchemy-aurora-data-api>=0.5.0",
     "pyyaml>=6.0",
+    # AWS Lambda Runtime Interface Client — lets the worker container
+    # images dispatch SQS events to app.consumer.lambda_entry as a native
+    # Lambda handler (the HTTP services use the Lambda Web Adapter instead).
+    "awslambdaric>=3.0.0",
 ]
 
 [project.optional-dependencies]
