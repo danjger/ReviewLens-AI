@@ -213,4 +213,43 @@ describe("VerdictCard", () => {
     );
     expect(screen.getByTestId("retry-link")).toBeDisabled();
   });
+
+  it("shows a Clear button for a wont_work result and calls onDismiss", () => {
+    const item = makeItem({ verdict: makeVerdict("wont_work", { reasons: ["Status 403"] }) });
+    const onDismiss = vi.fn();
+    render(
+      <VerdictCard
+        item={item}
+        included={false}
+        onToggleInclude={vi.fn()}
+        onRetry={vi.fn()}
+        onDismiss={onDismiss}
+      />,
+    );
+    const clear = screen.getByTestId("dismiss-link");
+    fireEvent.click(clear);
+    expect(onDismiss).toHaveBeenCalledWith(item.item_id);
+  });
+
+  it("does not show Clear for a viable (will_work) result", () => {
+    render(
+      <VerdictCard
+        item={makeItem()}
+        included
+        onToggleInclude={vi.fn()}
+        onRetry={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("dismiss-link")).not.toBeInTheDocument();
+  });
+
+  it("does not show Clear when no onDismiss handler is provided", () => {
+    const item = makeItem({ verdict: makeVerdict("wont_work", { reasons: ["Status 403"] }) });
+    render(
+      <VerdictCard item={item} included={false} onToggleInclude={vi.fn()} onRetry={vi.fn()} />,
+    );
+    expect(screen.queryByTestId("dismiss-link")).not.toBeInTheDocument();
+  });
+
 });

@@ -15,6 +15,8 @@ export interface CheckResultsListProps {
   onToggleInclude: (itemId: string, included: boolean) => void;
   onRetry: (itemId: string) => void;
   retrying?: boolean;
+  /** Clear a terminal non-viable result from the list (local view only). */
+  onDismiss?: (itemId: string) => void;
 }
 
 export default function CheckResultsList({
@@ -23,6 +25,7 @@ export default function CheckResultsList({
   onToggleInclude,
   onRetry,
   retrying = false,
+  onDismiss,
 }: CheckResultsListProps) {
   if (items.length === 0) {
     return null;
@@ -38,6 +41,7 @@ export default function CheckResultsList({
           onToggleInclude={onToggleInclude}
           onRetry={onRetry}
           retrying={retrying}
+          onDismiss={onDismiss}
         />
       ))}
     </ul>

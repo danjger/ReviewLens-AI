@@ -205,6 +205,16 @@ export default function DatasetDetailPage({
       data-loading={isLoading ? "true" : "false"}
       aria-busy={isLoading}
     >
+      {/* Back to the Library — a persistent way off the detail page. */}
+      <a
+        className="dataset-detail__back"
+        data-testid="detail-back-link"
+        href={LIBRARY_PATH}
+        onClick={handleLibraryClick}
+      >
+        <span aria-hidden="true">←</span> Back to datasets
+      </a>
+
       {/* Full-width header + readiness banner (DatasetHeader: task 2.2;
           ReadinessBanner: task 4.3). */}
       <div className="dataset-detail__top" data-testid="detail-top">

@@ -48,6 +48,9 @@ export default function UrlTab({ onSelectionChange, addNavigation }: UrlTabProps
   const { checkId, setCheckId } = useCheckParam();
   const [inputValue, setInputValue] = useState("");
   const [selection, setSelection] = useState<Record<string, boolean>>({});
+  // Locally-dismissed result cards (analyst "Clear" on a wont_work/invalid/
+  // duplicate/error item). View-only — does not touch server state.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const { items, isRunning, create, retryItem, isRetrying, rateLimit, error } =
     useCheck(checkId, setCheckId);
@@ -60,6 +63,7 @@ export default function UrlTab({ onSelectionChange, addNavigation }: UrlTabProps
   useEffect(() => {
     defaultedRef.current = new Set();
     setSelection({});
+    setDismissedIds(new Set());
   }, [checkId]);
 
   // Apply the default include state once each item first reaches a terminal
@@ -109,6 +113,14 @@ export default function UrlTab({ onSelectionChange, addNavigation }: UrlTabProps
     setSelection((previous) => ({ ...previous, [itemId]: included }));
   }, []);
 
+  const handleDismiss = useCallback((itemId: string) => {
+    setDismissedIds((previous) => new Set(previous).add(itemId));
+  }, []);
+
+  // Hide dismissed cards from the results (and from Add — a cleared wont_work
+  // was never includable anyway).
+  const visibleItems = items.filter((it) => !dismissedIds.has(it.item_id));
+
   return (
     <section className="url-tab" data-testid="url-tab">
       <UrlInput
@@ -127,17 +139,18 @@ export default function UrlTab({ onSelectionChange, addNavigation }: UrlTabProps
       )}
 
       <CheckResultsList
-        items={items}
+        items={visibleItems}
         selection={selection}
         onToggleInclude={handleToggleInclude}
         onRetry={retryItem}
         retrying={isRetrying}
+        onDismiss={handleDismiss}
       />
 
-      {items.length > 0 && (
+      {visibleItems.length > 0 && (
         <AddPanel
           checkId={checkId}
-          items={items}
+          items={visibleItems}
           includedItemIds={includedItemIds}
           onRecheck={handleRecheck}
           navigation={addNavigation}

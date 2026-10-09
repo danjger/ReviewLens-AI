@@ -6,10 +6,9 @@
  * amazon.com (compact tables, legible at a glance) — deliberately NOT a clone
  * of either: original palette, type pairing, and spacing scale.
  *
- * Two palette DIRECTIONS are provided for sign-off. Direction A ("Slate &
- * Teal") is the default. To preview Direction B ("Ink & Amber"), set
- * `data-theme="b"` on <html> (see the commented block below) — nothing else
- * changes, since every surface reads these variables.
+ * The palette is "Slate & Teal": calm neutral surfaces with a single confident
+ * teal accent. Every surface reads these variables, so a future re-theme is a
+ * one-file change.
  */
 
 :root {
@@ -45,7 +44,7 @@
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
   --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.06);
 
-  /* ---- Direction A: "Slate & Teal" (default) ---- */
+  /* ---- Palette: "Slate & Teal" ---- */
   --color-bg: #f6f8fa;
   --color-surface: #ffffff;
   --color-surface-sunken: #eef1f5;
@@ -68,20 +67,6 @@
   --focus-ring: 0 0 0 3px rgba(15, 138, 134, 0.35);
 }
 
-/* ---- Direction B: "Ink & Amber" (preview with <html data-theme="b">) ---- */
-:root[data-theme="b"] {
-  --color-bg: #f7f6f3;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #efece6;
-  --color-border: #ddd8cf;
-  --color-text: #211d1a;
-  --color-text-muted: #6a635b;
-  --color-accent: #b5641e;        /* amber */
-  --color-accent-strong: #934e12;
-  --color-accent-weak: #f6e7d6;
-  --color-on-accent: #ffffff;
-  --focus-ring: 0 0 0 3px rgba(181, 100, 30, 0.33);
-}
 
 @media (prefers-color-scheme: dark) {
   :root {

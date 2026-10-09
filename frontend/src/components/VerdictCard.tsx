@@ -32,6 +32,12 @@ export interface VerdictCardProps {
   onRetry: (itemId: string) => void;
   /** True while a retry request is in flight (disables the Retry link). */
   retrying?: boolean;
+  /**
+   * Clear this result card from the list (local view only — does not change
+   * server state). Shown for terminal non-viable items (wont_work / invalid /
+   * duplicate / error) so an analyst can tidy away results they are done with.
+   */
+  onDismiss?: (itemId: string) => void;
 }
 
 /** The timeout reason the backend uses for a `wont_work` timeout. */
@@ -40,6 +46,15 @@ const TIMEOUT_REASON = "Page took too long to load";
 /** States where the item is still being worked on. */
 function isInFlight(item: CheckItem): boolean {
   return item.state === "pending" || item.state === "checking";
+}
+
+/** True when the item is terminal and NOT a viable (addable) result, so it is
+ *  safe to let the analyst clear it from the list. */
+function isDismissable(item: CheckItem): boolean {
+  if (item.state === "invalid" || item.state === "duplicate_in_batch") return true;
+  if (item.state === "error") return true;
+  if (item.state === "done" && item.verdict?.verdict === "wont_work") return true;
+  return false;
 }
 
 /** True when the item ended in `error` or a `wont_work` timeout (retryable). */
@@ -57,6 +72,7 @@ export default function VerdictCard({
   onToggleInclude,
   onRetry,
   retrying = false,
+  onDismiss,
 }: VerdictCardProps) {
   const verdict = item.verdict;
   const isWontWork = verdict?.verdict === "wont_work";
@@ -143,6 +159,18 @@ export default function VerdictCard({
             onClick={() => onRetry(item.item_id)}
           >
             Retry
+          </button>
+        )}
+
+        {onDismiss && isDismissable(item) && (
+          <button
+            type="button"
+            className="verdict-card__dismiss"
+            data-testid="dismiss-link"
+            aria-label={`Clear the result for ${item.input}`}
+            onClick={() => onDismiss(item.item_id)}
+          >
+            Clear
           </button>
         )}
       </div>

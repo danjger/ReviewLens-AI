@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import DatasetDetailPage from "./routes/DatasetDetailPage";
 import LibraryPage from "./routes/LibraryPage";
-import ThemeSwitcher from "./components/ThemeSwitcher";
 
 const queryClient = new QueryClient();
 
@@ -60,7 +59,6 @@ export default function App() {
           >
             ReviewLens <span className="app-header__brand-accent">AI</span>
           </button>
-          <ThemeSwitcher />
         </header>
         <div className="app-main">
           {datasetId != null ? (
