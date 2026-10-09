@@ -1,0 +1,178 @@
+/*
+ * ReviewLens base styles (dataset-library task 11).
+ * Reset + typography + the shared primitives and key surfaces, keyed to the
+ * class vocabulary the components already use (BEM-ish). Presentation only.
+ */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { line-height: 1.25; font-weight: var(--weight-bold); margin: 0 0 var(--space-3); }
+h1 { font-size: var(--text-2xl); letter-spacing: -0.02em; }
+h2 { font-size: var(--text-xl); letter-spacing: -0.01em; }
+h3 { font-size: var(--text-lg); }
+a { color: var(--color-accent-strong); }
+
+/* Screen-reader-only text — was referenced with no CSS, so it was VISIBLE.
+   This makes `visually-hidden` actually hide it (accessibility fix). */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip: rect(0 0 0 0); clip-path: inset(50%);
+  overflow: hidden; white-space: nowrap;
+}
+
+/* Keyboard focus is always visible (accessibility). */
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+
+/* ---- Page shell ---- */
+.library-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ---- Buttons (generic) ---- */
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+button:hover { border-color: var(--color-accent); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Primary call-to-action buttons across panels. */
+.add-panel__submit,
+.url-tab__submit,
+.upload-tab__submit,
+button[type="submit"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-medium);
+}
+.add-panel__submit:hover,
+button[type="submit"]:hover { background: var(--color-accent-strong); border-color: var(--color-accent-strong); }
+
+/* ---- Cards / sections ---- */
+.new-dataset-panel,
+.tracked-datasets,
+.dataset-detail__slot,
+.snapshot-card,
+.metrics-panel,
+.rating-chart,
+.themes-list,
+.entity-card,
+.completeness-panel,
+.prediction-panel,
+.chat-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The "Add new reviews" panel is visually distinct from the tracked list
+   (Requirement 1.1): a tinted accent surface. */
+.new-dataset-panel {
+  background: linear-gradient(0deg, var(--color-surface), var(--color-accent-weak));
+  border-color: var(--color-accent-weak);
+}
+
+/* ---- Tracked datasets table ---- */
+.tracked-datasets table,
+.dataset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.tracked-datasets thead th {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.dataset-row {
+  border-bottom: 1px solid var(--color-border);
+  transition: background 120ms ease;
+}
+.dataset-row:hover { background: var(--color-surface-sunken); cursor: pointer; }
+.dataset-row td { padding: var(--space-3); vertical-align: middle; }
+.dataset-row--highlight { background: var(--color-accent-weak); }
+.dataset-row__name { display: flex; align-items: center; gap: var(--space-3); }
+.dataset-row__name-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dataset-row__title { font-weight: var(--weight-medium); color: var(--color-text); }
+.dataset-row__url {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42ch;
+}
+
+/* ---- Dataset thumbnail (task 10) ---- */
+.dataset-thumb {
+  flex: 0 0 auto;
+  width: 56px; height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; color: var(--color-text-muted);
+}
+.dataset-thumb__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dataset-thumb--csv { color: var(--color-accent-strong); background: var(--color-accent-weak); }
+.dataset-thumb__placeholder-mark {
+  width: 18px; height: 18px; border-radius: 4px;
+  background: repeating-linear-gradient(45deg, var(--color-border), var(--color-border) 3px, transparent 3px, transparent 6px);
+}
+
+/* ---- Status badge ---- */
+.status-badge {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.status-badge[data-state="ready"] { background: var(--color-ok-weak); color: var(--color-ok); border-color: transparent; }
+.status-badge[data-state="processing"],
+.status-badge[data-state="ready_refreshing"] { background: var(--color-info-weak); color: var(--color-info); border-color: transparent; }
+.status-badge[data-state="failed"],
+.status-badge[data-state="ready_refresh_failed"] { background: var(--color-danger-weak); color: var(--color-danger); border-color: transparent; }
+
+/* ---- Detail page grid ---- */
+.dataset-detail {
+  max-width: 1100px; margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8);
+  display: grid; gap: var(--space-5);
+}
