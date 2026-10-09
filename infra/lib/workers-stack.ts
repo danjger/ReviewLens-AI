@@ -259,8 +259,6 @@ export class WorkersStack extends cdk.Stack {
       data.rateLimitsTable.grantReadWriteData(fn);
       data.checkSessionsTable.grantReadWriteData(fn);
       data.wsConnectionsTable.grantReadWriteData(fn);
-      data.anthropicSecret.grantRead(fn);
-      data.originVerifySecret.grantRead(fn);
       api.eventBus.grantPutEventsTo(fn);
       // A check worker can promote a viable URL into processing work; workers
       // may fan out real-time push notifications.
@@ -429,5 +427,13 @@ export class WorkersStack extends cdk.Stack {
     if (data.cluster.secret) {
       data.cluster.secret.grantRead(fn);
     }
+    // EVERY worker sets SECRETS_ARN + ORIGIN_VERIFY_SECRET_ARN in commonEnv and
+    // app.core.config merges both secrets into the environment at startup, so
+    // every worker needs read on both — not just the AI workers. (A missing
+    // grant here crashed the dlq-consumer/sweeper/push-consumer at config load
+    // with AccessDenied on GetSecretValue.) Granting the AI secret to a
+    // non-AI worker is harmless; it simply never calls the model.
+    data.anthropicSecret.grantRead(fn);
+    data.originVerifySecret.grantRead(fn);
   }
 }

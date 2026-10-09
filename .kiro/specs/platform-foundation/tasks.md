@@ -226,3 +226,9 @@
   - Fix: `CAST(:id AS uuid)` in both `_append_event` queries. All status writes go through it, so every transition/log_event is unblocked in Data API mode.
   - Verify: status unit (8) + property (1) tests green; live dataset reaches `updated` after deploy. DONE (code); live re-verify after deploy.
   - _Requirements: 8.2_
+
+- [x] 32. Grant every worker read on the app secrets (config-load crash) — see design.md → Known Issues
+  - Root cause: all workers set SECRETS_ARN/ORIGIN_VERIFY_SECRET_ARN and `app.core.config` reads both at startup, but only check/processing were granted read. push/dlq/sweeper AccessDenied at config load (GetSecretValue on the Anthropic secret) and never started — so dead-lettered datasets were never marked failed and the sweeper never ran.
+  - Fix: grant `anthropicSecret`/`originVerifySecret` read inside `grantCoreData` (used by every worker); remove the duplicate explicit grants on check/processing.
+  - Verify: synth template shows GetSecretValue on all 5 workers; 8 workers synth tests pass. Live: dlq-consumer/sweeper start cleanly after deploy. DONE (code); live re-verify.
+  - _Requirements: 6.1, 7.4_

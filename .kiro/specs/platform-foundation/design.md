@@ -599,3 +599,20 @@ dedup issue (task 30).
 Fix: `CAST(:id AS uuid)` in both `_append_event` queries. Since every status
 write (`transition`, `log_event`) funnels through `_append_event`, this unblocks
 all status transitions in Data API mode. Status unit + property tests stay green.
+
+### DLQ consumer / sweeper / push-consumer crash at config load — missing secret read
+
+Found after the status fix let a dataset reach processing: the dlq-consumer
+crashed at startup with `AccessDeniedException ... secretsmanager:GetSecretValue
+on ReviewLens-Data/anthropic-api-key`. Root cause: every worker sets
+`SECRETS_ARN` + `ORIGIN_VERIFY_SECRET_ARN` in `commonEnv` and `app.core.config`
+merges BOTH secrets into the environment at startup — but only the check/
+processing workers were granted `grantRead` on them. push-consumer, dlq-consumer,
+and sweeper got only `grantCoreData` (DB + cluster secret), so all three
+AccessDenied at config load and never ran.
+
+Fix: move the two app-secret grants into `grantCoreData` so EVERY worker that
+uses it gets read on the Anthropic + origin-verify secrets (and remove the now-
+duplicate explicit grants on check/processing). Granting the AI secret to a
+non-AI worker is harmless — it just never calls the model. Verified in the synth
+template: all five worker functions now carry GetSecretValue on the secret.
