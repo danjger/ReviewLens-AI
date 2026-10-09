@@ -50,6 +50,7 @@ from sqlalchemy.orm import Session
 from app.core.db import session_scope
 from app.core.errors import AppValidationError, NotFoundError
 from app.db.models import Dataset, DatasetStatus, DatasetVersion, SourceType
+from app.storage import keys, s3
 
 #: The derived list-row ``display_state`` vocabulary (design "display_state"
 #: table). It is a total function of ``(status, active_version)``.
@@ -158,6 +159,15 @@ class DatasetRow:
     last_refreshed_at: str | None
     archived_at: str | None
     refresh_check_id: str | None
+    #: "url" | "upload" — lets the UI pick a source-aware thumbnail fallback
+    #: (CSV icon for uploads) without inferring upload-ness from a null URL.
+    source_type: str
+    #: Short-lived presigned GET for the active version's page snapshot, or
+    #: ``None`` when there is no snapshot to show (upload datasets never have
+    #: one; a URL dataset has none until its first successful version). The URL
+    #: is signed without a HEAD check, so the browser falls back to the
+    #: placeholder if the object is absent (see library design "Thumbnails").
+    thumbnail_url: str | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -175,6 +185,8 @@ class DatasetRow:
             "last_refreshed_at": self.last_refreshed_at,
             "archived_at": self.archived_at,
             "refresh_check_id": self.refresh_check_id,
+            "source_type": self.source_type,
+            "thumbnail_url": self.thumbnail_url,
         }
 
 
@@ -326,6 +338,37 @@ def _active_completed_at(dataset: Dataset, versions: list[DatasetVersion]) -> st
     return None
 
 
+#: Lifetime of a list-row thumbnail link. Short-lived (design uses 5 min).
+_THUMBNAIL_URL_TTL_SECONDS = 300
+
+
+def _source_type_value(dataset: Dataset) -> str:
+    """The dataset's source type as a plain string ("url" | "upload")."""
+    return (
+        dataset.source_type.value
+        if isinstance(dataset.source_type, SourceType)
+        else str(dataset.source_type)
+    )
+
+
+def _thumbnail_url(dataset: Dataset) -> str | None:
+    """Presigned GET for the active version's page snapshot, or ``None``.
+
+    Returns ``None`` for upload datasets (no page screenshot exists —
+    Requirement 7.5; the UI shows a CSV icon instead) and for any dataset
+    without an ``active_version`` yet (no completed version to show). The key is
+    built from :func:`app.storage.keys.dataset_snapshot`; the URL is signed
+    WITHOUT a per-row S3 HEAD (keeping a long list cheap), so if the object is
+    absent the browser simply falls back to the placeholder.
+    """
+    if dataset.source_type == SourceType.UPLOAD:
+        return None
+    if dataset.active_version is None:
+        return None
+    key = keys.dataset_snapshot(dataset.id, dataset.active_version)
+    return s3.presign_get(key, expires_in=_THUMBNAIL_URL_TTL_SECONDS)
+
+
 def _to_row(dataset: Dataset, versions: list[DatasetVersion]) -> DatasetRow:
     """Build a :class:`DatasetRow` from a dataset and its version rows."""
     status_value = (
@@ -353,6 +396,8 @@ def _to_row(dataset: Dataset, versions: list[DatasetVersion]) -> DatasetRow:
         last_refreshed_at=_active_completed_at(dataset, versions),
         archived_at=_iso(dataset.archived_at),
         refresh_check_id=_refresh_check_id(dataset),
+        source_type=_source_type_value(dataset),
+        thumbnail_url=_thumbnail_url(dataset),
     )
 
 

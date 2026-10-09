@@ -27,6 +27,7 @@ from typing import Any
 import pytest
 from app.datasets import library
 from app.db.models import Dataset, DatasetStatus, DatasetVersion, SourceType
+from app.storage import keys
 
 _DATASET_ID = "11111111-1111-1111-1111-111111111111"
 
@@ -109,6 +110,21 @@ def _dataset(
         metrics=metrics,
         data_version=data_version,
         active_version=active_version,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_presign(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make _to_row's snapshot presign deterministic and AWS-free.
+
+    _to_row calls s3.presign_get for a URL dataset's active-version snapshot;
+    stub it so unit tests never construct a real S3 client. The returned URL
+    encodes the key so tests can assert the right object was signed.
+    """
+    monkeypatch.setattr(
+        library.s3,
+        "presign_get",
+        lambda key, *, expires_in: f"https://signed.example/{key}?e={expires_in}",
     )
 
 
@@ -264,6 +280,8 @@ def test_row_to_dict_has_every_api_field() -> None:
         "last_refreshed_at",
         "archived_at",
         "refresh_check_id",
+        "source_type",
+        "thumbnail_url",
     }
 
 
@@ -395,3 +413,35 @@ def test_escape_like_escapes_wildcards(raw: str, expected: str) -> None:
     _Validates: Requirement 2.3 (design Correctness Property 3)._
     """
     assert library._escape_like(raw) == expected
+
+
+# ---------------------------------------------------------------------------
+# Thumbnail URL + source_type on the list row (task 10.1)
+# ---------------------------------------------------------------------------
+
+
+def test_source_type_surfaced_on_row() -> None:
+    assert library._to_row(_dataset(source_type=SourceType.URL), []).source_type == "url"
+    upload = _dataset(source_type=SourceType.UPLOAD, name="r.csv", original_url=None)
+    assert library._to_row(upload, []).source_type == "upload"
+
+
+def test_thumbnail_url_present_for_url_dataset_with_active_version() -> None:
+    row = library._to_row(_dataset(source_type=SourceType.URL, active_version=2), [])
+    assert row.thumbnail_url is not None
+    # Signs the ACTIVE version's snapshot key.
+    assert keys.dataset_snapshot(_DATASET_ID, 2) in row.thumbnail_url
+
+
+def test_thumbnail_url_none_for_upload_dataset() -> None:
+    """Upload datasets have no page screenshot (Req 7.5) -> null thumbnail."""
+    upload = _dataset(
+        source_type=SourceType.UPLOAD, name="r.csv", original_url=None, active_version=1
+    )
+    assert library._to_row(upload, []).thumbnail_url is None
+
+
+def test_thumbnail_url_none_without_active_version() -> None:
+    """A URL dataset with no completed version yet has no snapshot to show."""
+    row = library._to_row(_dataset(status=DatasetStatus.REQUESTED, active_version=None), [])
+    assert row.thumbnail_url is None

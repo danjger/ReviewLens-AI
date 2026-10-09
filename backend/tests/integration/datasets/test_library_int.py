@@ -425,9 +425,11 @@ def test_get_dataset_exposes_upload_description(
 def test_list_response_unchanged_has_no_detail_fields(
     dataset_factory: Callable[..., str],
 ) -> None:
-    """GET /datasets rows are the list shape only: the detail-only fields
-    (status_detail, description, versions, metrics, source_type) must NOT leak
-    into list rows (task 9: the change is strictly additive to the detail)."""
+    """GET /datasets rows are the list shape: the list-row fields plus
+    task-10's ``source_type`` and ``thumbnail_url`` (needed for the card
+    thumbnail + CSV fallback). The detail-only fields (status_detail,
+    description, versions, metrics, original_url/final_url) must NOT leak into
+    list rows."""
     ds_id = dataset_factory(name="List shape", status=DatasetStatus.UPDATED)
     rows = {r.id: r for r in library.list_datasets()}
     data = rows[ds_id].to_dict()
@@ -446,7 +448,13 @@ def test_list_response_unchanged_has_no_detail_fields(
         "last_refreshed_at",
         "archived_at",
         "refresh_check_id",
+        "source_type",
+        "thumbnail_url",
     }
+    # Detail-only fields still must not leak into the list row.
+    assert "status_detail" not in data
+    assert "versions" not in data
+    assert "description" not in data
 
 
 def test_http_detail_includes_status_detail_and_description(

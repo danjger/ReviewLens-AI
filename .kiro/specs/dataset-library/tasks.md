@@ -70,3 +70,32 @@
   - Update the design's "API endpoints" row for `GET /datasets/{id}` to list the added fields so the design and the implementation agree.
   - Extend the existing detail unit and integration tests to assert the new fields are present (seed `status_detail` with events, redirects, and a viability block; and an upload with a description). Keep the `GET /datasets` list-response tests unchanged.
   - _Requirements: 3.1, 6.4_
+
+- [ ] 10. Add a rendered-page thumbnail to each tracked-dataset row
+  - 10.1 Backend: expose a snapshot thumbnail URL on the list row
+    - The permanent snapshot already exists at `storage.keys.dataset_snapshot(id, version)` = `datasets/{id}/snapshot/v{n}.png`, written by `app/ingestion/service.py` (new dataset) and `app/datasets/refresh_service.py` (refresh) — but ONLY when a screenshot was captured. Upload datasets have no snapshot (Requirement 7.5), and a URL whose capture produced none also won't; the field MUST be nullable and the UI must degrade gracefully.
+    - Add a `thumbnail_url` (nullable) to `DatasetSummary.to_dict()` in `app/datasets/library.py`, pointing at the dataset's ACTIVE version snapshot (`active_version`; fall back to the latest completed version). Serve it as a time-limited presigned S3 GET via `app/storage/s3.py` (add a `presigned_get` helper if absent), or a CloudFront path if the Edge stack already fronts the bucket — pick one and note why. Return `null` when `active_version` is unset or the snapshot object does not exist (`s3.object_exists`). The detail record (`GET /datasets/{id}`) may expose the same.
+    - Keep it cheap for a list of many rows: do NOT HEAD every object on every list call if that is slow — prefer deriving the key from `active_version` and letting the browser 404 to the placeholder, or batch-check. Record the choice.
+    - Upload datasets have no screenshot, so `thumbnail_url` stays null for them and the UI shows a CSV icon (task 10.2). IF the optional CSV text-preview is pursued, the small top-of-file sample should come from an existing field or a short, bounded read of `raw/v{n}/upload.csv` (`storage.keys.dataset_raw_upload`) — bounded to the first few rows; do not stream whole files into the list response. Treat this as optional/nice-to-have, not required for the icon fallback.
+    - Tests: unit test that a dataset with an active snapshot yields a non-null URL and one without yields null (upload dataset, and a URL dataset pre-first-success); keep existing list-response tests green.
+    - _Requirements: 2.1, 3.1_
+  - 10.2 Frontend: render the thumbnail on each dataset card
+    - In the tracked-dataset list card, show the `thumbnail_url` as a small rendered-page thumbnail (fixed aspect box, lazy-loaded, `object-fit: cover`). Use a `data-testid` and never depend on counts/dates in E2E (testing steering).
+    - Fallback is source-type aware (not a generic blank):
+      - URL dataset with no snapshot yet (e.g. still processing, or capture produced none): neutral "rendering…/no preview" placeholder, never a broken image.
+      - UPLOAD (CSV) dataset: these never have a page screenshot (Requirement 7.5), so show a CSV/file icon by default. Optionally, instead of the icon, render a lightweight preview of the TOP of the file (first few rows/header) as the thumbnail — a small, clipped text/table card generated client-side from a short sample. Keep it cheap and clipped; the icon is the safe default and the text-preview is a nice-to-have.
+    - Drive the choice off the row's `source_type` (`url` vs `upload`) already on the summary, plus whether `thumbnail_url` is present — do NOT infer upload-ness from a null URL.
+    - Accessible: meaningful `alt` (e.g. "Rendered page for {name}"), not decorative-only; keep it keyboard/screen-reader sane.
+    - Tests: component test for the image-present and placeholder-fallback cases (MSW-mocked list); update the list E2E to assert the thumbnail testid is present.
+    - _Requirements: 2.1_
+  - Cross-spec note: the snapshot is PRODUCED in review-extraction/capture + copied by dataset-ingestion/review-analysis; this task only READS the existing artifact and surfaces it. If the active-version snapshot turns out not to be written in some path, STOP and flag the producing spec rather than writing snapshots here.
+
+- [ ] 11. Visual design pass: a polished, original style (not an Apple/Amazon clone)
+  - Goal: a pleasant, well-engineered look inspired by the clarity of apple.com and the information density of amazon.com, WITHOUT imitating either (no copied layouts, marks, type pairings, or signature colors). Original palette, type scale, and spacing.
+  - 11.1 Establish a lightweight design system in the frontend: design tokens (color, spacing, radius, shadow, typography scale) as CSS variables / a theme module; a small set of primitives (Button, Card, Badge/StatusPill, Input, Section header) used across routes. One component per file (structure steering), `PascalCase` components.
+    - Pick a distinctive-but-restrained palette and a readable type scale; document the tokens and the rationale briefly in the frontend README or a `design-system.md`.
+  - 11.2 Apply the system to the main surfaces: the New Dataset panel, the tracked-dataset list (incl. the task-10 thumbnail), the dataset detail/summary page, and the chat view — consistent spacing, elevation, and status colors. Keep the New-URL entry visually separate from the tracked list (Requirement 1.1/1.6 — existing rule).
+  - 11.3 Accessibility is a hard requirement, not polish: WCAG AA contrast on the chosen palette, visible focus states, hit targets, reduced-motion support. Note that full WCAG validation needs manual AT testing + expert review; automate what we can (axe in component tests).
+  - Tests: keep existing component/axe tests green; add axe checks on the restyled primitives. No behavioral change — this is presentation only, so API and data flow are untouched.
+  - Judgment/needs-a-person: the specific palette/typography is a taste decision; propose 1–2 directions (tokens + a sample screen) for sign-off before applying site-wide, rather than restyling everything first.
+  - _Requirements: 1.1, 1.6_

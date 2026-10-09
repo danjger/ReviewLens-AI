@@ -134,3 +134,44 @@ Properties are tested with Hypothesis (backend) and fast-check (frontend reducer
 - **Integration tests:** the API against PostgreSQL and LocalStack for list, archive, restore, and refresh through the Check flow (`will_work` → new version, `dataset_versions` row, enqueue, with no further client call); refresh with the page returning 404 (no version, data kept, event appended); refresh while processing (409); refresh needing confirmation, then confirmed. Publish each event type and assert the right `postToConnection` targets.
 - **Frontend component tests:** both sections render with distinct headings and landmarks; no URL input inside the Tracked section; panel collapse and expand rules; empty state points to the panel; highlight after Add or Refresh; row actions; "Show archived" toggle; live row update.
 - **E2E:** two browser contexts. Context A has the Library open while B adds a dataset; A sees the new row move through statuses without reloading. Archive, then restore. Refresh a dataset from the row menu and watch it go through processing. Submit an existing URL in the New Dataset panel; the Tracked list highlights the original row rather than showing a new one.
+
+
+## Thumbnails and visual design (tasks 10–11)
+
+### Snapshot thumbnail on list rows (task 10)
+
+The processing pipeline already persists an above-the-fold screenshot per
+dataset version at `storage.keys.dataset_snapshot(id, version)`
+(`datasets/{id}/snapshot/v{n}.png`), copied from the Check capture by
+`ingestion/service.py` and `refresh_service.py` **only when a screenshot was
+captured**. Upload datasets never have one (Requirement 7.5), and a URL whose
+capture produced none also won't.
+
+The list row (`DatasetSummary.to_dict()` in `app/datasets/library.py`) gains a
+nullable `thumbnail_url` pointing at the ACTIVE version's snapshot (falling back
+to the latest completed version), served as a short-lived presigned S3 GET (or a
+CloudFront path if Edge already fronts the bucket). It is `null` when there is
+no active version or no snapshot object. The frontend card shows the image in a
+fixed-aspect, lazy-loaded box. The fallback is source-type aware: a URL dataset
+with no snapshot yet gets a neutral "no preview" placeholder (never a broken
+image); an UPLOAD (CSV) dataset — which never has a page screenshot
+(Requirement 7.5) — gets a CSV/file icon, or optionally a lightweight clipped
+preview of the top rows/header of the file as the thumbnail (icon is the safe
+default, text-preview is a nice-to-have). The card chooses by `source_type`
+(`url`/`upload`) plus whether `thumbnail_url` is present — not by inferring
+upload-ness from a null URL. This only READS existing artifacts; producing the
+snapshot stays in review-extraction/capture + dataset-ingestion/review-analysis.
+
+### Visual design system (task 11)
+
+A lightweight, original design system: CSS-variable design tokens (color,
+spacing, radius, shadow, type scale) plus a few primitives (Button, Card,
+StatusPill, Input, Section header), applied across the New Dataset panel, the
+tracked list, the detail/summary page, and chat. Inspired by the clarity of
+apple.com and the density of amazon.com but deliberately NOT a clone — original
+palette and type pairing, no borrowed marks or signature layouts. Accessibility
+is a requirement (AA contrast, visible focus, reduced-motion); full WCAG
+conformance needs manual assistive-technology testing and expert review, with
+axe automated in component tests. Presentation-only: no API or data-flow change.
+The concrete palette/typography is a taste decision to be signed off from 1–2
+proposed directions before a site-wide apply.
