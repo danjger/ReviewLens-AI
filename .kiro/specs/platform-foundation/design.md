@@ -631,3 +631,23 @@ Fix: pin the driver's BuildKit image to the GCR mirror via
 `ci.yml` and `deploy.yml`. GCR mirrors Docker Hub official images without rate
 limits, and keeping the docker-container driver preserves the `type=gha` build
 cache. Verified the mirror serves the tag.
+
+### Browser CSV upload blocked by CORS (bucket had no CORS rule)
+
+Found from the live UI: the Upload tab PUTs the file straight from the browser
+to a pre-signed URL on the app S3 bucket (Requirement 7.1), a cross-origin
+request from the CloudFront app origin. The bucket had NO CORS configuration
+(`get-bucket-cors` → NoSuchCORSConfiguration), so the browser's preflight got no
+`Access-Control-Allow-Origin` and blocked the PUT:
+`...has been blocked by CORS policy: Response to preflight request doesn't pass
+access control check`. The curl/API path never hit this because curl does not do
+CORS preflight — which is why the API test passed but the UI upload failed.
+
+Fix (`data-stack.ts` AppBucket): add a `cors` rule — `AllowedMethods: [PUT]`,
+`AllowedOrigins: ["https://*.cloudfront.net", localhost dev ports]`,
+`AllowedHeaders: ["*"]`, `ExposedHeaders: ["ETag"]`. Edge's exact domain is not
+known in Data (it deploys later), so match the cloudfront.net origin by pattern
+to avoid a circular dependency. This governs only which PAGE ORIGINS may script
+a cross-origin request; objects stay private (public access blocked) and are
+reachable only via short-lived pre-signed URLs. Takes effect on the next Data
+stack deploy.

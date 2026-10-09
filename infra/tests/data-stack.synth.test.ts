@@ -7,7 +7,7 @@
  * stays buildable while later stacks are added.
  */
 import * as cdk from "aws-cdk-lib";
-import { Template } from "aws-cdk-lib/assertions";
+import { Match, Template } from "aws-cdk-lib/assertions";
 import { DataStack } from "../lib/data-stack";
 
 function synth(): Template {
@@ -33,6 +33,20 @@ test("DataStack synthesizes with the core persistence resources", () => {
       BlockPublicPolicy: true,
       IgnorePublicAcls: true,
       RestrictPublicBuckets: true,
+    },
+  });
+
+  // CORS lets the browser PUT uploads straight to a pre-signed URL from the
+  // CloudFront app origin (Requirement 7.1); without it the preflight is
+  // blocked. Objects stay private — this only scopes allowed page origins.
+  template.hasResourceProperties("AWS::S3::Bucket", {
+    CorsConfiguration: {
+      CorsRules: Match.arrayWith([
+        Match.objectLike({
+          AllowedMethods: ["PUT"],
+          AllowedOrigins: Match.arrayWith(["https://*.cloudfront.net"]),
+        }),
+      ]),
     },
   });
 

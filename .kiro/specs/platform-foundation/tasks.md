@@ -238,3 +238,9 @@
   - Fix: `driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1` in ci.yml and deploy.yml (keeps docker-container driver + type=gha cache).
   - Verify: GCR mirror serves the tag; CI build-images goes green. DONE.
   - _Requirements: 8.7_
+
+- [x] 34. Add S3 CORS so browser CSV uploads work (UI upload blocked) — see design.md → Known Issues
+  - Root cause (live UI): the Upload tab PUTs the file browser→S3 pre-signed URL (cross-origin from CloudFront); the bucket had no CORS rule, so the preflight was blocked ("No Access-Control-Allow-Origin"). API/curl path doesn't preflight, so it passed while the UI failed.
+  - Fix: `cors` on AppBucket — PUT from `https://*.cloudfront.net` (+ localhost), AllowedHeaders *, ExposedHeaders ETag. Objects stay private; only scopes page origins. Pattern origin avoids a circular dep with Edge.
+  - Verify: data-stack synth test asserts the CORS rule (added); live browser upload completes after the Data stack redeploys.
+  - _Requirements: 7.1_

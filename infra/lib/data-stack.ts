@@ -133,6 +133,29 @@ export class DataStack extends cdk.Stack {
       enforceSSL: true,
       removalPolicy,
       autoDeleteObjects: destroyable,
+      // CORS: the Upload tab PUTs the file straight from the browser to a
+      // pre-signed URL on this bucket (Requirement 7.1), which is a
+      // cross-origin request from the CloudFront app origin. Without a CORS
+      // rule the browser's preflight gets no Access-Control-Allow-Origin and
+      // blocks the upload. Scope to the app's CloudFront origin (and localhost
+      // for local dev). This governs only which PAGE ORIGINS may script a
+      // cross-origin request; the objects stay private (public access blocked)
+      // and are reachable only via short-lived pre-signed URLs. Edge's exact
+      // domain isn't known here (it deploys after Data), so match the
+      // cloudfront.net origin by pattern to avoid a circular dependency.
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: [
+            "https://*.cloudfront.net",
+            "http://localhost:5173",
+            "http://localhost:4173",
+          ],
+          allowedHeaders: ["*"],
+          exposedHeaders: ["ETag"],
+          maxAge: 3000,
+        },
+      ],
       lifecycleRules: [
         // Requirement 5.1: temporary check captures and pending uploads are
         // deleted automatically after 1 day. One rule per temp prefix.
