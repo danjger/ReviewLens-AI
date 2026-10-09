@@ -176,3 +176,52 @@ button[type="submit"]:hover { background: var(--color-accent-strong); border-col
   padding: var(--space-6) var(--space-5) var(--space-8);
   display: grid; gap: var(--space-5);
 }
+
+/* ---- App header ---- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--color-border);
+}
+.app-header__brand {
+  border: none;
+  background: none;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+.app-header__brand:hover { border: none; }
+.app-header__brand-accent { color: var(--color-accent); }
+
+/* ---- Theme switcher (temporary palette preview, task 11) ---- */
+.theme-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+.theme-switcher__label {
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.theme-switcher__btn {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+.theme-switcher__btn[data-active="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}

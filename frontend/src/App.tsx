@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import DatasetDetailPage from "./routes/DatasetDetailPage";
 import LibraryPage from "./routes/LibraryPage";
+import ThemeSwitcher from "./components/ThemeSwitcher";
 
 const queryClient = new QueryClient();
 
@@ -49,13 +50,25 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div data-testid="app-shell">
-        <h1>ReviewLens AI</h1>
-        {datasetId != null ? (
-          <DatasetDetailPage datasetId={datasetId} onNavigate={navigate} />
-        ) : (
-          <LibraryPage onNavigate={navigate} />
-        )}
+      <div className="app-shell" data-testid="app-shell">
+        <header className="app-header">
+          <button
+            type="button"
+            className="app-header__brand"
+            onClick={() => navigate("/")}
+            aria-label="ReviewLens AI home"
+          >
+            ReviewLens <span className="app-header__brand-accent">AI</span>
+          </button>
+          <ThemeSwitcher />
+        </header>
+        <div className="app-main">
+          {datasetId != null ? (
+            <DatasetDetailPage datasetId={datasetId} onNavigate={navigate} />
+          ) : (
+            <LibraryPage onNavigate={navigate} />
+          )}
+        </div>
       </div>
     </QueryClientProvider>
   );
