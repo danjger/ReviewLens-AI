@@ -71,7 +71,7 @@
   - Extend the existing detail unit and integration tests to assert the new fields are present (seed `status_detail` with events, redirects, and a viability block; and an upload with a description). Keep the `GET /datasets` list-response tests unchanged.
   - _Requirements: 3.1, 6.4_
 
-- [ ] 10. Add a rendered-page thumbnail to each tracked-dataset row
+- [x] 10. Add a rendered-page thumbnail to each tracked-dataset row
   - 10.1 Backend: expose a snapshot thumbnail URL on the list row
     - The permanent snapshot already exists at `storage.keys.dataset_snapshot(id, version)` = `datasets/{id}/snapshot/v{n}.png`, written by `app/ingestion/service.py` (new dataset) and `app/datasets/refresh_service.py` (refresh) — but ONLY when a screenshot was captured. Upload datasets have no snapshot (Requirement 7.5), and a URL whose capture produced none also won't; the field MUST be nullable and the UI must degrade gracefully.
     - Add a `thumbnail_url` (nullable) to `DatasetSummary.to_dict()` in `app/datasets/library.py`, pointing at the dataset's ACTIVE version snapshot (`active_version`; fall back to the latest completed version). Serve it as a time-limited presigned S3 GET via `app/storage/s3.py` (add a `presigned_get` helper if absent), or a CloudFront path if the Edge stack already fronts the bucket — pick one and note why. Return `null` when `active_version` is unset or the snapshot object does not exist (`s3.object_exists`). The detail record (`GET /datasets/{id}`) may expose the same.

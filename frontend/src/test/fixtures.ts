@@ -133,6 +133,8 @@ export function makeDataset(overrides: Partial<Dataset> = {}): Dataset {
     last_refreshed_at: "2026-09-02T00:00:00Z",
     archived_at: null,
     refresh_check_id: null,
+    source_type: "url",
+    thumbnail_url: "https://signed.example/datasets/ds-1/snapshot/v3.png",
     ...overrides,
   };
 }

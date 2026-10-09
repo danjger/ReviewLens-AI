@@ -31,6 +31,7 @@ import { checkRefetchInterval } from "../hooks/realtimePolling";
 import { checkQueryKey } from "../hooks/useCheck";
 import ConfirmDialog from "./ConfirmDialog";
 import RefreshConfirmDialog from "./RefreshConfirmDialog";
+import DatasetThumbnail from "./DatasetThumbnail";
 import RowActionsMenu from "./RowActionsMenu";
 import StatusBadge from "./StatusBadge";
 import { relativeTime } from "./relativeTime";
@@ -50,8 +51,11 @@ export interface DatasetRowProps {
 /** Statuses that mean a refresh/processing run is in flight (disable Refresh). */
 const IN_FLIGHT = new Set(["requested", "processing"]);
 
-/** URL datasets can be refreshed from the row; uploads need a replacement file. */
+/** URL datasets can be refreshed from the row; uploads need a replacement file.
+ *  Prefer the authoritative `source_type` from the API; fall back to sniffing
+ *  the URL only if an older cached row lacks it. */
 function isUrlDataset(dataset: Dataset): boolean {
+  if (dataset.source_type) return dataset.source_type === "url";
   return /^https?:\/\//i.test(dataset.main_url);
 }
 
@@ -116,9 +120,16 @@ export default function DatasetRow({
       }}
     >
       <td className="dataset-row__name" data-testid="row-name">
-        <span className="dataset-row__title">{dataset.name}</span>
-        <span className="dataset-row__url" data-testid="row-url">
-          {dataset.main_url}
+        <DatasetThumbnail
+          sourceType={dataset.source_type}
+          thumbnailUrl={dataset.thumbnail_url}
+          name={dataset.name}
+        />
+        <span className="dataset-row__name-text">
+          <span className="dataset-row__title">{dataset.name}</span>
+          <span className="dataset-row__url" data-testid="row-url">
+            {dataset.main_url}
+          </span>
         </span>
       </td>
 

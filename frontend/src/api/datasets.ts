@@ -51,6 +51,14 @@ export interface Dataset extends DatasetRow {
   last_refreshed_at: string | null;
   archived_at: string | null;
   refresh_check_id: string | null;
+  /** "url" | "upload" — drives the source-aware card thumbnail (task 10). */
+  source_type: SourceType;
+  /**
+   * Short-lived presigned GET for the active version's page snapshot, or null
+   * when there is nothing to show (upload datasets never have a screenshot;
+   * a URL dataset has none until its first successful version).
+   */
+  thumbnail_url: string | null;
 }
 
 /** One version row inside the detail record (design: `dataset_versions`). */
