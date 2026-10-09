@@ -69,6 +69,7 @@
   - Root cause (live E2E, judge.me): `launch()` ok but first `new_page()` hung ~30s then errored (~43s total) — Lambda sandbox has no `/dev/shm`/GPU/user-namespaces, so the renderer can't start without the right flags. Not memory (used ~600MB/3008).
   - Fix: launch with `--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--no-zygote`, `--disable-gpu`, `--disable-software-rasterizer`, `--disable-background-networking`, `--disable-extensions`, `--crash-dumps-dir=/tmp/...`; do NOT pass `--user-data-dir` (Playwright rejects it). Set `context.set_default_timeout(NAVIGATION_TIMEOUT_MS)` as a fast-fail guard.
   - Verify: capture unit tests green; built the workers image and ran launch→new_page→goto(example.com)→title in the arm64 container (STATUS 200, CAPTURE OK). Live: a renderable Check now reaches a content-based verdict. DONE (code + local container proof); live re-verify after deploy.
+  - FINDING (live): on Lambda, judge.me stays empty even with the content-wait because the page loads Termly's `resource-blocker?autoBlock=on`, which suppresses the Judge.me review script until consent exists — a fresh headless context never satisfies it. Not a capture bug / not an SSRF abort. Defeating a consent wall is out of scope (product.md); use CSV upload for such sites. `_wait_for_content` is kept for genuinely-slow (non-blocked) client-rendered pages.
   - _Requirements: 3.1_
 
 - [x] 12. Wait for client-rendered review content before capture — see design.md → Known Issues

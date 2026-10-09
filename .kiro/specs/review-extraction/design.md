@@ -254,3 +254,24 @@ sparse-capture case.
 NOTE: judge.me renders reviews WITHOUT `jdgm-rev`/`data-review` class markers in
 the captured DOM; the AI extractor works from rendered text, not those markers,
 so this is about getting the text captured, not about parsing a specific widget.
+
+### judge.me specifically: reviews gated behind a consent/resource blocker
+
+Investigated after the content-wait fix did NOT populate judge.me on Lambda (two
+captures were byte-identical: 11,584 bytes / 119 visible chars). The captured
+shell loads `https://app.termly.io/resource-blocker/...?autoBlock=on` — Termly's
+consent "resource blocker" in autoBlock mode, which prevents other scripts
+(including the Judge.me review widget `assets.judge.me/.../review_site.js`) from
+executing until a consent decision exists. A fresh, cold headless context on
+Lambda has no prior consent and no banner interaction, so the review script
+never runs and the reviews never render. (A desktop/container render sometimes
+succeeds — different Termly/geo behavior — which is why it rendered locally.)
+
+This is NOT a capture bug and NOT an SSRF-guard abort (no blocked-request logs):
+the target deliberately gates its content behind a consent wall a fresh
+automated session can't satisfy. Defeating a consent/anti-bot blocker is the
+arms race we explicitly chose not to pursue (see product.md decisions). For
+judge.me and the 403/429 sites, the sanctioned path is the CSV upload (proven
+working end-to-end) or an official data feed. The `_wait_for_content` helper is
+retained — it correctly helps genuinely-slow-but-not-blocked client-rendered
+pages; it just cannot run scripts a consent blocker has suppressed.
