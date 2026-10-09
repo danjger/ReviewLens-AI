@@ -365,6 +365,10 @@ def create_from_check(check_id: str, item: CheckItem) -> AddResult:
         get_settings().processing_queue_url,
         {"dataset_id": dataset_id, "data_version": 1},
         message_group_id=dataset_id,
+        # The processing FIFO queue has content-based dedup OFF (api-stack.ts),
+        # so the producer MUST supply the dedup id. Keyed dataset_id:version so a
+        # re-enqueue of the same version is de-duplicated (design "FIFO dedup").
+        message_deduplication_id=f"{dataset_id}:1",
     )
 
     return AddResult(item.item_id, "created", dataset_id=dataset_id)
@@ -629,6 +633,10 @@ def create_from_upload(
         get_settings().processing_queue_url,
         {"dataset_id": dataset_id, "data_version": 1},
         message_group_id=dataset_id,
+        # The processing FIFO queue has content-based dedup OFF (api-stack.ts),
+        # so the producer MUST supply the dedup id. Keyed dataset_id:version so a
+        # re-enqueue of the same version is de-duplicated (design "FIFO dedup").
+        message_deduplication_id=f"{dataset_id}:1",
     )
 
     return dataset_id

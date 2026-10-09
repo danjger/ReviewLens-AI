@@ -166,6 +166,9 @@ def _sweep_requested(cutoff: datetime) -> list[str]:
                 queue_url,
                 {"dataset_id": dataset_id, "data_version": data_version},
                 message_group_id=dataset_id,
+                # FIFO queue has content-based dedup OFF (api-stack.ts): supply
+                # the dedup id so a re-enqueue of the same version is deduped.
+                message_deduplication_id=f"{dataset_id}:{data_version}",
             )
             logger.info(
                 "sweep: re-enqueued dataset %s v%d (stuck in requested)",

@@ -130,7 +130,7 @@ class _Recorder:
         self.copies: list[tuple[str, str]] = []
         self.deletes: list[str] = []
         self.existing_objects: set[str] = set()
-        self.enqueues: list[tuple[str, dict[str, Any], str | None]] = []
+        self.enqueues: list[tuple[str, dict[str, Any], str | None, str | None]] = []
         self.inserts: list[tuple[str, CheckItem]] = []
         self.refreshes: list[tuple[str, str, CheckCapture]] = []
         self.refresh_outcome: str = "refreshed"
@@ -148,7 +148,14 @@ class _Recorder:
 
     # queue
     def enqueue(self, queue_url: str, body: dict[str, Any], **kw: Any) -> None:
-        self.enqueues.append((queue_url, body, kw.get("message_group_id")))
+        self.enqueues.append(
+            (
+                queue_url,
+                body,
+                kw.get("message_group_id"),
+                kw.get("message_deduplication_id"),
+            )
+        )
 
     # dataset insert
     def insert_dataset(self, dataset_id: str, item: CheckItem) -> None:
@@ -263,7 +270,12 @@ def test_new_url_creates_dataset_with_v1_copy_and_enqueue() -> None:
     assert len(rec.inserts) == 1
     assert rec.inserts[0][0] == dataset_id
     assert rec.enqueues == [
-        ("proc-queue-url", {"dataset_id": dataset_id, "data_version": 1}, dataset_id)
+        (
+            "proc-queue-url",
+            {"dataset_id": dataset_id, "data_version": 1},
+            dataset_id,
+            f"{dataset_id}:1",
+        )
     ]
     # not routed to refresh.
     assert rec.refreshes == []

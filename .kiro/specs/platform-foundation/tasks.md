@@ -214,3 +214,9 @@
   - Fix: in `Dockerfile.workers` set `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` BEFORE `playwright install chromium chromium-headless-shell`, then `chmod -R a+rX /opt/ms-playwright`.
   - Verify: built the image and ran `test -x <chrome-headless-shell>` as uid 1051 → executable. Live: a renderable Check now launches the browser and renders. DONE (code + local proof); live re-verify after deploy.
   - _Requirements: 3.1_
+
+- [x] 30. Supply the FIFO dedup id on every processing-queue send — see design.md → Known Issues
+  - Root cause (live upload): SQS SendMessage to the processing FIFO queue failed — the deployed queue has content-based dedup OFF (api-stack.ts, by design) but all four producers enqueued with only `message_group_id`, no `MessageDeduplicationId`. Local LocalStack has content-based dedup ON, which hid it.
+  - Fix: `ingestion/service.py` (URL add + upload), `datasets/refresh_service.py`, `jobs/sweep.py` now pass `message_deduplication_id=f"{dataset_id}:{version}"`. Cross-spec (dataset-ingestion/dataset-library/review-analysis), one shared defect.
+  - Verify: ruff/mypy clean; add-service unit test asserts the dedup id; live upload submit succeeds (dataset reaches processing). DONE (code); live re-verify after deploy. Follow-up: align the local provision script's FIFO dedup setting with prod.
+  - _Requirements: 1.3_

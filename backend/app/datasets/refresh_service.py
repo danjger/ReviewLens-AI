@@ -191,6 +191,9 @@ def refresh(
         get_settings().processing_queue_url,
         {"dataset_id": dataset_id, "data_version": new_version},
         message_group_id=dataset_id,
+        # FIFO queue has content-based dedup OFF (api-stack.ts): the producer
+        # must supply the dedup id, keyed dataset_id:version.
+        message_deduplication_id=f"{dataset_id}:{new_version}",
     )
 
     return RESTORED_AND_REFRESHED if was_archived else REFRESHED

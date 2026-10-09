@@ -559,3 +559,24 @@ install`, install there, and `chmod -R a+rX /opt/ms-playwright` so the non-root
 Lambda user can read/execute the browsers. Verified by building the image and
 running `test -x <headless-shell>` as uid 1051 (a stand-in for the Lambda
 runtime user) → executable.
+
+### Processing-queue sends fail: FIFO dedup id not supplied by producers
+
+Found verifying the live CSV upload: `POST /datasets/upload` → `create_from_upload`
+→ `queue.enqueue` failed with SQS `InvalidParameterValue: The queue should
+either have ContentBasedDeduplication enabled or MessageDeduplicationId provided
+explicitly`. The deployed processing FIFO queue (`api-stack.ts`) is created with
+`contentBasedDeduplication: false` BY DESIGN ("the dedup id is supplied by the
+producer, dataset_id:version"), but NONE of the four producers actually passed a
+`MessageDeduplicationId` — they relied on content-based dedup. The local
+LocalStack queue is provisioned with `ContentBasedDeduplication=true`, which
+masked the gap until a dataset first reached enqueue in production.
+
+Affected producers (all four): `ingestion/service.py` (URL add + upload),
+`datasets/refresh_service.py` (refresh), `jobs/sweep.py` (re-enqueue). Fix: each
+now passes `message_deduplication_id=f"{dataset_id}:{version}"` to `enqueue`,
+matching the FIFO dedup key the design documents. Cross-spec note: these files
+belong to dataset-ingestion / dataset-library / review-analysis respectively,
+but it is one shared queue-contract defect, fixed together. Consider also
+flipping the local provision script to content-based-dedup OFF so local matches
+prod (follow-up); for now an explicit dedup id is valid under both.
