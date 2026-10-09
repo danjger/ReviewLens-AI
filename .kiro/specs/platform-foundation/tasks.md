@@ -232,3 +232,9 @@
   - Fix: grant `anthropicSecret`/`originVerifySecret` read inside `grantCoreData` (used by every worker); remove the duplicate explicit grants on check/processing.
   - Verify: synth template shows GetSecretValue on all 5 workers; 8 workers synth tests pass. Live: dlq-consumer/sweeper start cleanly after deploy. DONE (code); live re-verify.
   - _Requirements: 6.1, 7.4_
+
+- [x] 33. Pin BuildKit to the GCR mirror in CI/deploy (Docker Hub pull flake) — see design.md → Known Issues
+  - Root cause: `setup-buildx-action` pulled `moby/buildkit` from registry-1.docker.io, which timed out repeatedly on the runner ("context deadline exceeded"), failing the build-images job across re-runs.
+  - Fix: `driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1` in ci.yml and deploy.yml (keeps docker-container driver + type=gha cache).
+  - Verify: GCR mirror serves the tag; CI build-images goes green. DONE.
+  - _Requirements: 8.7_

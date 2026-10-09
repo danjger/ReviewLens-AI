@@ -616,3 +616,18 @@ uses it gets read on the Anthropic + origin-verify secrets (and remove the now-
 duplicate explicit grants on check/processing). Granting the AI secret to a
 non-AI worker is harmless — it just never calls the model. Verified in the synth
 template: all five worker functions now carry GetSecretValue on the secret.
+
+### CI build-images flakes: BuildKit pull from Docker Hub times out
+
+The `build-images` CI job (and the deploy's buildx setup) intermittently failed
+at "Set up Docker Buildx" with `Error response from daemon: ... registry-1.docker.io/
+v2/moby/buildkit/manifests/buildx-stable-1 ... context deadline exceeded`.
+`docker/setup-buildx-action` uses the docker-container driver, which pulls
+`moby/buildkit` from Docker Hub; that registry was timing out for the runner
+across repeated re-runs (not a 429 — a reachability/latency problem).
+
+Fix: pin the driver's BuildKit image to the GCR mirror via
+`driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1` in both
+`ci.yml` and `deploy.yml`. GCR mirrors Docker Hub official images without rate
+limits, and keeping the docker-container driver preserves the `type=gha` build
+cache. Verified the mirror serves the tag.

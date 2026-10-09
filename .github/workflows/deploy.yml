@@ -117,6 +117,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          # BuildKit from the GCR mirror (see ci.yml) to avoid Docker Hub
+          # pull flakiness on hosted runners.
+          driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
 
       # ---------------------------------------------------------------
       # OIDC: assume the least-privilege GithubOidc deploy role.

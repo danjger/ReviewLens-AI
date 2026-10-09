@@ -127,6 +127,13 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          # Pull BuildKit from the GCR mirror of Docker Hub (no rate limits /
+          # no Docker Hub reachability flakiness) instead of registry-1.docker.io,
+          # which intermittently times out on hosted runners
+          # (context deadline exceeded pulling moby/buildkit). Keeps the
+          # docker-container driver so type=gha cache still works.
+          driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
 
       - name: Build backend image
         uses: docker/build-push-action@v6
