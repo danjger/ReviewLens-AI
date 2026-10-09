@@ -208,3 +208,9 @@
   - Fix: `python -m playwright install chromium chromium-headless-shell` in `Dockerfile.workers`.
   - Verify: image rebuild deploys; a renderable Check reaches a non-crash capture (title/reviews populated or a real content-based verdict). DONE (code); live re-verify after deploy.
   - _Requirements: 3.1_
+
+- [x] 29. Install Playwright browsers to a world-readable path (Lambda non-root) — see design.md → Known Issues
+  - Root cause: with the headless shell installed and present in the image, the Lambda still said "Executable doesn't exist" — browsers lived under `/root/.cache` (mode 700) and the non-root Lambda runtime user can't traverse `/root`. The `PLAYWRIGHT_BROWSERS_PATH=/root/.cache` ENV was also set AFTER the install, so it didn't steer anything.
+  - Fix: in `Dockerfile.workers` set `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` BEFORE `playwright install chromium chromium-headless-shell`, then `chmod -R a+rX /opt/ms-playwright`.
+  - Verify: built the image and ran `test -x <chrome-headless-shell>` as uid 1051 → executable. Live: a renderable Check now launches the browser and renders. DONE (code + local proof); live re-verify after deploy.
+  - _Requirements: 3.1_

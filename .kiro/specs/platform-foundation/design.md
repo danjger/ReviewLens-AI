@@ -540,3 +540,22 @@ Fix: `playwright install chromium chromium-headless-shell` in
 `Dockerfile.workers` so the headless shell binary is present. (Alternative — pin
 to full-Chromium headless via launch args — was rejected as more brittle than
 simply installing what Playwright expects.)
+
+### Playwright browsers unreadable at runtime — installed under /root
+
+Follow-up to the chrome-headless-shell issue: even with the headless shell
+installed and physically present in the image (verified by pulling the deployed
+ECR image and `find`-ing the binary), the Lambda still reported "Executable
+doesn't exist at /root/.cache/ms-playwright/.../chrome-headless-shell". Root
+cause: the browsers were installed under `/root/.cache` (Playwright's default
+when it runs as root at build), but the AWS Lambda runtime executes the function
+as a NON-root user that cannot traverse `/root` (mode 700). The binary existed
+but was unreadable → Playwright treats it as missing. (Also, the Dockerfile set
+`PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright` AFTER the install line, so
+the env was documentation-only, not steering the install.)
+
+Fix: set `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` BEFORE `playwright
+install`, install there, and `chmod -R a+rX /opt/ms-playwright` so the non-root
+Lambda user can read/execute the browsers. Verified by building the image and
+running `test -x <headless-shell>` as uid 1051 (a stand-in for the Lambda
+runtime user) → executable.

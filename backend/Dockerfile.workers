@@ -65,15 +65,21 @@ ENV VIRTUAL_ENV=/var/task/.venv
 ENV PATH=/var/task/.venv/bin:$PATH
 
 # ── Playwright browsers ──────────────────────────────────────────────────────
-# Install Chromium AND the chrome-headless-shell, using the locked Playwright
-# from the project venv so the browser build matches the pinned driver.
-# Modern Playwright's `launch(headless=True)` runs the separate
-# `chrome-headless-shell` binary, which is NOT included by `install chromium`
-# alone — omitting it fails at launch with "Executable doesn't exist at
-# .../chrome-headless-shell". Chromium runtime libraries are installed above via
-# dnf; Playwright's own install-deps targets apt-based distros and fails on
-# Amazon Linux, so only the browser binaries are fetched here.
-RUN python -m playwright install chromium chromium-headless-shell
+# Install Chromium AND the chrome-headless-shell (modern Playwright's
+# `launch(headless=True)` runs the separate `chrome-headless-shell` binary,
+# which `install chromium` alone omits).
+#
+# CRITICAL: install to a WORLD-READABLE path, NOT the default `/root/.cache`.
+# The AWS Lambda runtime executes the function as a NON-root user that cannot
+# traverse `/root` (mode 700), so browsers under `/root/.cache/ms-playwright`
+# are present in the image but unreadable at runtime — Playwright then reports
+# "Executable doesn't exist". Setting PLAYWRIGHT_BROWSERS_PATH to /opt before
+# the install puts them somewhere the Lambda user can read, and chmod makes the
+# tree traversable/executable. Chromium runtime libraries come from dnf above;
+# Playwright's own install-deps targets apt distros and fails on Amazon Linux.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN python -m playwright install chromium chromium-headless-shell \
+    && chmod -R a+rX /opt/ms-playwright
 
 # ── Application code ─────────────────────────────────────────────────────────
 COPY app/ ./app/
@@ -82,8 +88,8 @@ COPY prompts/ ./prompts/
 # ── Runtime environment ──────────────────────────────────────────────────────
 ENV PYTHONPATH=/var/task
 ENV PORT=8080
-# Playwright looks for Chromium here (set by `playwright install`)
-ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+# PLAYWRIGHT_BROWSERS_PATH is set to /opt/ms-playwright above (before install)
+# so the browsers live in a path the non-root Lambda runtime user can read.
 
 EXPOSE 8080
 
