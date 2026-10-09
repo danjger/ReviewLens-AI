@@ -94,16 +94,40 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
-#: Extra launch flags that reduce the most obvious headless-automation
-#: fingerprints (the ``AutomationControlled`` blink feature sets
-#: ``navigator.webdriver`` and trips lazy bot checks). These do NOT defeat
-#: commercial anti-bot (Cloudflare/Akamai); they only help legitimately-public
-#: pages behind lightweight checks render instead of 403ing. See
-#: review-extraction design "Capture stealth" / Known Issues.
+#: Chromium launch flags, split into two concerns.
+#:
+#: STABILITY (Lambda/container): headless Chromium must run inside the AWS
+#: Lambda sandbox where there is no usable ``/dev/shm``, no GPU, and the only
+#: writable path is ``/tmp``. Without these flags ``launch()`` succeeds but the
+#: first ``new_page()`` hangs ~30s and errors (the renderer/zygote can't start)
+#: — the heavy-page capture failure seen on judge.me. ``--no-sandbox`` is
+#: required (no user namespaces in the sandbox); ``--disable-dev-shm-usage``
+#: moves shared memory off the tiny ``/dev/shm``; ``--no-zygote`` +
+#: ``--disable-gpu`` + ``--disable-software-rasterizer`` avoid the GPU/zygote
+#: processes that don't come up here.
+_CHROMIUM_STABILITY_ARGS = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--no-zygote",
+    "--disable-gpu",
+    "--disable-software-rasterizer",
+    "--disable-background-networking",
+    "--disable-extensions",
+    # Playwright manages its own (temp) profile dir, so we do NOT pass
+    # --user-data-dir (Playwright rejects it). The crash-dumps dir just needs to
+    # be writable; /tmp is the only writable mount on Lambda (scratch only).
+    "--crash-dumps-dir=/tmp/chromium-crashes",
+]
+
+#: STEALTH: reduce the most obvious headless-automation fingerprints (the
+#: ``AutomationControlled`` blink feature sets ``navigator.webdriver`` and trips
+#: lazy bot checks). These do NOT defeat commercial anti-bot
+#: (Cloudflare/Akamai); they only help legitimately-public pages behind
+#: lightweight checks render instead of 403ing. See review-extraction design
+#: "Capture stealth" / Known Issues.
 _STEALTH_LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
-    "--disable-dev-shm-usage",
-    "--no-sandbox",
 ]
 
 #: Realistic request headers to accompany the Chrome UA, so a site judges the
@@ -373,7 +397,7 @@ def _render_blocking(url: str) -> _Rendered:
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             headless=True,
-            args=_STEALTH_LAUNCH_ARGS,
+            args=[*_CHROMIUM_STABILITY_ARGS, *_STEALTH_LAUNCH_ARGS],
         )
         logger.info("Launched headless Chromium for capture")
         # Fresh context per capture: no cookies, cache, or storage leak between
@@ -389,6 +413,11 @@ def _render_blocking(url: str) -> _Rendered:
         )
         # Mask the most-checked automation tells before any page script runs.
         context.add_init_script(_STEALTH_INIT_SCRIPT)
+        # Bound every Playwright operation (new_page, goto, title, screenshot)
+        # so a hung renderer fails fast INSIDE the handler's CHECK_TIMEOUT_S
+        # budget with a clear PlaywrightTimeoutError, rather than silently
+        # stalling on Playwright's 30s default and risking the whole budget.
+        context.set_default_timeout(NAVIGATION_TIMEOUT_MS)
         try:
             page = context.new_page()
             page.set_default_navigation_timeout(NAVIGATION_TIMEOUT_MS)

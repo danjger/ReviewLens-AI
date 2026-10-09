@@ -205,3 +205,29 @@ sanctioned path for those is the CSV upload (product.md), an official data feed,
 or (a deliberate future scope decision, not taken) residential-proxy egress,
 which carries cost, NAT/egress plumbing against the no-VPC rule, and ToS/ethics
 considerations.
+
+### Capture hangs at `new_page()` on Lambda — missing Chromium stability flags
+
+Found by the live E2E on a renderable site (judge.me): headless Chromium
+`launch()` succeeded but the first `context.new_page()` hung ~30s and then
+errored, so the whole capture took ~43s and failed (item stuck `checking` on
+retry). Memory was fine (~600 MB of 3008). Root cause: Chromium in the AWS
+Lambda sandbox has no usable `/dev/shm`, no GPU, and no user namespaces, so the
+renderer/zygote process can't start without the right launch flags — `launch`
+returns but the first page never comes up.
+
+Fix (`app/capture/engine.py`): launch Chromium with Lambda/container stability
+flags — `--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`,
+`--no-zygote`, `--disable-gpu`, `--disable-software-rasterizer`,
+`--disable-background-networking`, `--disable-extensions`, and a `/tmp`
+crash-dumps dir (the only writable mount). NOTE: do NOT pass `--user-data-dir`
+— Playwright rejects it (it manages its own temp profile). Also set
+`context.set_default_timeout(NAVIGATION_TIMEOUT_MS)` so any future hang fails
+fast inside `CHECK_TIMEOUT_S` with a clear `PlaywrightTimeoutError` instead of
+stalling on Playwright's 30s default. Verified by building the workers image and
+running launch → new_page → goto("https://example.com") → title in the arm64
+container (STATUS 200, title read, clean teardown).
+
+Separately confirmed the remaining real-site 403/429s (Trustpilot, Etsy, Winnie,
+good.store) are blocked at the HTTP PROBE before capture — anti-bot, not this
+bug; those correctly return `wont_work`.

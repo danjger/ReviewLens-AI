@@ -64,3 +64,9 @@
   - Fix (bounded, legit): in `app/capture/engine.py` add `--disable-blink-features=AutomationControlled` (and `--no-sandbox`/`--disable-dev-shm-usage`), mask `navigator.webdriver`/plugins/languages via `add_init_script`, send realistic `Accept-Language`/`Sec-Fetch-*` headers, set context `locale`/`timezone_id`. Keep the SSRF `page.route("**/*")` guard on every request (Req 1.3) — stealth never relaxes security. Does NOT target Cloudflare/Akamai; blocked-from-datacenter sites stay `wont_work` (use CSV upload / data feed).
   - Verify: `make lint` clean; capture unit tests green (SSRF abort/continue + no-launch-on-blocked-main contracts preserved). Live: re-run a Check and confirm pages behind light checks now render. DONE (code); live re-verify after deploy.
   - _Requirements: 2.6, 3.1_
+
+- [x] 11. Add Chromium Lambda-stability launch flags (capture new_page hang) — see design.md → Known Issues
+  - Root cause (live E2E, judge.me): `launch()` ok but first `new_page()` hung ~30s then errored (~43s total) — Lambda sandbox has no `/dev/shm`/GPU/user-namespaces, so the renderer can't start without the right flags. Not memory (used ~600MB/3008).
+  - Fix: launch with `--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--no-zygote`, `--disable-gpu`, `--disable-software-rasterizer`, `--disable-background-networking`, `--disable-extensions`, `--crash-dumps-dir=/tmp/...`; do NOT pass `--user-data-dir` (Playwright rejects it). Set `context.set_default_timeout(NAVIGATION_TIMEOUT_MS)` as a fast-fail guard.
+  - Verify: capture unit tests green; built the workers image and ran launch→new_page→goto(example.com)→title in the arm64 container (STATUS 200, CAPTURE OK). Live: a renderable Check now reaches a content-based verdict. DONE (code + local container proof); live re-verify after deploy.
+  - _Requirements: 3.1_
