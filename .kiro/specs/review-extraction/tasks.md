@@ -58,3 +58,9 @@
     - _Requirements: 8.1_
   - [~] 9.4 Run the evaluation with the live model, tune the cleaner and `locator_v1.md` until the thresholds pass, set the default `EXTRACTION_STRATEGY` from the report, and record the scores in the README (**needs** `ANTHROPIC_API_KEY`)
     - _Requirements: 8.3, 8.5_
+
+- [x] 10. Stealth-harden headless capture against lightweight bot checks — see design.md → Known Issues
+  - Context (live E2E): Etsy/Winnie/good.store returned 403/429 to headless Chromium before any HTML loaded (commercial anti-bot + flagged datacenter IPs). Extraction never saw content; verdicts were correctly `wont_work`.
+  - Fix (bounded, legit): in `app/capture/engine.py` add `--disable-blink-features=AutomationControlled` (and `--no-sandbox`/`--disable-dev-shm-usage`), mask `navigator.webdriver`/plugins/languages via `add_init_script`, send realistic `Accept-Language`/`Sec-Fetch-*` headers, set context `locale`/`timezone_id`. Keep the SSRF `page.route("**/*")` guard on every request (Req 1.3) — stealth never relaxes security. Does NOT target Cloudflare/Akamai; blocked-from-datacenter sites stay `wont_work` (use CSV upload / data feed).
+  - Verify: `make lint` clean; capture unit tests green (SSRF abort/continue + no-launch-on-blocked-main contracts preserved). Live: re-run a Check and confirm pages behind light checks now render. DONE (code); live re-verify after deploy.
+  - _Requirements: 2.6, 3.1_

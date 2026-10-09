@@ -94,6 +94,41 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
+#: Extra launch flags that reduce the most obvious headless-automation
+#: fingerprints (the ``AutomationControlled`` blink feature sets
+#: ``navigator.webdriver`` and trips lazy bot checks). These do NOT defeat
+#: commercial anti-bot (Cloudflare/Akamai); they only help legitimately-public
+#: pages behind lightweight checks render instead of 403ing. See
+#: review-extraction design "Capture stealth" / Known Issues.
+_STEALTH_LAUNCH_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-dev-shm-usage",
+    "--no-sandbox",
+]
+
+#: Realistic request headers to accompany the Chrome UA, so a site judges the
+#: capture the way a normal browser visit would (consistent with Req 2.6).
+_EXTRA_HTTP_HEADERS = {
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,image/apng,*/*;q=0.8"
+    ),
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+}
+
+#: Init script injected before any page script runs, masking the two most-
+#: checked automation tells: ``navigator.webdriver`` and an empty plugins list.
+_STEALTH_INIT_SCRIPT = (
+    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+    "Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});"
+    "Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});"
+)
+
 #: Filenames stored under the caller-supplied prefix. These mirror the
 #: trailing components produced by ``storage.keys.check_page`` /
 #: ``check_snapshot`` so the layout stays in one place conceptually.
@@ -336,17 +371,29 @@ def _render_blocking(url: str) -> _Rendered:
     5. Read the title, HTML, screenshot, main status, and final URL.
     """
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=_STEALTH_LAUNCH_ARGS,
+        )
         logger.info("Launched headless Chromium for capture")
         # Fresh context per capture: no cookies, cache, or storage leak between
-        # captures (design: "a fresh context per message").
+        # captures (design: "a fresh context per message"). Locale/timezone and
+        # realistic headers make the (legitimate) visit look like a normal
+        # browser rather than bare automation.
         context = browser.new_context(
             viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT},
             user_agent=USER_AGENT,
+            locale="en-US",
+            timezone_id="America/New_York",
+            extra_http_headers=_EXTRA_HTTP_HEADERS,
         )
+        # Mask the most-checked automation tells before any page script runs.
+        context.add_init_script(_STEALTH_INIT_SCRIPT)
         try:
             page = context.new_page()
             page.set_default_navigation_timeout(NAVIGATION_TIMEOUT_MS)
+            # SSRF guard stays on EVERY request (Req 1.3) — stealth never
+            # relaxes the security route guard.
             page.route("**/*", _route_guard)
 
             response = page.goto(url, wait_until="commit")

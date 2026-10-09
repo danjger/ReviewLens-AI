@@ -178,3 +178,30 @@ Properties are tested with Hypothesis (generated HTML review lists with random l
 - **Unit tests:** each cleaning rule; chunking; structured parsing on JSON-LD and microdata fixtures; post-processing with recorded Locator responses (unknown refs, short text, duplicates, excluded kinds, out-of-range ratings, a response that tries to supply its own text); selector validation thresholds; method choice table; pagination rules and URL-template inference; `extract_page` dispatch including the yield fallback and the structured fallback; repair retry and error types.
 - **Contract test:** the Locator tool schema and the Pydantic model stay in sync.
 - **Evaluation suite** (live model, on demand and in CI when relevant files change), with the thresholds from Requirement 8.3.
+
+
+## Known Issues
+
+### Headless capture is blocked by commercial anti-bot (403/429)
+
+Found during the live end-to-end run: three real review sites (Etsy, Winnie,
+good.store) returned 403/403/429 to the headless-Chromium capture at the first
+request, so no HTML ever reached extraction. These sites front their pages with
+commercial anti-bot (Cloudflare/Akamai-class) that fingerprints headless Chromium
+and flags datacenter (Lambda) egress IPs. This is a network/fingerprint problem,
+not an extraction-quality problem — the verdict pipeline correctly returned
+`wont_work` with "Status 403/429".
+
+Mitigation applied (bounded, legitimate): stealth-harden `app/capture/engine.py`
+— `--disable-blink-features=AutomationControlled` launch arg, mask
+`navigator.webdriver`/plugins/languages via an init script, realistic
+`Accept-Language`/`Sec-Fetch-*` headers, and a locale/timezone on the context.
+This helps legitimately-public pages behind LIGHTWEIGHT bot checks (many
+Shopify/widget review pages, smaller sites) render instead of being refused. It
+deliberately does NOT attempt to defeat Cloudflare/Akamai, and it does NOT relax
+the SSRF route guard — every browser request is still `assert_public_host`-checked
+(Req 1.3). Sites that hard-block from a datacenter IP remain `wont_work`; the
+sanctioned path for those is the CSV upload (product.md), an official data feed,
+or (a deliberate future scope decision, not taken) residential-proxy egress,
+which carries cost, NAT/egress plumbing against the no-VPC rule, and ToS/ethics
+considerations.
