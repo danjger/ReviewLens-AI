@@ -67,6 +67,17 @@ const DEFAULT_THROTTLE_BURST = 100;
 /** The two broadcast event types forwarded to the push queue (design). */
 const BROADCAST_DETAIL_TYPES = ["dataset.status.changed", "check.updated"];
 
+// The $connect/$disconnect Lambdas are native handlers dispatched by the Lambda
+// Runtime Interface Client, NOT the Lambda Web Adapter the base image bakes in.
+// Running them under LWA crashes at init with Runtime.InvalidEntrypoint (same
+// issue fixed for the workers): LWA expects an HTTP server, not a dotted-path
+// handler. So build from the LWA-free workers image, set the RIC entrypoint,
+// and blank the web-adapter exec wrapper.
+const RIC_ENTRYPOINT = ["/var/task/.venv/bin/python", "-m", "awslambdaric"];
+const DISABLE_WEB_ADAPTER: Record<string, string> = {
+  AWS_LAMBDA_EXEC_WRAPPER: "",
+};
+
 export interface RealtimeStackProps extends cdk.StackProps {
   /** The DataStack whose `ws-connections` table the handlers write/delete. */
   readonly data: DataStack;
@@ -128,23 +139,27 @@ export class RealtimeStack extends cdk.Stack {
     this.connectHandler = new lambda.DockerImageFunction(this, "ConnectHandler", {
       functionName: "reviewlens-ws-connect",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        file: "Dockerfile.workers",
+        entrypoint: RIC_ENTRYPOINT,
         cmd: ["app.realtime.connect.lambda_handler"],
       }),
       architecture: lambda.Architecture.ARM_64,
       memorySize: WS_HANDLER_MEMORY_MB,
       timeout: WS_HANDLER_TIMEOUT,
-      environment: { ...handlerEnv, SERVICE_NAME: "ws-connect" },
+      environment: { ...handlerEnv, ...DISABLE_WEB_ADAPTER, SERVICE_NAME: "ws-connect" },
     });
 
     this.disconnectHandler = new lambda.DockerImageFunction(this, "DisconnectHandler", {
       functionName: "reviewlens-ws-disconnect",
       code: lambda.DockerImageCode.fromImageAsset(BACKEND_DIR, {
+        file: "Dockerfile.workers",
+        entrypoint: RIC_ENTRYPOINT,
         cmd: ["app.realtime.disconnect.lambda_handler"],
       }),
       architecture: lambda.Architecture.ARM_64,
       memorySize: WS_HANDLER_MEMORY_MB,
       timeout: WS_HANDLER_TIMEOUT,
-      environment: { ...handlerEnv, SERVICE_NAME: "ws-disconnect" },
+      environment: { ...handlerEnv, ...DISABLE_WEB_ADAPTER, SERVICE_NAME: "ws-disconnect" },
     });
 
     // Both glue handlers read/write the connection table and read the secret.
@@ -236,7 +251,14 @@ export class RealtimeStack extends cdk.Stack {
     // ------------------------------------------------------------------
     new cdk.CfnOutput(this, "WebSocketApiEndpoint", {
       value: this.webSocketApi.apiEndpoint,
-      description: "WebSocket API endpoint (wss://…) the browser connects to",
+      description: "WebSocket API endpoint (wss://…), without the stage path",
+    });
+    // The full URL the BROWSER connects to: endpoint + stage path. The frontend
+    // build reads this as VITE_WS_URL so useRealtime connects straight to the
+    // WS API (CloudFront does not front the socket).
+    new cdk.CfnOutput(this, "WebSocketBrowserUrl", {
+      value: `${this.webSocketApi.apiEndpoint}/${WS_STAGE_NAME}`,
+      description: "wss URL (with stage) the browser uses — set as VITE_WS_URL",
     });
     new cdk.CfnOutput(this, "WebSocketCallbackUrl", {
       value: this.callbackUrl,

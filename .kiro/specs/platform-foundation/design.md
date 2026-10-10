@@ -690,3 +690,21 @@ Function** on the DEFAULT (SPA) behavior that rewrites only extension-less,
 non-`/api/` navigation paths to /index.html. API behaviors now return their real
 statuses. (Client also hardened to treat non-JSON snapshot-url bodies as
 "no snapshot".)
+
+
+### Live updates fixed: WS handlers crashed (RIC) + browser connected to the wrong URL + Realtime not in the pipeline
+
+Deeper diagnosis of the realtime gap (was task 35): three compounding problems.
+1. The `$connect`/`$disconnect` Lambdas (RealtimeStack) used the base image's
+   Lambda Web Adapter with native handler `cmd`s, so they crashed at init with
+   `Runtime.InvalidEntrypoint` (identical to the workers bug, task 27) — every
+   WS handshake errored. Fixed: build from the LWA-free `Dockerfile.workers`
+   with the RIC entrypoint and a blanked exec wrapper.
+2. The browser connected to `wss://<cloudfront>/realtime`, which CloudFront
+   doesn't front. Fixed: a new `WebSocketBrowserUrl` output (endpoint + `/prod`)
+   is passed to the frontend build as `VITE_WS_URL`, so `useRealtime` connects
+   straight to the WS API (no CloudFront in the socket path; cross-origin WS
+   needs no CORS and the connect route needs no credentials).
+3. RealtimeStack was deployed once by hand but was NOT in `deploy.yml`'s stack
+   list, so these fixes (and future ones) wouldn't ship. Fixed: added
+   `ReviewLens-Realtime` to the pipeline's `cdk deploy`.

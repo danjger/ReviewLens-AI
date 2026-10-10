@@ -245,7 +245,7 @@
   - Verify: data-stack synth test asserts the CORS rule (added); live browser upload completes after the Data stack redeploys.
   - _Requirements: 7.1_
 
-- [ ] 35. Route /realtime through CloudFront to the WebSocket API (live updates in prod) — see design.md → Known Issues
+- [x] 35. Fix live updates in prod (WS handler RIC + browser URL + pipeline) — see design.md → Known Issues
   - Root cause (live browser): `wss://<cf-domain>/realtime` handshake fails with "Unexpected response code: 200" — CloudFront serves the SPA/HTTP origin for `/realtime` instead of upgrading to the API Gateway WebSocket (RealtimeStack). Live push updates don't work in the deployed app.
   - Fix: add a CloudFront behavior/origin for `/realtime` → the WebSocket API stage with WS upgrade handling (Edge/Realtime CDK). Keep the HTTP `/api/*` behavior unchanged.
   - Verify: a live check/process updates a tracked row without a reload against the deployed stack. NOT started.
@@ -256,3 +256,10 @@
   - Fix: remove the global error responses; add a CloudFront viewer-request Function on the default SPA behavior that rewrites only extension-less non-/api navigation to /index.html. API 4xx pass through.
   - Verify: 73 CDK tests pass + `cdk synth ReviewLens-Edge` OK; after deploy, `/api/.../snapshot-url` for an upload returns JSON 404 via CloudFront (not HTML).
   - _Requirements: 1.3_
+
+- [x] 35b. (detail of 35) Realtime WebSocket fixes
+  - WS connect/disconnect Lambdas now run under the RIC from the LWA-free workers image (were crashing Runtime.InvalidEntrypoint — same root cause as task 27), so the handshake succeeds.
+  - Added a `WebSocketBrowserUrl` output and wired it as `VITE_WS_URL` in the frontend build, so the browser connects directly to `wss://…/prod` instead of a non-existent CloudFront `/realtime` route.
+  - Added `ReviewLens-Realtime` to the deploy pipeline's cdk deploy list (it was deployed once by hand but never redeployed).
+  - Verify after deploy: a browser WS connect to the endpoint OPENs (not ERROR), and a live check/process updates a tracked row without reload.
+  - _Requirements: 6.1, 6.3_
