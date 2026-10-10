@@ -1,0 +1,118 @@
+{
+  "id": "msg_011Cfu9YSz46bG6WD5q8cRuu",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_01D8atieBVc5n3FFci9HTMKK",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "items": [
+          {
+            "item_ref": "e7",
+            "text_ref": "e8",
+            "rating_ref": null,
+            "rating_value": 5,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e9",
+            "text_ref": "e10",
+            "rating_ref": null,
+            "rating_value": 4,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e11",
+            "text_ref": "e12",
+            "rating_ref": null,
+            "rating_value": 3,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e13",
+            "text_ref": "e14",
+            "rating_ref": null,
+            "rating_value": 5,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e15",
+            "text_ref": "e16",
+            "rating_ref": null,
+            "rating_value": 4,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e17",
+            "text_ref": "e18",
+            "rating_ref": null,
+            "rating_value": 5,
+            "date_ref": null,
+            "author_ref": null,
+            "title_ref": null,
+            "kind": "review"
+          }
+        ],
+        "excluded_refs": [],
+        "rating_scale": 5,
+        "reported_total": null,
+        "next_page": {
+          "ref": null
+        },
+        "selectors": {
+          "item": "div > div",
+          "text": "p",
+          "rating": null,
+          "date": null,
+          "author": null,
+          "title": null
+        },
+        "blocker": null,
+        "entity_hint": "Bluebird Coffee Grinder",
+        "confidence": "medium"
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 3649,
+    "output_tokens": 750,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}

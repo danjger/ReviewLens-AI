@@ -110,13 +110,17 @@ def test_selectors_method_scores_plain_list() -> None:
 
 
 def test_selectors_method_excludes_qa_and_seller_responses() -> None:
-    """On the mixed page, the review-only selector does not pick up Q&A/seller text."""
+    """On the mixed page, the review-only selector picks up only the customer reviews.
+
+    The seller response and the Q&A entries carry non-review ``data-kind`` values
+    and are excluded, so the selector yields exactly the six customer reviews.
+    """
     pages = {p.name: p for p in load_labeled_pages()}
     page = pages["mixed_qa_seller"]
     report = scorer.score_pages([page], include_ai=False)
     selectors = report.pages[0].methods[scorer.METHOD_SELECTORS]
-    # Exactly the three customer reviews, no over-selection.
-    assert selectors.extracted == 3
+    # Exactly the six customer reviews, no over-selection (seller + Q&A excluded).
+    assert selectors.extracted == 6
     assert selectors.precision == 1.0
     assert selectors.recall == 1.0
 

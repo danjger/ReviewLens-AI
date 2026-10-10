@@ -1,0 +1,88 @@
+{
+  "id": "msg_011Cfu9YtgstbNi7uv9KCEbq",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_012PJgpSxFWv7fZBNiYm5fj6",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "items": [
+          {
+            "item_ref": "e4",
+            "text_ref": "e5",
+            "author_ref": null,
+            "date_ref": null,
+            "title_ref": null,
+            "rating_ref": null,
+            "rating_value": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e6",
+            "text_ref": "e7",
+            "author_ref": null,
+            "date_ref": null,
+            "title_ref": null,
+            "rating_ref": null,
+            "rating_value": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e8",
+            "text_ref": "e9",
+            "author_ref": null,
+            "date_ref": null,
+            "title_ref": null,
+            "rating_ref": null,
+            "rating_value": null,
+            "kind": "review"
+          }
+        ],
+        "excluded_refs": [],
+        "selectors": {
+          "item": "li",
+          "text": "p",
+          "rating": null,
+          "date": null,
+          "author": null,
+          "title": null
+        },
+        "next_page": {
+          "ref": null
+        },
+        "reported_total": null,
+        "rating_scale": null,
+        "blocker": null,
+        "entity_hint": "The Lantern Keeper",
+        "confidence": "medium"
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 3234,
+    "output_tokens": 501,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}

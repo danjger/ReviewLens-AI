@@ -1,0 +1,106 @@
+{
+  "id": "msg_011Cfu9Xc5yQUuWGuaVTEcjZ",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_01DwDap1pi56CmfJNJFFuEmc",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "reported_total": 6,
+        "rating_scale": 5,
+        "entity_hint": "Orchid Hotel",
+        "items": [
+          {
+            "item_ref": "e7",
+            "text_ref": "e9",
+            "rating_value": 5,
+            "date_ref": "e8",
+            "author_ref": null,
+            "title_ref": null
+          },
+          {
+            "item_ref": "e10",
+            "text_ref": "e12",
+            "rating_value": 3,
+            "date_ref": "e11",
+            "author_ref": null,
+            "title_ref": null
+          },
+          {
+            "item_ref": "e13",
+            "text_ref": "e15",
+            "rating_value": 5,
+            "date_ref": "e14",
+            "author_ref": null,
+            "title_ref": null
+          },
+          {
+            "item_ref": "e16",
+            "text_ref": "e18",
+            "rating_value": 4,
+            "date_ref": "e17",
+            "author_ref": null,
+            "title_ref": null
+          },
+          {
+            "item_ref": "e19",
+            "text_ref": "e21",
+            "rating_value": 2,
+            "date_ref": "e20",
+            "author_ref": null,
+            "title_ref": null
+          },
+          {
+            "item_ref": "e22",
+            "text_ref": "e24",
+            "rating_value": 5,
+            "date_ref": "e23",
+            "author_ref": null,
+            "title_ref": null
+          }
+        ],
+        "excluded_refs": [],
+        "next_page": {
+          "ref": null
+        },
+        "selectors": {
+          "item": "[itemprop=\"review\"]",
+          "text": "[itemprop=\"reviewBody\"]",
+          "rating": null,
+          "date": "[itemprop=\"datePublished\"]",
+          "author": null,
+          "title": null
+        },
+        "confidence": "medium",
+        "blocker": null
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 3946,
+    "output_tokens": 670,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}
