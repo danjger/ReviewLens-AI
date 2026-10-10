@@ -20,7 +20,7 @@ Everything is driven by environment variables, so the same tests run anywhere.
 | Variable | Purpose | Local default | Deployed |
 |---|---|---|---|
 | `E2E_BASE_URL` | Where the app (SPA) is reachable | `http://localhost:5173` (vite dev server) | the stack's CloudFront URL |
-| `E2E_FIXTURE_BASE_URL` | Where the fixture review site is served | `http://localhost:9090` (compose `fixtures` host) | the public fixtures CloudFront site |
+| `E2E_FIXTURE_BASE_URL` | Where the fixture review site is served | `http://fixtures` (the compose `fixtures` **service name**, reachable + allowlisted from inside the backend container) | the public fixtures CloudFront site |
 | `E2E_LIVE_AI` | `1` = backend uses the live Claude model; anything else = backend uses `FakeClaude` | unset (stubbed) | unset (stubbed) |
 
 These are read in `support/env.ts` and in `playwright.config.ts`, and threaded
@@ -35,6 +35,18 @@ allowed via `SSRF_TEST_ALLOW_HOSTS=fixtures`; deployed stacks point at the
 public fixtures CloudFront site (`/fixtures-site`). Production refuses to start
 with `SSRF_TEST_ALLOW_HOSTS` set. See `.kiro/specs/platform-foundation`
 Requirement 8.6 and design "Testing Strategy".
+
+**Why the local default is `http://fixtures`, not `http://localhost:9090`.**
+`seedDataset` creates datasets through the real API (`POST /ingest/checks` +
+`.../add`), so the fixture URL is fetched and rendered by the **backend and
+workers-check containers**, not by the host browser. On the Docker network the
+service name `fixtures` resolves to the fixtures container and is allowlisted by
+`SSRF_TEST_ALLOW_HOSTS=fixtures`. The host-published `localhost:9090` is neither
+reachable from inside those containers nor on the allowlist, so a Check for it
+returns `wont_work: "Address not allowed"` and seeding yields nothing. The
+browser never fetches the fixture URL directly (it drives the SPA and its
+`/api` proxy), so the backend-reachable host is the right default for both the
+API seed and the UI flow.
 
 ### AI stub toggle
 
@@ -72,11 +84,14 @@ and replays recorded responses from `backend/tests/fixtures/ai/`.
     `dataset-library-empty` soft check). The Library-row assertion is likewise
     `deferred` to that spec; this spec asserts the Add outcomes and tracked note
     it owns.
-  - the `will_work` (plain_list) and `limited` (no_ratings) verdicts need a
-    recorded Review Locator response. Under the default stub they aren't present
-    (only the `wont_work` blocker fixtures resolve with no AI call), so those
-    tests record a `needs-record-ai` annotation and skip the AI-dependent parts
-    unless `E2E_LIVE_AI=1` or someone runs `make record-ai` (ANTHROPIC_API_KEY).
+  - the `plain_list`, `no_ratings` and `blocker_empty` fixtures all resolve to a
+    deterministic verdict under the default stub via the extraction engine's
+    free selector/structured path (`limited`, `limited`, `wont_work`
+    respectively) — no recorded Review Locator response and no live AI call is
+    required to seed a dataset. The remaining `needs-record-ai` gating in the
+    specs only applies to assertions that genuinely depend on a `will_work`
+    verdict or on deterministic stubbed answer text; dataset seeding itself works
+    under the stub once the fixture host is backend-reachable (`http://fixtures`).
 
 ## Conventions (from steering `testing.md`)
 

@@ -11,8 +11,14 @@ import { defineConfig, devices } from "@playwright/test";
  *                       Local default: http://localhost:5173 (vite dev server).
  *                       Deployed: the stack's CloudFront URL.
  * - E2E_FIXTURE_BASE_URL Where the fixture review site is served.
- *                       Local default: http://localhost:9090 (compose `fixtures`,
- *                       allowed by SSRF_TEST_ALLOW_HOSTS=fixtures on the backend).
+ *                       Local default: http://fixtures (the compose `fixtures`
+ *                       service name). The CHECK fetch runs inside the backend
+ *                       container, so the URL must resolve on the Docker network
+ *                       and be allowed by SSRF_TEST_ALLOW_HOSTS=fixtures. The
+ *                       host-published http://localhost:9090 is NOT backend-
+ *                       reachable and would be SSRF-refused ("Address not
+ *                       allowed"), so it must not be used for the API-driven
+ *                       seed. See support/env.ts for the full rationale.
  *                       Deployed: the public fixtures CloudFront site.
  * - E2E_LIVE_AI         "1" means the backend talks to the live Claude model.
  *                       Anything else (default unset) means the backend replaces
