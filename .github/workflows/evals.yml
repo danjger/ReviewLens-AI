@@ -81,6 +81,19 @@ jobs:
   extraction-eval:
     name: Extraction evaluation (live model)
     runs-on: ubuntu-latest
+    # LocalStack backs the global AI-call rate limiter: every model call in
+    # app.core.ai first runs check_rate_limit against the DynamoDB
+    # ``rate-limits`` table. Without a region + reachable table the boto3
+    # client raises NoRegionError ("You must specify a region"), which the
+    # Locator wraps as AIUnavailable and the eval fails before reaching the
+    # model. A dynamodb-only LocalStack gives the limiter a real backend.
+    services:
+      localstack:
+        image: localstack/localstack:3
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: dynamodb
     steps:
       - uses: actions/checkout@v4
 
@@ -105,10 +118,34 @@ jobs:
       # only truly gates when the secret is configured (expected: the live run is
       # review-extraction task 9.4). When the key is present and the thresholds
       # are not met, test_run_live.py's assertion fails and this job fails.
+      # The rate limiter needs the ``rate-limits`` table to exist (schema
+      # from infra/localstack-init/01-provision.sh). Create it in the
+      # dynamodb-only LocalStack before the eval runs the live model.
+      - name: Create the rate-limits table in LocalStack (extraction)
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4566/_localstack/health && break
+            echo "waiting for localstack ($i)"; sleep 2
+          done
+          aws dynamodb create-table --endpoint-url http://localhost:4566 \
+            --table-name rate-limits \
+            --attribute-definitions AttributeName=PK,AttributeType=S \
+            --key-schema AttributeName=PK,KeyType=HASH \
+            --billing-mode PAY_PER_REQUEST
+
       - name: Run live extraction evaluation (gates on thresholds)
         working-directory: backend
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
         run: uv run pytest ../evals/extraction -v -m live_ai
 
       # Make the scores visible even on failure.
@@ -140,6 +177,19 @@ jobs:
   scope-guard-eval:
     name: Scope-guard evaluation (live model)
     runs-on: ubuntu-latest
+    # LocalStack backs the global AI-call rate limiter: every model call in
+    # app.core.ai first runs check_rate_limit against the DynamoDB
+    # ``rate-limits`` table. Without a region + reachable table the boto3
+    # client raises NoRegionError ("You must specify a region"), which the
+    # Locator wraps as AIUnavailable and the eval fails before reaching the
+    # model. A dynamodb-only LocalStack gives the limiter a real backend.
+    services:
+      localstack:
+        image: localstack/localstack:3
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: dynamodb
     steps:
       - uses: actions/checkout@v4
 
@@ -167,10 +217,34 @@ jobs:
       # (expected: the live run is guardrailed-chat task 7.4). When the key is
       # present and a threshold is missed, that assertion fails and so does this
       # job.
+      # The rate limiter needs the ``rate-limits`` table to exist (schema
+      # from infra/localstack-init/01-provision.sh). Create it in the
+      # dynamodb-only LocalStack before the eval runs the live model.
+      - name: Create the rate-limits table in LocalStack (scope-guard)
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4566/_localstack/health && break
+            echo "waiting for localstack ($i)"; sleep 2
+          done
+          aws dynamodb create-table --endpoint-url http://localhost:4566 \
+            --table-name rate-limits \
+            --attribute-definitions AttributeName=PK,AttributeType=S \
+            --key-schema AttributeName=PK,KeyType=HASH \
+            --billing-mode PAY_PER_REQUEST
+
       - name: Run live scope-guard evaluation (gates on thresholds)
         working-directory: backend
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
         run: uv run pytest ../evals/scope_guard -v -m live_ai
 
       # Make the scores visible even on failure (Req 8.4 "write a report").
