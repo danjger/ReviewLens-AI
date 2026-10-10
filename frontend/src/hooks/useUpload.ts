@@ -26,7 +26,7 @@
  * navigation without a real `XMLHttpRequest` or `<Router>`.
  */
 import { useCallback, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError } from "../api/ingest";
 import {
@@ -39,6 +39,7 @@ import {
   type UploadProgress,
 } from "../api/uploads";
 import { datasetDetailPath } from "../routes";
+import { DATASETS_QUERY_KEY } from "./realtimeReducers";
 
 /** The staged-upload lifecycle phase, for the UI to drive its view. */
 export type UploadPhase =
@@ -122,6 +123,7 @@ function isReuploadError(err: unknown): boolean {
 export function useUpload(options: UseUploadOptions = {}): UseUploadResult {
   const navigate = options.onNavigate ?? defaultNavigate;
   const uploader = options.uploader ?? putFileToUrl;
+  const queryClient = useQueryClient();
 
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [progress, setProgress] = useState(0);
@@ -188,6 +190,10 @@ export function useUpload(options: UseUploadOptions = {}): UseUploadResult {
     onSuccess: (id) => {
       setDatasetId(id);
       setPhase("done");
+      // The new dataset is born `requested`; refetch the Library list so a
+      // "processing" row appears immediately rather than only after the next
+      // poll/refresh (fixes "no indicator after uploading a CSV").
+      void queryClient.invalidateQueries({ queryKey: [...DATASETS_QUERY_KEY] });
       navigate(datasetDetailPath(id));
     },
     onError: () => {

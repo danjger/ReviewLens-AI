@@ -258,6 +258,30 @@ export class EdgeStack extends cdk.Stack {
     // ------------------------------------------------------------------
     // Requirement 1.1 / 7.2: a single HTTPS public URL; the static SPA is
     // served from the CDN. Requirement 2.2: single CDN distribution + WAF.
+    // SPA deep-link routing WITHOUT a distribution-wide error response.
+    // A CloudFront viewer-request function rewrites navigation requests for the
+    // SPA (paths with no file extension, e.g. /datasets/123) to /index.html so
+    // the React router handles them. Crucially this runs ONLY on the default
+    // (SPA) behavior, so API 4xx responses (e.g. a 404 from
+    // /api/datasets/{id}/snapshot-url for an upload) pass through unchanged
+    // instead of being rewritten to the SPA — which previously surfaced as
+    // "Unexpected token '<'" JSON errors in the UI.
+    const spaRouter = new cloudfront.Function(this, "SpaRouter", {
+      comment: "Rewrite SPA deep links to /index.html (navigation requests only)",
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var req = event.request;
+  var uri = req.uri;
+  // Leave API paths and anything that looks like a file (has an extension)
+  // untouched; rewrite extension-less navigation paths to the SPA entry.
+  if (uri.startsWith('/api/')) { return req; }
+  var lastSegment = uri.substring(uri.lastIndexOf('/') + 1);
+  if (lastSegment.indexOf('.') === -1) { req.uri = '/index.html'; }
+  return req;
+}
+`),
+    });
+
     this.distribution = new cloudfront.Distribution(this, "Distribution", {
       comment: "ReviewLens AI public entry point (SPA + API + chat)",
       defaultRootObject: "index.html",
@@ -275,6 +299,12 @@ export class EdgeStack extends cdk.Stack {
           cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+        functionAssociations: [
+          {
+            function: spaRouter,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
       },
 
       additionalBehaviors: {
@@ -303,23 +333,10 @@ export class EdgeStack extends cdk.Stack {
         },
       },
 
-      // SPA client-side routing: S3 returns 403 (OAC, key absent) or 404 for
-      // deep links like /datasets/123. Rewrite both to index.html with 200 so
-      // the React router can handle the path.
-      errorResponses: [
-        {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: cdk.Duration.seconds(0),
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: cdk.Duration.seconds(0),
-        },
-      ],
+      // No distribution-wide errorResponses: SPA routing is handled by the
+      // viewer-request function on the default behavior (above), so API 4xx
+      // responses are NOT rewritten to the SPA. (A genuinely missing SPA asset
+      // returns its real status, which is fine for hashed Vite assets.)
     });
 
     this.distributionDomainName = this.distribution.distributionDomainName;

@@ -131,41 +131,50 @@ export default function ThemesList({ metrics }: ThemesListProps) {
       aria-label="Recurring themes"
     >
       <h2 className="themes-list__heading">Recurring themes</h2>
-      <ul className="themes-list__items" data-testid="themes-list-items">
-        {themes.map((theme, index) => {
-          const lean = LEAN_PRESENTATION[theme.lean];
-          return (
-            <li
-              // Labels can repeat across versions; the index keeps the key
-              // stable for this render (the list is small and static).
-              key={`${theme.label}-${index}`}
-              className="themes-list__item"
-              data-testid="theme-item"
-              data-lean={theme.lean}
-            >
-              <span className="themes-list__label" data-testid="theme-label">
-                {theme.label}
-              </span>
-              <span className="themes-list__mentions" data-testid="theme-mentions">
-                {theme.mentions.toLocaleString()}
-                <span className="themes-list__mentions-unit"> mentions</span>
-              </span>
-              <span
-                className={`themes-list__lean themes-list__lean--${theme.lean}`}
-                data-testid="theme-lean"
+      <table className="themes-list__table" data-testid="themes-list-items">
+        <thead>
+          <tr>
+            <th scope="col">Theme</th>
+            <th scope="col">Mentions</th>
+            <th scope="col">Sentiment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {themes.map((theme, index) => {
+            const lean = LEAN_PRESENTATION[theme.lean];
+            return (
+              <tr
+                // Labels can repeat across versions; the index keeps the key
+                // stable for this render (the list is small and static).
+                key={`${theme.label}-${index}`}
+                className="themes-list__row"
+                data-testid="theme-item"
                 data-lean={theme.lean}
               >
-                <span className="themes-list__lean-icon" aria-hidden="true">
-                  {lean.icon}
-                </span>
-                <span className="themes-list__lean-text" data-testid="theme-lean-text">
-                  {lean.text}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+                <td className="themes-list__label" data-testid="theme-label">
+                  {theme.label}
+                </td>
+                <td className="themes-list__mentions" data-testid="theme-mentions">
+                  {theme.mentions.toLocaleString()}
+                  <span className="themes-list__mentions-unit"> mentions</span>
+                </td>
+                <td
+                  className={`themes-list__lean themes-list__lean--${theme.lean}`}
+                  data-testid="theme-lean"
+                  data-lean={theme.lean}
+                >
+                  <span className="themes-list__lean-icon" aria-hidden="true">
+                    {lean.icon}
+                  </span>
+                  <span className="themes-list__lean-text" data-testid="theme-lean-text">
+                    {lean.text}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </section>
   );
 }

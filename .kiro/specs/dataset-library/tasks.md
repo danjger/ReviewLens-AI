@@ -102,3 +102,13 @@
   - UPDATE: palette A "Slate & Teal" signed off and finalized (removed the temporary ThemeSwitcher + Direction B + the data-theme logic). Also added two UI items requested from the live app: a "Back to datasets" link on the detail page, and a "Clear" action on a checked-URL verdict card to dismiss a failed/non-viable result (wont_work/invalid/duplicate/error) from the list (view-only). Styled both in base.css. Remaining 11.2: fuller polish of the chat panel internals; 11.3 axe on primitives.
   - UPDATE (polish): styled the chat panel internals (history/exchange bubbles, chat input, citation chip, decline tag) and refined the detail two-column grid + slot headings. Added axe checks for the new primitives (DatasetRow URL+CSV rows, dismissable VerdictCard; DatasetThumbnail already had them). Full frontend suite: 493 passed (the 6 failing are pre-existing local-only chat-streaming env failures that pass in CI). Palette A is the sole theme.
   - _Requirements: 1.1, 1.6_
+
+- [x] 12. Live-usage UI fixes (from the deployed app)
+  - [x] 12.1 "Show archived" did nothing: `useDatasets` held the query key constant at `['datasets']` (so push reducers hit it), so a controls change never refetched. Refetch explicitly when archived/sort/q change.
+  - [x] 12.2 Snapshot card showed "Unexpected token '<'": the CDN's SPA 404-fallback rewrote the API's legit 404 (upload has no snapshot) into 200-HTML. Client now treats a non-JSON snapshot-url body as "no snapshot" (404-equivalent); the real fix is the Edge CloudFront change (platform-foundation task 36).
+  - [x] 12.3 No "working" indicator after a CSV upload: invalidate `['datasets']` on submit so the new `requested` row appears immediately.
+  - [x] 12.4 Headline-metrics sentiment ran together ("Positive3"): design-system CSS now lays out the breakdown with spacing + tabular numerals.
+  - [x] 12.5 "Identified entity / Not available" was unclear: retitled "What's being reviewed" with an explanatory hint and a clearer empty message.
+  - [x] 12.6 Tables for Recurring themes and the Processing timeline (genuinely tabular); Completeness kept as aligned label/value rows (a progress bar doesn't belong in a table).
+  - [x] 12.7 Processing timeline double value ("updated updated"): hide the status chip when it equals the message.
+  - _Requirements: 2.1, 2.3, 2.4, 2.5, 6.1_

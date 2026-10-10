@@ -74,19 +74,26 @@ function readEvents(statusDetail: ProcessingTimelineProps["statusDetail"]): Stat
   });
 }
 
-/** One timeline entry: a status chip (when present), the message, and a `<time>`. */
+/** One timeline row: status, message, and the local time (table layout). */
 function TimelineEntry({ event, index }: { event: StatusEvent; index: number }) {
   const localTime = formatLocal(event.at);
-  const status = nonEmptyString(event.status) ? event.status.trim() : null;
+  const rawStatus = nonEmptyString(event.status) ? event.status.trim() : null;
+  const message = event.message ?? "";
+  // Don't repeat the status when it's identical to (or a prefix of) the
+  // message — otherwise rows read e.g. "updated updated" (fixes the double
+  // value). Show the status chip only when it adds information.
+  const status =
+    rawStatus != null && rawStatus.toLowerCase() !== message.trim().toLowerCase()
+      ? rawStatus
+      : null;
 
   return (
-    <li
-      className="processing-timeline__item"
+    <tr
+      className="processing-timeline__row"
       data-testid={`timeline-event-${index}`}
-      data-status={status ?? undefined}
+      data-status={rawStatus ?? undefined}
     >
-      <div className="processing-timeline__marker" aria-hidden="true" />
-      <div className="processing-timeline__body">
+      <td className="processing-timeline__cell processing-timeline__cell--status">
         {status != null && (
           <span
             className="processing-timeline__status"
@@ -95,12 +102,14 @@ function TimelineEntry({ event, index }: { event: StatusEvent; index: number }) 
             {status}
           </span>
         )}
-        <span
-          className="processing-timeline__message"
-          data-testid={`timeline-event-${index}-message`}
-        >
-          {event.message}
-        </span>
+      </td>
+      <td
+        className="processing-timeline__cell processing-timeline__cell--message"
+        data-testid={`timeline-event-${index}-message`}
+      >
+        {message}
+      </td>
+      <td className="processing-timeline__cell processing-timeline__cell--time">
         {localTime != null && nonEmptyString(event.at) && (
           <time
             className="processing-timeline__time"
@@ -110,8 +119,8 @@ function TimelineEntry({ event, index }: { event: StatusEvent; index: number }) 
             {localTime}
           </time>
         )}
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
@@ -131,11 +140,20 @@ export default function ProcessingTimeline({ statusDetail }: ProcessingTimelineP
           No processing activity yet.
         </p>
       ) : (
-        <ol className="processing-timeline__list" data-testid="processing-timeline-list">
-          {ordered.map((event, index) => (
-            <TimelineEntry key={index} event={event} index={index} />
-          ))}
-        </ol>
+        <table className="processing-timeline__table" data-testid="processing-timeline-list">
+          <thead>
+            <tr>
+              <th scope="col">Status</th>
+              <th scope="col">Event</th>
+              <th scope="col">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((event, index) => (
+              <TimelineEntry key={index} event={event} index={index} />
+            ))}
+          </tbody>
+        </table>
       )}
     </details>
   );

@@ -86,11 +86,15 @@ function NotAvailable() {
       className="entity-card entity-card--empty"
       data-testid="entity-card"
       data-available="false"
-      aria-label="Identified entity"
+      aria-label="What's being reviewed"
     >
-      <h2 className="entity-card__heading">Identified entity</h2>
+      <h2 className="entity-card__heading">What's being reviewed</h2>
+      <p className="entity-card__hint">
+        The product or business these reviews are about, identified by AI from
+        the page or file.
+      </p>
       <p className="entity-card__not-available" data-testid="entity-not-available">
-        {NOT_AVAILABLE}
+        {NOT_AVAILABLE} — the source didn’t name a clear product or business.
       </p>
     </section>
   );
@@ -108,9 +112,12 @@ export default function EntityCard({ metrics }: EntityCardProps) {
       data-testid="entity-card"
       data-available="true"
       data-confidence={entity.lowConfidence ? "low" : "high"}
-      aria-label="Identified entity"
+      aria-label="What's being reviewed"
     >
-      <h2 className="entity-card__heading">Identified entity</h2>
+      <h2 className="entity-card__heading">What's being reviewed</h2>
+      <p className="entity-card__hint">
+        The product or business these reviews are about, identified by AI.
+      </p>
 
       <div className="entity-card__name-row">
         <span className="entity-card__name" data-testid="entity-name">

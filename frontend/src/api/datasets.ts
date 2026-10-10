@@ -297,6 +297,14 @@ export async function getSnapshotUrl(id: string): Promise<SnapshotUrl> {
   const response = await fetch(
     url(`/datasets/${encodeURIComponent(id)}/snapshot-url`),
   );
+  // The CDN's SPA fallback can rewrite the API's legitimate 404 (an upload
+  // dataset has no snapshot) into a 200 that serves index.html. Treat a
+  // non-JSON (HTML) body as "no snapshot" — a 404-equivalent the SnapshotCard
+  // already handles — instead of leaking a raw JSON parse error to the UI.
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new ApiError(404, "NO_SNAPSHOT", "No snapshot for this dataset.");
+  }
   return parseJson<SnapshotUrl>(response);
 }
 

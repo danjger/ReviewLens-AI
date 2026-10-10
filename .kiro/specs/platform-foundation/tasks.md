@@ -250,3 +250,9 @@
   - Fix: add a CloudFront behavior/origin for `/realtime` → the WebSocket API stage with WS upgrade handling (Edge/Realtime CDK). Keep the HTTP `/api/*` behavior unchanged.
   - Verify: a live check/process updates a tracked row without a reload against the deployed stack. NOT started.
   - _Requirements: (realtime push)_
+
+- [x] 36. Stop CloudFront rewriting API 404s to the SPA — see design.md → Known Issues
+  - Root cause: distribution-wide `errorResponses` (403/404 → /index.html 200) caught API 4xx too, so `/api/.../snapshot-url` 404 returned HTML and the UI showed a JSON parse error.
+  - Fix: remove the global error responses; add a CloudFront viewer-request Function on the default SPA behavior that rewrites only extension-less non-/api navigation to /index.html. API 4xx pass through.
+  - Verify: 73 CDK tests pass + `cdk synth ReviewLens-Edge` OK; after deploy, `/api/.../snapshot-url` for an upload returns JSON 404 via CloudFront (not HTML).
+  - _Requirements: 1.3_

@@ -327,3 +327,100 @@ button[type="submit"]:hover { background: var(--color-accent-strong); border-col
   color: var(--color-warn);
   font-size: var(--text-xs);
 }
+
+/* ---- Headline metrics: sentiment breakdown spacing (fixes "Positive3") ---- */
+.metrics-panel__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+.metrics-panel__tile { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.metrics-panel__tile-label { color: var(--color-text-muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
+.metrics-panel__tile-value { margin: 0; }
+.metrics-panel__number { font-size: var(--text-xl); font-weight: var(--weight-bold); }
+.metrics-panel__sentiment { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.metrics-panel__sentiment-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.metrics-panel__sentiment-count { font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.metrics-panel__sentiment-item--positive .metrics-panel__sentiment-count { color: var(--color-ok); }
+.metrics-panel__sentiment-item--negative .metrics-panel__sentiment-count { color: var(--color-danger); }
+
+/* ---- Shared small-table styling (themes + processing timeline) ---- */
+.themes-list__table,
+.processing-timeline__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
+}
+.themes-list__table th,
+.processing-timeline__table th {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.themes-list__table td,
+.processing-timeline__table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.themes-list__table tr:last-child td,
+.processing-timeline__table tr:last-child td { border-bottom: none; }
+.themes-list__mentions,
+.processing-timeline__cell--time { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-text-muted); }
+.themes-list__lean { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.themes-list__lean--positive { color: var(--color-ok); }
+.themes-list__lean--negative { color: var(--color-danger); }
+.themes-list__lean--neutral { color: var(--color-text-muted); }
+.processing-timeline__status {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+}
+.processing-timeline__summary { cursor: pointer; font-weight: var(--weight-medium); }
+
+/* ---- Completeness: clean label/value alignment (table-like) ---- */
+.completeness-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.completeness-panel__pages,
+.completeness-panel__skipped,
+.completeness-panel__method-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+}
+.completeness-panel__counts { margin: var(--space-2) 0 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.completeness-panel__count { margin: 0; }
+.completeness-panel__count-label { margin: 0; }
+.completeness-panel__count-value { margin: 0; font-variant-numeric: tabular-nums; font-weight: var(--weight-medium); }
+.completeness-panel__value,
+.dataset-header__meta-value { font-weight: var(--weight-medium); }
+.completeness-panel__bar {
+  height: 8px; border-radius: 999px; background: var(--color-surface-sunken);
+  overflow: hidden; margin-top: var(--space-1);
+}
+.completeness-panel__bar-fill { height: 100%; background: var(--color-accent); }
+
+/* ---- What's-being-reviewed card hint ---- */
+.entity-card__hint { color: var(--color-text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-2); }
+.entity-card__name { font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.entity-card__chip--low-confidence {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--color-warn-weak);
+  color: var(--color-warn);
+  font-size: var(--text-xs);
+}

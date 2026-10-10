@@ -677,3 +677,16 @@ integration/scale/perf CI jobs to write a Docker daemon `registry-mirrors`
 config (`https://mirror.gcr.io`) and restart Docker before the Compose step, so
 ALL Docker Hub pulls go through the pull-through cache name-agnostically (no
 image strings change; falls through to Docker Hub on a miss).
+
+
+### API 404s rewritten to the SPA by the distribution-wide error response
+
+The Edge distribution rewrote 403/404 → /index.html (200) distribution-wide for
+SPA deep-link routing. That also caught legitimate API 4xx (e.g. the 404 from
+`/api/datasets/{id}/snapshot-url` for an upload dataset), so the browser got
+200-HTML where it expected JSON → "Unexpected token '<', '<!doctype'". Fix:
+replace the global `errorResponses` with a CloudFront **viewer-request
+Function** on the DEFAULT (SPA) behavior that rewrites only extension-less,
+non-`/api/` navigation paths to /index.html. API behaviors now return their real
+statuses. (Client also hardened to treat non-JSON snapshot-url bodies as
+"no snapshot".)

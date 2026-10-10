@@ -20,6 +20,7 @@
  * Property 3) and change what the single cached list contains; a param change
  * refetches that same key rather than branching into a per-param cache entry.
  */
+import { useEffect } from "react";
 import {
   useMutation,
   useQuery,
@@ -75,12 +76,27 @@ export function useDatasets(
     sort: controls.sort,
     q: controls.q,
   };
-  return useQuery<Dataset[], Error>({
+  const result = useQuery<Dataset[], Error>({
     queryKey: [...DATASETS_QUERY_KEY],
     queryFn: () => listDatasets(params),
     // Keep the server-filtered result fresh under param changes.
     refetchInterval: (query) => listRefetchInterval(query.state.data),
   });
+
+  // The query key is held constant at ['datasets'] so the real-time reducers
+  // (which patch that literal key) always hit it. But that means a change to
+  // the controls (Show archived / sort / search) does NOT change the key, so
+  // TanStack would otherwise serve the previously-cached list instead of
+  // refetching with the new server-side filter. Refetch explicitly whenever the
+  // controls change so the new params take effect (fixes "Show archived" doing
+  // nothing).
+  const { refetch } = result;
+  useEffect(() => {
+    void refetch();
+    // Refetch on any control change; `refetch` identity is stable per query.
+  }, [controls.archived, controls.sort, controls.q, refetch]);
+
+  return result;
 }
 
 /** Query one dataset's full record, keyed on `['dataset', id]`. */
