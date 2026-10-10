@@ -275,3 +275,41 @@ judge.me and the 403/429 sites, the sanctioned path is the CSV upload (proven
 working end-to-end) or an official data feed. The `_wait_for_content` helper is
 retained — it correctly helps genuinely-slow-but-not-blocked client-rendered
 pages; it just cannot run scripts a consent blocker has suppressed.
+
+### Live eval verdict-accuracy gate at 40% — seed `reported_total` vs completeness rule
+Found 2026-10-10 by the first live `Quality evals / Extraction evaluation (live
+model)` run (unblocked once a valid `ANTHROPIC_API_KEY` CI secret and a
+DynamoDB-backed rate limiter were configured — see platform-foundation Known
+Issues). The run FAILS the viability verdict-accuracy gate (dataset-ingestion
+Requirement 3.14): `Viability verdict accuracy below threshold: 0.400 (need ≥
+0.9)`. Tracked in GitHub issue #2.
+Extraction quality on the SAME run is healthy and passes its gates: `will_work`
+precision 100.0% (≥98%), recall 95.2% (≥90%); the `selectors` method scores
+100%/100%. Only the verdict column fails.
+Root cause (not a regression): six seed pages labelled `will_work`
+(`structured_jsonld`, `structured_microdata`, `js_rendered`, `plain_list`,
+`multipage_listing`, `mixed_qa_seller`) are predicted `limited`. Each reports a
+total far larger than the handful of reviews it shows and exposes no next page
+(e.g. `structured_jsonld` reports "128 reviews" but shows 3), so
+`ingestion.viability.assess()`'s completeness rule (Requirement 3.6 — reported
+total > 2× verified AND no next page → `limited`) correctly downgrades them. The
+reviews are extracted perfectly; only the verdict disagrees with the
+hand-checked label. The one page that passes (`large_server_rendered`) is the
+dataset-ingestion fixture whose reported total was made consistent (24 of 24).
+These six fixtures are byte-identical to `main` and pre-date the dataset-
+ingestion HTML-upload work; the gate fails identically on `main` once a key is
+present (it never ran before because the jobs skipped without a key). The eval
+workflow is intentionally NOT on the deploy-gating chain (`evals.yml` is named
+so it never gates a deploy), so this does not block releases — it is a quality
+signal only.
+Severity: medium (a real quality gate is red, but non-deploy-gating and
+pre-existing). Owner: this is review-extraction tuning, explicitly the deferred
+person-owned tasks **9.3** (choose real review sites and hand-check labels) and
+**9.4** (run the live evaluation, tune the cleaner / `locator_v1.md`, set the
+default `EXTRACTION_STRATEGY`, record scores). Decide per affected page whether
+to (a) make the fixture's `reported_total` consistent with what it shows (the
+one-line fix applied to `large_server_rendered`), (b) add a real next-page link
+so it is a genuine multi-page `will_work`, or (c) correct an optimistic label to
+`limited` where the page truly is partial — and/or revisit the 0.90 threshold
+against the real seed. Any page whose HTML changes must have its Locator AI
+fixture re-recorded (`make record-ai`).
