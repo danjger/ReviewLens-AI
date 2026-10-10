@@ -244,3 +244,9 @@
   - Fix: `cors` on AppBucket — PUT from `https://*.cloudfront.net` (+ localhost), AllowedHeaders *, ExposedHeaders ETag. Objects stay private; only scopes page origins. Pattern origin avoids a circular dep with Edge.
   - Verify: data-stack synth test asserts the CORS rule (added); live browser upload completes after the Data stack redeploys.
   - _Requirements: 7.1_
+
+- [ ] 35. Route /realtime through CloudFront to the WebSocket API (live updates in prod) — see design.md → Known Issues
+  - Root cause (live browser): `wss://<cf-domain>/realtime` handshake fails with "Unexpected response code: 200" — CloudFront serves the SPA/HTTP origin for `/realtime` instead of upgrading to the API Gateway WebSocket (RealtimeStack). Live push updates don't work in the deployed app.
+  - Fix: add a CloudFront behavior/origin for `/realtime` → the WebSocket API stage with WS upgrade handling (Edge/Realtime CDK). Keep the HTTP `/api/*` behavior unchanged.
+  - Verify: a live check/process updates a tracked row without a reload against the deployed stack. NOT started.
+  - _Requirements: (realtime push)_

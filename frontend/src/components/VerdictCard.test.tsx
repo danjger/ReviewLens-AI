@@ -6,6 +6,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "jest-axe";
 
 import type { CheckItem } from "../api/ingest";
 import {
@@ -252,4 +253,23 @@ describe("VerdictCard", () => {
     expect(screen.queryByTestId("dismiss-link")).not.toBeInTheDocument();
   });
 
+});
+
+
+describe("axe — VerdictCard (task 11.3)", () => {
+  it("has no violations for a wont_work card with the Clear action", async () => {
+    const item = makeItem({ verdict: makeVerdict("wont_work", { reasons: ["Status 403"] }) });
+    const { container } = render(
+      <ul>
+        <VerdictCard
+          item={item}
+          included={false}
+          onToggleInclude={vi.fn()}
+          onRetry={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </ul>,
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
 });

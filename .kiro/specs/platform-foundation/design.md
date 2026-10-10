@@ -651,3 +651,21 @@ to avoid a circular dependency. This governs only which PAGE ORIGINS may script
 a cross-origin request; objects stay private (public access blocked) and are
 reachable only via short-lived pre-signed URLs. Takes effect on the next Data
 stack deploy.
+
+### Live updates don't connect in prod: CloudFront doesn't route /realtime to the WS API
+
+Found by a live browser click-through: the SPA opens
+`wss://<cloudfront-domain>/realtime` for `dataset.status.changed` / `check.updated`
+push, but the handshake fails with "Unexpected response code: 200" — i.e. the
+request lands on the SPA/HTTP origin and gets an HTML 200 instead of a WebSocket
+upgrade. CloudFront's Edge distribution is not routing the `/realtime` path to
+the API Gateway **WebSocket** API (RealtimeStack), so live updates silently fall
+back to nothing in the deployed app. (Not reproducible locally — no equivalent
+WS gateway in Compose; the long-standing "no local WebSocket" caveat.)
+
+Follow-up (not yet fixed): add a CloudFront behavior/origin for `/realtime`
+(and the `wss` upgrade) pointing at the WebSocket API's stage, in the Edge/
+Realtime CDK, with the right origin-request/upgrade handling. Until then the UI
+works but without live row/status updates (it still reflects state on
+navigation/refetch). Scope: Edge + Realtime stacks; verify with a live
+check/process watching a row update without reload.

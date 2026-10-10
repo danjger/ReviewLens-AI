@@ -12,6 +12,7 @@
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { axe } from "jest-axe";
 import { HttpResponse, http } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -131,5 +132,27 @@ describe("DatasetRow refresh states", () => {
     expect(within(row).getByTestId("refresh-failed-reason")).toHaveTextContent(
       "Refresh failed: 404",
     );
+  });
+});
+
+
+describe("axe — DatasetRow (task 11.3)", () => {
+  it("has no violations for a URL row with a snapshot thumbnail", async () => {
+    const { container } = renderRow(
+      makeDataset({ source_type: "url", status: "updated" }),
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("has no violations for an upload row (CSV icon thumbnail)", async () => {
+    const { container } = renderRow(
+      makeDataset({
+        source_type: "upload",
+        main_url: "reviews.csv",
+        thumbnail_url: null,
+        status: "updated",
+      }),
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
