@@ -126,6 +126,24 @@ def _database_reachable() -> bool:
         return False
 
 
+def _schema_ready() -> bool:
+    """True if the ``datasets`` table exists (migrations have been applied).
+
+    ``_database_reachable`` only proves PostgreSQL accepts a connection; in CI
+    the perf job can reach a running-but-UN-MIGRATED database, where seeding
+    would raise ``UndefinedTable`` as a fixture ERROR instead of a clean skip.
+    This checks the schema is actually present so the test keeps its
+    "skip cleanly until the stack is ready" contract (platform-foundation
+    Known Issues: "Perf test errors (not skips) when the DB schema is absent").
+    """
+    try:
+        with core_db.get_engine().connect() as conn:
+            exists = conn.execute(text("SELECT to_regclass('public.datasets')")).scalar()
+        return exists is not None
+    except Exception:  # noqa: BLE001 - any failure means "not ready" → skip
+        return False
+
+
 def _s3_client() -> Any:
     """Return an S3 client pointed at LocalStack when AWS_ENDPOINT_URL is set."""
     settings = get_settings()
@@ -189,6 +207,11 @@ def seeded_dataset() -> Iterator[str]:
         )
     if not _database_reachable():
         pytest.skip("PostgreSQL not reachable; run under the container integration environment")
+    if not _schema_ready():
+        pytest.skip(
+            "database schema not migrated (no 'datasets' table); "
+            "run `alembic upgrade head` first (the integration env does this via make test-int)"
+        )
     bucket = get_settings().s3_bucket
     if not bucket:
         pytest.skip("S3_BUCKET not configured; run under the container integration environment")

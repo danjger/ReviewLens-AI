@@ -747,3 +747,10 @@ is the smaller, more honest fix and keeps the perf job self-skipping in any
 half-provisioned environment; (b) makes the perf job actually measure once the
 later-spec endpoints exist. Either way, an absent schema must be a skip, never a
 red error.
+
+Resolved: `tests/perf/test_api_latency.py` now has a `_schema_ready()` gate
+(`SELECT to_regclass('public.datasets')`) that `pytest.skip`s when the `datasets`
+table is absent, so a reachable-but-un-migrated DB skips cleanly instead of
+raising `UndefinedTable`. Verified: the gate returns the table when migrated and
+`None` when absent, and the perf test runs/skips without error against the live
+stack.
