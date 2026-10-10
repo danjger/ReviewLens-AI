@@ -496,3 +496,30 @@ plain string against the `uuid` column (`WHERE id = :id`), the same class task
 15 fixed elsewhere; it works today only because these raw statements are not
 hitting the stricter-cast path the task-15 statements did — if touched, add the
 `CAST(:id AS uuid)` cast for consistency. (Not the cause of this bug.)
+
+### HTML-check integration tests raced the live consumer — TEST BUG (fixed, PR #3)
+Found 2026-10-10 by `CI / Container integration tests` on the `main` merge of
+this spec's HTML-upload work (PR #1). Two tests in
+`tests/integration/ingestion/test_html_check_endpoint_int.py`
+(`test_html_check_happy_path_enqueues_one_message` and
+`test_html_check_with_source_url_stores_normalized`) failed with
+`assert [] == [{'check_id': ..., 'item_id': 'u1'}]`.
+Root cause (test defect, NOT a product bug): both tests posted to
+`POST /ingest/html-checks` and then **drained `check-queue`** to assert exactly
+one enqueued message. In the full `make test-int` stack the live `workers-check`
+consumer receives and deletes that message before the test reads it, so the
+drain returns `[]`. They passed when first authored (task 19.1) only because
+that run brought up a partial stack with consumers STOPPED. The endpoint
+enqueues correctly and the consumer consumes correctly — the assertion method
+was wrong. This is the same "observe outcomes via state, don't race the queue"
+lesson the existing full-stack check tests already follow (they assert on the
+DynamoDB session via `check_session.get_session`, never on a queue drain).
+Fix (this spec, PR #3): assert on the **enqueue call** via a spy that wraps the
+real `app.ingestion.api.enqueue` (so the message is still published and the
+consumer still runs), rather than draining the queue — proving one IDs-only
+message to `check-queue` deterministically without a consumer race. The two 422
+tests (which assert the queue stays EMPTY — safe, nothing is enqueued) and the
+429 test are unchanged. Verified: all 5 tests pass against `make up` with
+`workers-check` running (the exact failing condition). Severity: low (test-only;
+no product change), but it turned `CI` red on `main` and so skipped `Deploy`
+(which gates on a green `CI`); PR #3 restores green.
