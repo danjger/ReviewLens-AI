@@ -216,6 +216,35 @@ def _unique_ip_headers() -> dict[str, str]:
     return {"CloudFront-Viewer-Address": f"203.0.113.{uuid.uuid4().int % 250}:4321"}
 
 
+@pytest.fixture()
+def captured_enqueue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, dict[str, object]]]:
+    """Record every ``enqueue`` the endpoint makes, while still enqueuing for real.
+
+    The endpoint publishes to ``check-queue`` through
+    :func:`app.core.queue.enqueue`, referenced as ``app.ingestion.api.enqueue``.
+    In the full ``make test-int`` stack the live ``workers-check`` consumer
+    receives and deletes that message almost immediately, so a test that drains
+    the queue to count messages races the consumer and intermittently sees an
+    empty queue. This spy wraps the real ``enqueue`` so the message is still
+    published (production behaviour is unchanged) but the call is also recorded,
+    letting a test assert "exactly one IDs-only message" deterministically
+    without reading the queue back.
+    """
+    from app.ingestion import api as api_mod
+
+    real_enqueue = api_mod.enqueue
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def _spy(queue_url: str, body: dict[str, object], **kwargs: object) -> object:
+        calls.append((queue_url, body))
+        return real_enqueue(queue_url, body, **kwargs)
+
+    monkeypatch.setattr(api_mod, "enqueue", _spy)
+    return calls
+
+
 # ---------------------------------------------------------------------------
 # happy path (Requirements 8.1, 8.3, 8.7)
 # ---------------------------------------------------------------------------
@@ -225,6 +254,7 @@ def test_html_check_happy_path_enqueues_one_message(
     client,  # type: ignore[no-untyped-def]
     upload_factory: list[str],
     track_checks: list[str],
+    captured_enqueue: list[tuple[str, dict[str, object]]],
     _clean_queue: None,
 ) -> None:
     """A staged upload, no source_url → 202, one session, one check-queue message."""
@@ -254,15 +284,23 @@ def test_html_check_happy_path_enqueues_one_message(
     assert item.normalized is None
     assert item.final_url is None
 
-    # Exactly one check-queue message, IDs only.
-    messages = _drain_check_queue()
-    assert messages == [{"check_id": check_id, "item_id": "u1"}]
+    # Exactly one check-queue message, IDs only. The live ``workers-check``
+    # consumer in the full ``make test-int`` stack would otherwise receive and
+    # delete the message before this test could read it, so assert on the
+    # ENQUEUE call (captured via the ``enqueue`` spy) rather than draining the
+    # queue — proving one IDs-only message was published without racing the
+    # consumer.
+    assert len(captured_enqueue) == 1
+    queue_url, msg = captured_enqueue[0]
+    assert queue_url.endswith("/check-queue")
+    assert msg == {"check_id": check_id, "item_id": "u1"}
 
 
 def test_html_check_with_source_url_stores_normalized(
     client,  # type: ignore[no-untyped-def]
     upload_factory: list[str],
     track_checks: list[str],
+    captured_enqueue: list[tuple[str, dict[str, object]]],
     _clean_queue: None,
 ) -> None:
     """A supplied, well-formed source_url is normalized onto the item (8.12)."""
@@ -286,7 +324,12 @@ def test_html_check_with_source_url_stores_normalized(
     assert item.normalized == "https://example.com/Reviews"
     assert item.final_url == "https://www.Example.com/Reviews/?utm_source=x"
 
-    assert _drain_check_queue() == [{"check_id": check_id, "item_id": "u1"}]
+    # One IDs-only enqueue (asserted via the spy, not a queue drain, so the
+    # live consumer in the full stack can't race the assertion).
+    assert len(captured_enqueue) == 1
+    queue_url, msg = captured_enqueue[0]
+    assert queue_url.endswith("/check-queue")
+    assert msg == {"check_id": check_id, "item_id": "u1"}
 
 
 # ---------------------------------------------------------------------------
