@@ -221,3 +221,119 @@ blocker_empty:
   tags: [blocker]
   next_page: null
   reviews: []
+
+# A large server-rendered page (dataset-ingestion Requirement 9). It carries 24
+# server-rendered reviews — well above the default 5-review will_work minimum —
+# each with text, rating, date, and author, so both the URL-check path and the
+# HTML-upload path can reach a genuine will_work verdict in automated tests
+# (Requirements 9.1–9.3). The same file is published byte-for-byte under
+# fixtures-site/extraction/large_server_rendered/index.html.
+large_server_rendered:
+  url: https://workspace.example.com/pathfinder-desk/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, large_server_rendered]
+  next_page: null
+  selectors:
+    item: "article.review"
+    text: ".text"
+    rating: ".rating"
+    date: ".date"
+    author: ".author"
+  reviews:
+    - prefix: "Assembly took one afternoon and the frame feels rock solid"
+      rating: 5
+      date: "2024-09-02"
+      author: "Dana Fox"
+    - prefix: "The motor is quiet and smooth, though the control panel memory presets"
+      rating: 4
+      date: "2024-08-28"
+      author: "Priya Nair"
+    - prefix: "Wobbles noticeably once you go above about forty inches"
+      rating: 2
+      date: "2024-08-19"
+      author: "Marcus Lee"
+    - prefix: "Replaced a cheaper desk and the difference in stability"
+      rating: 5
+      date: "2024-08-11"
+      author: "Isabelle Moreau"
+    - prefix: "Good desk overall but the cable tray is flimsy"
+      rating: 3
+      date: "2024-08-03"
+      author: "Hassan Reza"
+    - prefix: "Transition from sitting to standing is instant with the preset buttons"
+      rating: 5
+      date: "2024-07-27"
+      author: "Jordan Park"
+    - prefix: "Spacious surface and a clean matte finish, but a corner arrived"
+      rating: 4
+      date: "2024-07-18"
+      author: "Lena Sorensen"
+    - prefix: "The anti-collision sensor is oversensitive"
+      rating: 2
+      date: "2024-07-09"
+      author: "Kofi Asante"
+    - prefix: "Four months of daily use and the lift mechanism is as smooth"
+      rating: 5
+      date: "2024-06-30"
+      author: "Helen Richardson"
+    - prefix: "Great value for a dual-motor frame, though I wish the legs"
+      rating: 4
+      date: "2024-06-21"
+      author: "Tomas Garcia"
+    - prefix: "Decent for the price but the included screws stripped easily"
+      rating: 3
+      date: "2024-06-12"
+      author: "Wei Zhang"
+    - prefix: "The widest desktop I could find for a studio apartment"
+      rating: 5
+      date: "2024-06-04"
+      author: "Sofia Martinez"
+    - prefix: "Sturdy and sleek, and the keypad lock keeps my toddler"
+      rating: 4
+      date: "2024-05-26"
+      author: "Noah Fischer"
+    - prefix: "Honestly the best upgrade to my home office this year"
+      rating: 5
+      date: "2024-05-17"
+      author: "Beatriz Costa"
+    - prefix: "It does the job but the instructions were a single confusing diagram"
+      rating: 3
+      date: "2024-05-08"
+      author: "Riley Thompson"
+    - prefix: "Rock steady at my full standing height and the surface has resisted"
+      rating: 5
+      date: "2024-04-29"
+      author: "Amara Johnson"
+    - prefix: "Lovely finish and quick delivery, although customer support took three days"
+      rating: 4
+      date: "2024-04-20"
+      author: "Grace Hughes"
+    - prefix: "One of the two motors failed after a month"
+      rating: 2
+      date: "2024-04-11"
+      author: "Daniel Oyelaran"
+    - prefix: "Silky quiet raise, generous travel range, and the memory presets"
+      rating: 5
+      date: "2024-04-02"
+      author: "Oliver Keane"
+    - prefix: "Big enough for a drawing tablet and two screens, but the grommet holes"
+      rating: 4
+      date: "2024-03-24"
+      author: "Nadia Haddad"
+    - prefix: "Zero wobble, fast lift, and the finish wipes clean in seconds"
+      rating: 5
+      date: "2024-03-15"
+      author: "Victor Alvarez"
+    - prefix: "Works fine but it arrived in two boxes a week apart"
+      rating: 3
+      date: "2024-03-06"
+      author: "Mei Tanaka"
+    - prefix: "Exceptionally stable and the understated design blends into my bedroom"
+      rating: 5
+      date: "2024-02-26"
+      author: "Felix Braun"
+    - prefix: "Comfortable height range for someone short, and the rounded edges"
+      rating: 4
+      date: "2024-02-17"
+      author: "Chloe Dubois"

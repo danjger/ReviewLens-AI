@@ -68,10 +68,17 @@ class Base(DeclarativeBase):
 
 
 class SourceType(enum.StrEnum):
-    """How a dataset's reviews were obtained."""
+    """How a dataset's reviews were obtained.
+
+    ``html_upload`` marks a dataset created from a saved page uploaded by the
+    analyst (dataset-ingestion Requirement 8.8), distinct from the tabular-CSV
+    ``upload``. The native PostgreSQL enum carries the same three values; see
+    migration ``0002_html_upload_source_type``.
+    """
 
     URL = "url"
     UPLOAD = "upload"
+    HTML_UPLOAD = "html_upload"
 
 
 class DatasetStatus(enum.StrEnum):

@@ -15,6 +15,17 @@ module and reads ``CHECK_QUEUE_URL``; this module supplies the handler
    back → **assess** (viability) → **duplicate lookup** → write the verdict,
    final URL, hops, and existing-dataset match onto the item, store the
    Extraction Plan, and move the item to ``done``.
+
+   An **upload item** (the item carries ``upload_id`` instead of a URL,
+   Requirement 8.3) skips the probe, redirect-following, and robots steps —
+   nothing is fetched. :func:`CheckHandler._upload_pipeline` builds the capture
+   from ``uploads/{upload_id}/file`` via :func:`app.capture.from_upload`, runs
+   the *same* ``assess`` and verdict rules with a "no restriction" robots
+   result, copies the uploaded HTML into ``checks/{check_id}/{item_id}/page.html``,
+   stores the plan, and runs the duplicate lookup only when a ``source_url`` was
+   supplied (an upload with no source URL never participates in URL dedupe,
+   Requirement 8.11). The AI call and verification stay bounded by
+   ``CHECK_TIMEOUT_S``.
 3. Publishes a ``check.updated`` event so the UI learns the result in real time.
 
 Timeout and failure (design "Error Handling"):
@@ -61,6 +72,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.capture import engine as capture_engine
+from app.capture.upload import from_upload, synthesize_final_url
 from app.consumer import MessageMeta
 from app.core.config import get_settings
 from app.core.db import session_scope
@@ -71,6 +83,7 @@ from app.db.status import log_event
 from app.events.publisher import publish_event
 from app.ingestion import check_session, duplicates
 from app.ingestion.check_session import CheckItem, CheckSession
+from app.ingestion.robots import RobotsResult
 from app.ingestion.robots import check as robots_check
 from app.ingestion.url_normalizer import normalize
 from app.ingestion.url_validator import SsrfError, probe
@@ -85,6 +98,12 @@ CHECK_UPDATED_DETAIL_TYPE = "check.updated"
 
 #: Reason text for the per-URL timeout (Requirement 3.10, design Error table).
 _TIMEOUT_REASON = "Page took too long to load"
+
+#: The robots result passed to ``assess`` on the upload path. Nothing is fetched
+#: for an uploaded page (Requirement 8.5), so robots.txt is never consulted;
+#: ``assess`` receives an explicit "no restriction" result so the robots warning
+#: is simply absent (design "Upload item" step 3).
+_NO_ROBOTS_RESTRICTION = RobotsResult(allowed=True)
 
 
 @dataclass
@@ -201,7 +220,73 @@ class CheckHandler:
         return result[0]
 
     def _pipeline(self, check_id: str, item: CheckItem) -> _CheckOutcome:
-        """Probe, capture, assess, and look up duplicates for one item."""
+        """Run the per-item pipeline, dispatching on the item kind.
+
+        An **upload item** carries ``upload_id`` (Requirement 8.3): nothing is
+        fetched, so the probe, redirect-following, and robots steps are skipped
+        and :func:`_upload_pipeline` builds the capture from the staged file.
+        Any other item is a **URL item** and runs the full
+        probe → capture → assess → duplicate-lookup pipeline.
+        """
+        if item.upload_id is not None:
+            return self._upload_pipeline(check_id, item)
+        return self._url_pipeline(check_id, item)
+
+    def _upload_pipeline(self, check_id: str, item: CheckItem) -> _CheckOutcome:
+        """Assess an uploaded saved page — no probe, no redirects, no robots.
+
+        For an upload item (Requirements 8.3, 8.4, 8.13) nothing is fetched: the
+        capture is built from ``uploads/{upload_id}/file`` by
+        :func:`app.capture.from_upload`, which supplies the uploaded markup plus
+        a synthetic ``final_url`` / ``main_status = 200`` (so the "main status
+        not 200 → wont_work" rule never misfires on an upload). The *same*
+        :func:`app.ingestion.viability.assess` and verdict rules a URL uses then
+        run, with an explicit "no restriction" robots result because robots.txt
+        is never consulted when nothing is fetched.
+
+        The uploaded HTML is copied into ``checks/{check_id}/{item_id}/page.html``
+        so :func:`app.ingestion.service.create_from_html_upload` (task 20) and an
+        ``upload_replace`` refresh find it under the same key a URL capture uses.
+        The duplicate lookup runs only when the analyst supplied a ``source_url``
+        (an upload with no source URL never participates in URL dedupe —
+        Requirement 8.11).
+        """
+        upload_id = item.upload_id
+        assert upload_id is not None  # dispatched here only for an upload item
+
+        final_url = synthesize_final_url(upload_id, item.source_url)
+
+        # Build the upload-backed CaptureView (reads the staged file from S3,
+        # decodes it, parses the title). No browser and no network.
+        view = from_upload(upload_id, item.source_url)
+
+        # Same viability assessment and verdict rules as a URL, with a
+        # "no restriction" robots result (nothing was fetched).
+        verdict, plan = assess(view, final_url, _NO_ROBOTS_RESTRICTION)
+
+        # Persist the uploaded HTML under the check page key so Add / an
+        # upload_replace refresh can promote it into the dataset's raw/v1.
+        s3.put_bytes(
+            keys.check_page(check_id, item.item_id),
+            view.html.encode("utf-8"),
+            content_type="text/html",
+        )
+
+        # Duplicate lookup only when a source URL was supplied (Req 8.11).
+        existing = None
+        if item.source_url is not None:
+            existing = duplicates.find_existing(item.normalized, _normalize(item.source_url))
+
+        return _CheckOutcome(
+            verdict=verdict,
+            plan_json=plan.model_dump(mode="json"),
+            final_url=final_url,
+            hops=[],
+            existing_dataset=existing.to_dict() if existing else None,
+        )
+
+    def _url_pipeline(self, check_id: str, item: CheckItem) -> _CheckOutcome:
+        """Probe, capture, assess, and look up duplicates for a URL item."""
         target_url = item.input
 
         # Probe: follow redirects, SSRF-check every hop, require a final 200.

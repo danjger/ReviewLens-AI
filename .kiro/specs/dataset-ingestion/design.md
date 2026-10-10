@@ -19,6 +19,8 @@ The Library's **Refresh** action uses the same Check machinery with `origin = "r
 
 Uploads go straight from the browser to S3 through a pre-signed URL, then are previewed and submitted by reference. This is needed because Lambda request payloads are capped at 6 MB, below the 10 MB upload limit.
 
+A third path, **HTML upload** (Requirement 8), lets the analyst upload the saved HTML of a review page their own browser rendered, for sites the app's own capture can't read. It reuses the Check machinery end to end: the uploaded file *replaces only* the `capture.render(url)` step; everything downstream — the Review Locator, verification, selector validation, method choice, verdict, dataset creation, refresh, and enqueue — runs exactly as it does for a URL. An HTML upload therefore travels through the same `check-queue`, the same `CheckHandler`, the same `check.updated` realtime events and polling fallback, and the same Add step and verdict card. The only new surface is a small amount of API wiring (gate `POST /uploads` to accept HTML, and two thin endpoints to start a Check from an upload and to supply the HTML upload's name/source URL) and an upload-backed capture that produces the same `CaptureResult` shape `assess()` already consumes. The uploaded page is never fetched over the network: `assess()` reads the saved markup only, and the probe, redirect-following, and robots steps are skipped because nothing is retrieved.
+
 ## Architecture
 
 ```mermaid
@@ -62,6 +64,56 @@ sequenceDiagram
   API-->>UI: 200 {results[]}
 ```
 
+### HTML upload path
+
+An HTML upload reuses the Check flow with one substitution: the worker reads the analyst's uploaded HTML instead of rendering a live URL. The analyst first uploads the file (reusing `POST /uploads`), then starts a one-item Check whose item carries an `upload_id` instead of a URL. The `CheckHandler` recognises an upload item, builds an upload-backed capture, and runs the *same* viability assessment, verdict, and duplicate lookup. The verdict reaches the browser through the same `check.updated` events and verdict card; Add then creates a dataset (or routes to the Refresh Service) through the same `ingestion.service`.
+
+```mermaid
+sequenceDiagram
+  participant UI as New Dataset panel (HTML tab)
+  participant API as API service
+  participant S3
+  participant DDB as DynamoDB check-sessions (TTL 24h)
+  participant CQ as SQS check-queue
+  participant W as Job worker (check handler)
+  participant CL as Claude (extract model)
+  participant DB as Aurora
+  participant RS as Refresh Service
+  participant PQ as SQS FIFO processing-queue
+  UI->>API: POST /uploads {filename,size_bytes,content_type: html}
+  API-->>UI: 201 {upload_id, put_url, expires_at}
+  UI->>S3: PUT saved page (pre-signed, content-length pinned)
+  UI->>API: POST /ingest/html-checks {upload_id, source_url?}
+  API->>API: rate limit (checks), confirm staged object exists
+  API->>DDB: put session {origin:"new", one item: {upload_id, source_url?}}
+  API->>CQ: one message {check_id, item_id}
+  API-->>UI: 202 {check_id, item_id}
+  CQ->>W: {check_id, item_id}
+  W->>DDB: conditional claim (pending → checking)
+  W->>W: item is an upload → read uploads/{upload_id}/file from S3
+  W->>W: build CaptureView (html, synthetic final_url + main_status=200)
+  Note over W: probe / redirect / robots SKIPPED — nothing is fetched
+  W->>W: clean page, parse structured data, rule-based blocker scan
+  W->>CL: Review Locator (cleaned uploaded page)
+  CL-->>W: reviews, selectors, next page, blocker, confidence
+  W->>W: verify reviews against uploaded text, validate selectors, build plan + verdict
+  W->>S3: copy upload → checks/{check_id}/{item}/page.html; write plan.json
+  W->>DB: find dataset by normalized source URL (only when source_url given)
+  W->>DDB: update item {verdict, evidence, existing_dataset}
+  W-)UI: check.updated (EventBridge → push-queue → WS)
+  UI->>API: POST /ingest/checks/{id}/add {items[], confirm_limited, name, source_url?, description?}
+  alt no source URL, or source URL not tracked
+    API->>S3: copy checks/... → datasets/{id}/raw/v1 (page, plan)
+    API->>DB: INSERT dataset (source_type html_upload, requested), dataset_versions v1
+    API->>PQ: enqueue {dataset_id, 1}
+  else source URL already tracked
+    API->>RS: refresh(existing_id, capture=CheckCapture(uploaded html+plan), trigger="upload_replace")
+  end
+  API-->>UI: 200 {results[]}
+```
+
+The assessment is **asynchronous through the Check Session**, not a synchronous API call. The reasons mirror the URL check: a single uploaded page still needs the Extraction Engine (one AI call) and the full verification/selector-validation pass, which can exceed API Gateway's 29-second window on a cold worker. Reusing the `check-queue`/Check Session machinery with a single item means the existing check handler, the `check.updated` realtime events, the polling fallback, the verdict card UI, and the Add step are all reused unchanged — the HTML tab is a thin new producer in front of the same pipeline. (A dedicated synchronous `assess`-only endpoint was rejected: it would duplicate the handler, lose the realtime/polling plumbing, and risk a 29-second timeout.)
+
 ## Components and Interfaces
 
 ### API endpoints
@@ -71,12 +123,19 @@ sequenceDiagram
 | POST | `/ingest/checks` | `{ urls: string[] }` (1–10) | 202 `{check_id, items:[{item_id, input, normalized, state:"pending" \| "invalid" \| "duplicate_in_batch"}]}`; 429 when rate-limited |
 | GET | `/ingest/checks/{check_id}` | – | 200 session with every item's state, verdict, and evidence (polling fallback); 404 if expired |
 | POST | `/ingest/checks/{check_id}/items/{item_id}/retry` | – | 202; re-queues one item that ended in `error` or timed out; 429 when rate-limited |
-| POST | `/ingest/checks/{check_id}/add` | `{ items: [{item_id, confirm_limited?: bool}] }` | 200 `{results:[{item_id, outcome, dataset_id?, message}]}` |
-| POST | `/uploads` | `{ filename, size_bytes, content_type }` | 201 `{upload_id, put_url, expires_at}` (pre-signed PUT to `uploads/{upload_id}/file`, 15 minutes, content-length limited to `MAX_UPLOAD_MB`); 422 if too large; 429 when rate-limited |
+| POST | `/ingest/checks/{check_id}/add` | `{ items: [{item_id, confirm_limited?: bool, name?, source_url?, description?}] }` | 200 `{results:[{item_id, outcome, dataset_id?, message}]}` |
+| POST | `/ingest/html-checks` | `{ upload_id, source_url? }` | 202 `{check_id, item_id, state:"pending"}`; 422 if the staged object is missing or `source_url` is malformed; 429 when rate-limited |
+| POST | `/uploads` | `{ filename, size_bytes, content_type }` | 201 `{upload_id, put_url, expires_at}` (pre-signed PUT to `uploads/{upload_id}/file`, 15 minutes, content-length limited to `MAX_UPLOAD_MB`); 422 if too large or the extension/type is not accepted; 429 when rate-limited |
 | POST | `/uploads/{upload_id}/preview` | – | 200 `{columns, suggested_mapping, sample_rows, usable_rows, will_keep, keep_rule}`; 422 with a reason (upload deleted) |
 | POST | `/datasets/upload` | `{ upload_id, name, mapping, description? }` | 201 `{id}`; 422 |
 
 `outcome` is one of `created`, `refreshed`, `restored_and_refreshed`, `already_refreshing`, `refused_wont_work`, `needs_confirmation`, or `expired`.
+
+`POST /uploads` is **reused** for HTML uploads: its accepted extension/content-type set is widened to include saved pages (`.html`, `.htm`, `.mhtml`) alongside `.csv`/`.tsv` (Requirement 8.1). The extension remains the authoritative gate; `MAX_UPLOAD_MB` and the content-length pin are shared with the tabular path (Requirement 7.1). It stages the file at the same `uploads/{upload_id}/file` key.
+
+`POST /ingest/html-checks` is the only genuinely new endpoint. It starts a one-item Check Session (`origin="new"`) whose single item carries `upload_id` (and the analyst's optional `source_url`) in place of a URL, then enqueues one `check-queue` message. It is rate-limited on the shared `checks` counters. A CSV-style preview endpoint is deliberately **not** added for HTML — the "preview" of an uploaded page is a viability assessment, which is exactly what the Check produces, so it is surfaced through the same verdict card rather than a column preview.
+
+`POST /ingest/checks/{check_id}/add` is **reused** for HTML uploads because an uploaded page is modelled as a Check item. For an HTML item the body additionally carries the required `name`, the optional analyst-supplied `source_url`, and an optional `description`; these are ignored for URL items. Add therefore keeps one code path for both URL and HTML items — refuse `wont_work`, confirm `limited`, create vs refresh, the `applied` claim, and the unique-URL race are all shared.
 
 Check and item IDs are random UUIDs. The app has no accounts, so anyone holding a check ID can view and add its results; the IDs aren't listed anywhere.
 
@@ -88,23 +147,30 @@ Check and item IDs are random UUIDs. The app has no accounts, so anyone holding 
   - `probe(url) -> ProbeResult{final_url, status, hops[]}`: `httpx` with manual redirects so every hop is SSRF-checked and logged. It sends a current desktop Chrome `User-Agent`, `Accept`, and `Accept-Language` header set.
 - `handlers.check.CheckHandler` (queue `check`), idempotent:
   1. Claim the item with a conditional DynamoDB update (`state = pending` or `error` → `checking`, with `claimed_at`). If the claim fails because another instance holds it and `claimed_at` is recent, drop the message.
-  2. Probe → Capture to `checks/{check_id}/{item_id}/` → Viability (below) → duplicate lookup → write the item → publish `check.updated`. The whole item is limited to `CHECK_TIMEOUT_S` (default 60).
-  3. When the session's `origin` is `refresh`, apply Requirement 6.9: call the Refresh Service, leave the item `awaiting_confirmation`, or append a failed-refresh event through `db.status.log_event()`.
+  2. **URL item:** Probe → Capture to `checks/{check_id}/{item_id}/` → Viability (below) → duplicate lookup → write the item → publish `check.updated`. The whole item is limited to `CHECK_TIMEOUT_S` (default 60).
+  3. **Upload item** (the item carries `upload_id` instead of a URL): skip the probe, redirect-following, and robots steps (nothing is fetched); build an upload-backed capture (below) from `uploads/{upload_id}/file`; run the *same* Viability assessment and verdict; run the duplicate lookup only when a `source_url` was supplied; write the item and publish `check.updated`. The AI call and verification are still bounded by `CHECK_TIMEOUT_S`.
+  4. When the session's `origin` is `refresh`, apply Requirement 6.9: call the Refresh Service, leave the item `awaiting_confirmation`, or append a failed-refresh event through `db.status.log_event()`.
 - `capture.render(url, prefix) -> CaptureResult` (in-process in the workers image):
   - Playwright Chromium with a 1280×900 viewport; one browser per worker process, reused across messages, with a fresh context per message.
   - `page.route("**/*")` guard: every request the browser makes is resolved and SSRF-checked; blocked requests are aborted.
   - Waits for `networkidle` (capped at 15 s), scrolls once to trigger lazy-loaded reviews, then saves the HTML, a screenshot, and the title.
   - Returns the main document's response status and `page.url`. When `page.url` differs from the URL requested, the check records a `client_redirect` hop and uses `page.url` as the Final URL.
-- `ingestion.viability.assess(capture, final_url, robots) -> (Verdict, ExtractionPlan)`: see below.
+- `capture.from_upload(upload_id, source_url) -> CaptureView` (in the base image; no browser): reads `uploads/{upload_id}/file` from S3, decodes it as text (rejecting a file that is not readable text with the same specific-message/delete handling as a bad CSV, Requirement 8.2), and returns the existing `viability.CaptureView` with the uploaded markup as `html`. It synthesizes the two fields a live render would have supplied, because there was no HTTP response:
+  - `final_url` = the analyst-supplied Source URL when present, otherwise a synthetic placeholder (for example `upload://{upload_id}`) used only as plan context. It is never fetched (Requirements 8.5, 8.8).
+  - `main_status` = `200` (synthetic): an uploaded file the analyst already viewed is treated as a successful render, so the "main status not 200 → `wont_work`" rule (Requirement 2.7) never misfires on an upload where no status exists.
+  - `page_title` = the uploaded page's `<title>`, parsed from the markup (Requirement 4.3).
+  Because `assess()` consumes a `CaptureView`, it runs **unchanged** on an upload: the pre-scan, structured data, Review Locator, verification, selector validation, method choice, and verdict are identical to a URL, so the verdict rules (3.4–3.6) and provenance verification (3.3 / 8.4) are the same. **Screenshot:** none is produced for an HTML upload in the first release (Requirement 8.10 says the UI *may* show one). Rendering the saved HTML in a browser only to screenshot it would reintroduce the SSRF surface of sub-resource loads; skipping it keeps the upload path free of any network fetch (Requirement 8.5). This is a deliberate design decision — see Known Issues. If a screenshot is added later, it must load the HTML in a locked-down context whose `page.route("**/*")` guard SSRF-checks and aborts every sub-request exactly as `capture.render` does (Requirement 8.6).
+- `ingestion.viability.assess(capture, final_url, robots) -> (Verdict, ExtractionPlan)`: see below. Unchanged by this spec — it already takes a `CaptureView`, so an upload-backed view flows through it with no new code. For an upload the caller passes a `robots` result that is always "no restriction" (robots is not consulted when nothing is fetched).
 - `ingestion.robots.check(final_url) -> RobotsResult`: fetches `robots.txt` (SSRF-checked, 3-second timeout) and evaluates it for the `*` user agent. A failure to fetch is treated as "no restriction."
 - `ingestion.duplicates.find_existing(normalized_target, normalized_final) -> Dataset | None`: queries both normalized columns, including archived datasets.
-- `ingestion.service.add_items(check_id, items)`: for each item: refuses `wont_work`; asks for confirmation on `limited`; calls `create_from_check()` for new URLs; calls `refresh_service.refresh()` for tracked URLs. Marks each item `applied` with a conditional update, so a double-clicked Add or two instances can't create two datasets. It also handles the unique-constraint race: when an insert fails because a concurrent request created the same normalized URL, it falls back to refreshing that dataset.
-- `datasets.refresh_service.refresh(dataset_id, trigger, capture: CheckCapture | UploadCapture)` (**shared with `dataset-library`**). A capture is always required; the caller produces it through a Check or an upload.
+- `ingestion.service.add_items(check_id, items)`: for each item: refuses `wont_work`; asks for confirmation on `limited`; calls `create_from_check()` for new URLs; calls `refresh_service.refresh()` for tracked URLs. Marks each item `applied` with a conditional update, so a double-clicked Add or two instances can't create two datasets. It also handles the unique-constraint race: when an insert fails because a concurrent request created the same normalized URL, it falls back to refreshing that dataset. For an **upload item** the per-item decision table is identical, with two branch points: the create path calls `create_from_html_upload()` instead of `create_from_check()`, and routing to refresh happens only when the item's optional `source_url` matched an existing dataset at Check time (an upload with no source URL always creates — Requirement 8.11; one whose source URL is tracked refreshes — Requirement 8.12). The `name`, `source_url`, and `description` from the Add body are carried on the request item and used only on the HTML-upload create path.
+- `datasets.refresh_service.refresh(dataset_id, trigger, capture: CheckCapture | UploadCapture)` (**shared with `dataset-library`**). A capture is always required; the caller produces it through a Check or an upload. An HTML upload refresh (Requirement 8.12) carries a `CheckCapture` whose `page_key` is the uploaded HTML copied into `checks/{check_id}/{item_id}/page.html` and whose `plan_key` is the Extraction Plan the Check produced (no `snapshot_key`). It is a `CheckCapture` and not a new type because an assessed HTML upload has exactly the shape a URL Check produces — rendered HTML plus a plan — so `_copy_capture` reuses the URL branch unchanged; the `trigger` is `upload_replace`. This reconciles with the requirements' **Upload Capture** glossary term: the tabular upload (`UploadCapture`: file + mapping) and the HTML upload (a `CheckCapture` carrying uploaded HTML + plan) are the *two kinds of upload capture*, distinguished by what the Refresh Service copies, not by a shared class.
   - If the dataset is `requested` or `processing`, returns `already_refreshing`.
   - If the dataset is archived, clears `archived_at` and returns `restored_and_refreshed`.
   - Otherwise increments `data_version`, copies the capture (page, plan, and snapshot for URLs; file and mapping for uploads) to `raw/v{n}`, inserts a `dataset_versions` row with `trigger`, transitions to `requested` with a `refresh_requested` event, and enqueues processing. The version increment and row insert happen in one transaction guarded by `WHERE status NOT IN ('requested','processing')`, so concurrent refreshes produce exactly one new version.
 - `ingestion.upload_parser`: reads the object from S3, uses the `csv` sniffer, applies the header synonym table (for example `review|text|comment|body` → text, `rating|stars|score` → rating), counts usable rows, and applies the `MAX_REVIEWS` keep rule for the preview.
 - `ingestion.service.create_from_upload(upload_id, name, mapping, description)`: re-validates, copies `uploads/{upload_id}/file` to `datasets/{id}/raw/v1/upload.csv`, writes `raw/v1/mapping.json` (mapping plus keep rule), inserts the dataset and version 1 record, and enqueues processing.
+- `ingestion.service.create_from_html_upload(check_id, item, name, source_url, description)`: the HTML-upload analogue of `create_from_check`. The Check handler has already copied the uploaded HTML to `checks/{check_id}/{item_id}/page.html` and written the plan to `plan.json`, so this reuses the same copy-into-`raw/v1` + insert + enqueue path, with these differences: `source_type = html_upload`; `name` is the analyst's required name (not derived from a URL); `original_url`/`normalized_url` are set from `source_url` only when supplied, otherwise left null (so the upload does not participate in URL dedupe — Requirement 8.11); no `final_url`/`normalized_final_url`; no snapshot copy. `status_detail` carries the `requested` event and the viability verdict exactly as the URL path (Requirements 8.9, 3.11). Failure cleanup (delete partial permanent objects, no half-created row) and the enqueue of `{dataset_id, data_version: 1}` are identical to `create_from_check`. There is no unique-URL race fallback for an upload without a source URL (it never inserts a normalized URL); an upload *with* a tracked source URL is routed to refresh by `add_items` before this is reached.
 
 ### Viability assessment (AI-first)
 
@@ -121,7 +187,9 @@ Check and item IDs are random UUIDs. The app has no accounts, so anyone holding 
    - otherwise `ai_direct`, meaning each page is read by the AI.
 7. **Verdict** by the rules in Requirement 3.4–3.6, with plain-language reasons.
 
-If the AI is unavailable or over the global limit, steps 3–5 are skipped, the method is `structured` if structured data exists, and the verdict is at most `limited` (Requirement 3.13).
+If the AI is unavailable or over the global limit, steps 3–5 are skipped, the method is `structured` if structured data exists, and the verdict is at most `limited` (Requirement 3.13). This applies identically to an HTML upload (Requirement 8.13), since the upload path calls the same `assess()`.
+
+For an HTML upload, `assess()` runs steps 1–7 **exactly as for a URL** on the uploaded markup: the pre-scan, structured-data parse, Review Locator, per-review verification against the uploaded page text (3.3 / 8.4 — the Locator only points at elements and never supplies text), selector validation, method choice, and verdict rules (3.4–3.6) are the same. The only differences are upstream: no probe/redirect/robots (nothing is fetched) and a synthetic `final_url`/`main_status` on the `CaptureView` (see `capture.from_upload`).
 
 ```json
 {
@@ -149,6 +217,7 @@ The **New Dataset panel** layout is owned by `dataset-library`. This spec suppli
   - A checkbox to include the URL. It is off and disabled for `wont_work`, and on by default for the others
   - Then **Add selected**. A confirmation lists the `limited` items and how each item will be handled (new or refresh)
 - **Upload tab:** dropzone → pre-signed upload with a progress bar → preview table with detected mapping and a "N rows usable; the most recent 1,000 will be kept" note when over the limit → column mapper → name → submit.
+- **HTML tab** (Requirement 8.14): dropzone for a saved page (`.html`/`.htm`/`.mhtml`) → pre-signed upload with a progress bar (reusing `POST /uploads`) → `POST /ingest/html-checks` to start the assessment → a verdict card identical to the URL card (verdict badge with text not color alone, reasons, warnings, evidence, two or three verified sample reviews copied from the uploaded page) → a required name field plus optional source URL and description fields → **Add**. When the supplied source URL is already tracked, the card shows the same "Already tracked as *…* — will refresh" note as the URL tab. The single item polls / listens on the same `check.updated` channel as a URL check.
 - After Add, a results summary lists each URL's outcome (created / refreshed / restored and refreshed / already refreshing).
 - The panel keeps the current `check_id` in the URL (`?check=…`), so reloading the page keeps the results.
 
@@ -163,10 +232,11 @@ The **New Dataset panel** layout is owned by `dataset-library`. This spec suppli
                "state": "pending|checking|done|invalid|duplicate_in_batch|error|awaiting_confirmation|applied",
                "claimed_at": "ISO", "hops": [ ], "verdict": { },
                "existing_dataset": { "id": "…", "name": "…", "archived": false, "status": "updated" },
-               "capture_prefix": "checks/{check_id}/u1/" } ] }
+               "capture_prefix": "checks/{check_id}/u1/",
+               "upload_id": null, "source_url": null } ] }
 ```
 
-Items are stored as a map keyed by `item_id` so each item can be updated independently with a conditional expression.
+Items are stored as a map keyed by `item_id` so each item can be updated independently with a conditional expression. An **HTML-upload item** sets `upload_id` (and optionally `source_url`) and leaves `input` showing the uploaded file name; the handler reads `upload_id` to decide the upload path. `normalized`/`final_url` are populated from `source_url` only when one was supplied.
 
 S3 lifecycle rules delete `checks/` and `uploads/` objects after 1 day.
 
@@ -180,13 +250,20 @@ Defined in `review-extraction`. Summary: `{method, selectors?, rating_scale, nex
 - `normalized_final_url text`, indexed (not unique)
 - `status_detail.viability`: Verdict and evidence at the time the dataset was added or last refreshed; review-analysis adds `actual` next to it
 
+### `source_type` gains an `html_upload` value (migration in this spec)
+
+The `source_type` enum, today `url` (URL check) and `upload` (tabular CSV), gains a **third** value `html_upload` for datasets created from a saved page (Requirement 8.8). This is one Alembic revision (one revision per schema-changing task, per the repository conventions) that extends the native PostgreSQL enum type and is applied through `core.db` / the RDS Data API. The unique partial index on `normalized_url` stays `WHERE source_type = 'url'`, so:
+
+- An HTML upload **without** a source URL has a null `normalized_url` and does not participate in URL dedupe (Requirement 8.11); multiple such uploads of the same page are allowed.
+- An HTML upload **with** a source URL that matches an existing dataset is routed to the Refresh Service by `add_items` *before* any insert (Requirement 8.12), so it never inserts a competing `html_upload` row for that URL. (An `html_upload` row carries its source URL in `original_url`/`normalized_url` for display and duplicate matching but, being `html_upload`, is not itself covered by the `url`-only unique index — the match is enforced by the pre-insert refresh routing, consistent with how an already-tracked URL is handled.)
+
 ### `dataset_versions` table (shared with `review-analysis`, `dataset-library`, and `guardrailed-chat`)
 
 | Column | Type | Notes |
 |---|---|---|
 | `dataset_id` | UUID FK | PK part 1 |
 | `version` | int | PK part 2 |
-| `trigger` | text | `initial`, `manual_refresh`, `duplicate_submission`, `upload_replace` |
+| `trigger` | text | `initial`, `manual_refresh`, `duplicate_submission`, `upload_replace` (an HTML-upload refresh also uses `upload_replace`) |
 | `requested_at` | timestamptz | |
 | `completed_at` | timestamptz null | Set by review-analysis |
 | `review_count` | int null | Set by review-analysis |
@@ -206,6 +283,8 @@ Properties are tested with Hypothesis; the concurrency properties use a model-ba
 5. **Won't-work URLs never become data.** *For any* sequence of Add requests, no dataset or data version SHALL be created from an item whose verdict is `wont_work`. _Validates: Requirement 3.8_
 6. **One dataset per URL.** *For any* interleaving of concurrent Add requests for URLs with the same normalized form, exactly one dataset SHALL exist for that URL afterward. _Validates: Requirements 6.2, 6.4, 6.7_
 7. **One new version per refresh.** *For any* number of concurrent refresh calls on a dataset that is not processing, `data_version` SHALL increase by exactly one. _Validates: Requirement 6.6_
+8. **Uploaded pages are never fetched.** *For any* uploaded HTML file, assessing it SHALL make no outbound network request for the page or any of its links, scripts, images, or iframes; the assessment reads only the saved markup. _Validates: Requirements 8.5, 8.6_
+9. **Upload review provenance.** *For any* uploaded HTML file, every verified review the assessment keeps SHALL have text that appears verbatim (after whitespace and Unicode normalization) in the uploaded markup; a review whose text is not present SHALL be discarded and SHALL NOT count toward the verdict. _Validates: Requirements 8.4, 3.3_
 
 ## Error Handling
 
@@ -226,6 +305,11 @@ Properties are tested with Hypothesis; the concurrency properties use a model-ba
 | Rate limit exceeded | 429 with `Retry-After`; the panel says when checks can resume |
 | Upload larger than the limit | Refused before a pre-signed URL is issued; S3 also enforces the content-length limit |
 | Upload invalid at preview | 422 with reason; the object is deleted |
+| HTML upload with a wrong extension/type | Refused at `POST /uploads` with 422 before a pre-signed URL is issued (same gate as CSV, extended to HTML) |
+| HTML upload file not readable as text | During the Check, the item ends `wont_work` (or the upload is rejected and deleted) with a specific message; no dataset is created (Requirement 8.2) |
+| `POST /ingest/html-checks` with a missing staged object | 422; no session is created |
+| HTML upload assessment: blocker found or no reviews verified | Same as a URL: `wont_work`, not addable (Requirements 3.5, 8.3) |
+| HTML upload with a `source_url` already tracked | Add routes to the Refresh Service with trigger `upload_replace`; no duplicate row (Requirement 8.12) |
 
 A verdict is a prediction, not a guarantee. The actual outcome is recorded next to it, and the summary page shows both. Together with the extraction evaluation suite in `review-extraction`, this is how the prompts and thresholds get tuned.
 
@@ -238,8 +322,27 @@ A verdict is a prediction, not a guarantee. The actual outcome is recorded next 
 - **Verdict accuracy:** `assess()` is added to the extraction evaluation suite from `review-extraction`, which reports verdict accuracy against the labeled pages; the job fails below 0.90.
 - **Frontend tests:** multi-line parsing and the 10-line limit, verdict cards, badges, samples, and warnings, disabled `wont_work` checkbox, per-item Retry, limited-confirmation dialog, "Already tracked" notes, results summary, 429 message, reload keeping `?check=`, upload progress and over-limit note.
 - **E2E (against the public fixture site):** paste three fixture URLs (one of each verdict), check, add; confirm the `wont_work` URL is refused and the others appear in the Library. Paste an existing dataset's URL with `?utm_source=x`; confirm no new row appears and the existing row goes back to `requested`.
+- **Unit tests for HTML upload:** `capture.from_upload` builds a `CaptureView` with the uploaded HTML, a synthetic `main_status = 200`, `final_url` from the source URL or the `upload://` placeholder, and the parsed title; a non-text file is rejected with a specific message; the `/uploads` extension gate accepts `.html`/`.htm`/`.mhtml` and still rejects other types. No new `assess()` tests are needed — the existing verdict-rule tests already cover the shared assessment — but a focused test confirms `assess()` returns the same verdict for the same markup whether it arrived as a URL capture or an upload capture.
+- **Property tests (Hypothesis) for HTML upload:** Property 8 (no outbound fetch during an upload assessment — asserted with a network guard / no capture route calls); Property 9 (every kept review's text appears verbatim in the uploaded markup, reusing the URL verification generators). Both reference their property number in the docstring.
+- **Integration tests for HTML upload (AI stub with recorded Locator responses):** `POST /uploads` (html) → PUT to S3 → `POST /ingest/html-checks` → the check handler reads the staged file, assesses it, and writes the item + plan + `check.updated` with no probe/robots fetch; Add with no source URL → one `html_upload` dataset v1 plus enqueue; Add with a tracked source URL → no new row, version 2 via `upload_replace`, `refresh_requested` event; two uploads of the same page without a source URL → two datasets (no dedupe, Requirement 8.11); AI-unavailable upload → verdict capped at `limited` with the "AI page reading unavailable" reason.
+- **Large server-rendered fixture (Requirement 9):** a new fixture under `/fixtures-site/extraction/` with at least 20 server-rendered reviews (text plus rating/date/author where applicable), added to the `review-extraction` evaluation suite. A test asserts it reaches a genuine `will_work` verdict under the default thresholds (≥5 verified, no blocker, confidence not low). The *same* fixture file is loaded over HTTP by the URL-check E2E and uploaded as a saved page by the HTML-upload integration/E2E tests, so both paths exercise a `will_work` outcome from one source page.
 
 ## Known Issues
+
+### HTML uploads produce no screenshot in the first release (design decision)
+
+Requirement 8.10 says the UI *may* show a screenshot of an uploaded page, so
+one is optional. Producing it would mean loading the saved HTML in headless
+Chromium only to capture it, which reintroduces the SSRF surface of
+sub-resource loads (scripts, images, iframes referenced by the saved markup).
+To keep the upload path provably free of any network fetch (Requirement 8.5,
+Correctness Property 8), no screenshot is generated for HTML uploads initially,
+and the HTML upload's dataset has no `snapshot/v1.png`. If a screenshot is added
+later it must render in a locked-down context whose `page.route("**/*")` guard
+SSRF-checks and aborts every sub-request exactly as `capture.render` does
+(Requirement 8.6); until then the UI simply omits the snapshot for `html_upload`
+datasets (consistent with how a tabular `upload` dataset shows no snapshot,
+Requirement 7.5).
 
 ### Upload column detection missed `review_text` (separator mismatch)
 

@@ -339,6 +339,222 @@ def test_duplicate_delivery_produces_one_result(
 
 
 # ---------------------------------------------------------------------------
+# Upload-item branch (dataset-ingestion task 18 / Requirements 8.3, 8.4, 8.13)
+# ---------------------------------------------------------------------------
+
+
+_UPLOAD_HTML = (
+    b"<html><head><title>Saved Reviews</title></head>"
+    b"<body><main><div class='review'><p>A genuinely great product.</p></div></main></body></html>"
+)
+
+
+def _stub_assess_only(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    verdict: Verdict,
+) -> tuple[list[str], list[str], list]:
+    """Stub ``assess`` and spy on ``probe``/``robots_check`` for the upload path.
+
+    The upload branch must *never* probe, follow redirects, or consult robots.txt
+    (nothing is fetched — Requirement 8.5), so ``probe`` and ``robots_check`` are
+    replaced with spies that record (and fail) if called. ``assess`` is stubbed
+    so no AI/extraction runs; the real :func:`app.capture.from_upload` still runs
+    against a staged S3 object. Returns ``(probe_calls, robots_calls, assess_calls)``.
+    """
+    probe_calls: list[str] = []
+    robots_calls: list[str] = []
+    assess_calls: list = []
+
+    def _spy_probe(url: str):  # type: ignore[no-untyped-def]
+        probe_calls.append(url)
+        pytest.fail("probe must not be called on the upload path")
+
+    def _spy_robots(url: str):  # type: ignore[no-untyped-def]
+        robots_calls.append(url)
+        pytest.fail("robots_check must not be called on the upload path")
+
+    monkeypatch.setattr(check_mod, "probe", _spy_probe)
+    monkeypatch.setattr(check_mod, "robots_check", _spy_robots)
+
+    plan = ExtractionPlan(
+        version=1,
+        created_at="2024-01-01T00:00:00+00:00",
+        method="selectors",
+        next_page_rule=NextPageRule(type="none"),
+    )
+
+    def _assess(view, final_url, robots):  # type: ignore[no-untyped-def]
+        assess_calls.append((view, final_url, robots))
+        return verdict, plan
+
+    monkeypatch.setattr(check_mod, "assess", _assess)
+    return probe_calls, robots_calls, assess_calls
+
+
+def _spy_check_updated(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    """Capture ``check.updated`` event details the handler publishes."""
+    captured: list[dict] = []
+
+    def _fake_publish(*, detail_type: str, detail: dict) -> None:  # type: ignore[no-untyped-def]
+        if detail_type == check_mod.CHECK_UPDATED_DETAIL_TYPE:
+            captured.append(detail)
+
+    monkeypatch.setattr(check_mod, "publish_event", _fake_publish)
+    return captured
+
+
+def _put_upload_file(upload_id: str, body: bytes = _UPLOAD_HTML) -> None:
+    """Stage a saved-page HTML file at ``uploads/{upload_id}/file`` in S3."""
+    from app.storage import keys
+
+    s3.put_bytes(keys.upload_file(upload_id), body, content_type="text/html")
+
+
+def _upload_item(upload_id: str, *, source_url: str | None = None) -> CheckItem:
+    """A one-item upload CheckItem carrying ``upload_id`` (and optional source)."""
+    normalized = None
+    if source_url is not None:
+        from app.ingestion.url_normalizer import normalize
+
+        normalized = normalize(source_url)
+    return CheckItem(
+        item_id="u1",
+        input="saved-page.html",
+        state="pending",
+        upload_id=upload_id,
+        source_url=source_url,
+        normalized=normalized,
+    )
+
+
+def test_upload_item_reaches_verdict_plan_event_no_probe_or_robots(
+    monkeypatch: pytest.MonkeyPatch, check_id: str
+) -> None:
+    """An upload item is assessed with no probe/robots fetch; verdict, plan, event (8.3)."""
+    upload_id = f"up-{uuid.uuid4().hex}"
+    _put_upload_file(upload_id)
+    check_session.put_session(check_id, "new", [_upload_item(upload_id)])
+
+    probe_calls, robots_calls, assess_calls = _stub_assess_only(
+        monkeypatch, verdict=Verdict(verdict="will_work", reasons=["ok"])
+    )
+    events = _spy_check_updated(monkeypatch)
+
+    CheckHandler().handle({"check_id": check_id, "item_id": "u1"}, _meta())
+
+    # Nothing was fetched: probe and robots were never called (Requirement 8.5).
+    assert probe_calls == []
+    assert robots_calls == []
+
+    # assess() ran with a "no restriction" robots result and the synthetic
+    # final_url placeholder (no source URL was supplied) — Requirement 8.13.
+    assert len(assess_calls) == 1
+    _view, final_url, robots = assess_calls[0]
+    assert robots.allowed is True
+    assert final_url == f"upload://{upload_id}"
+
+    session = check_session.get_session(check_id)
+    assert session is not None
+    item = session.items["u1"]
+    assert item.state == "done"
+    assert item.verdict is not None and item.verdict["verdict"] == "will_work"
+    assert item.final_url == f"upload://{upload_id}"
+
+    # The uploaded HTML was copied under the check page key, and the plan written.
+    page = s3.get_text(f"checks/{check_id}/u1/page.html")
+    assert "A genuinely great product." in page
+    plan = json.loads(s3.get_text(f"checks/{check_id}/u1/plan.json"))
+    assert plan["method"] == "selectors"
+
+    # check.updated was published with the done state.
+    assert any(e.get("item_id") == "u1" and e.get("state") == "done" for e in events)
+
+
+def test_upload_item_without_source_url_skips_duplicate_lookup(
+    monkeypatch: pytest.MonkeyPatch, check_id: str
+) -> None:
+    """With no source URL the duplicate lookup never runs (Requirement 8.11)."""
+    import app.ingestion.duplicates as duplicates_mod
+
+    upload_id = f"up-{uuid.uuid4().hex}"
+    _put_upload_file(upload_id)
+    check_session.put_session(check_id, "new", [_upload_item(upload_id)])
+
+    _stub_assess_only(monkeypatch, verdict=Verdict(verdict="will_work"))
+
+    find_calls: list = []
+    real_find = duplicates_mod.find_existing
+
+    def _spy_find(*args, **kwargs):  # type: ignore[no-untyped-def]
+        find_calls.append((args, kwargs))
+        return real_find(*args, **kwargs)
+
+    monkeypatch.setattr(check_mod.duplicates, "find_existing", _spy_find)
+
+    CheckHandler().handle({"check_id": check_id, "item_id": "u1"}, _meta())
+
+    assert find_calls == [], "duplicate lookup must be skipped when no source_url is present"
+
+    session = check_session.get_session(check_id)
+    assert session is not None
+    assert session.items["u1"].existing_dataset is None
+
+
+def test_upload_item_with_tracked_source_url_records_existing_dataset(
+    monkeypatch: pytest.MonkeyPatch, check_id: str
+) -> None:
+    """A supplied source URL that is tracked is recorded via the duplicate lookup (8.12)."""
+    from app.ingestion.url_normalizer import normalize
+
+    source_url = f"http://fixtures/{uuid.uuid4().hex}/"
+    normalized = normalize(source_url)
+    ds_id = str(uuid.uuid4())
+    with core_db.session_scope() as session:
+        session.add(
+            Dataset(
+                id=ds_id,
+                name="Tracked Page",
+                source_type=SourceType.URL,
+                original_url=normalized,
+                normalized_url=normalized,
+                status=DatasetStatus.UPDATED,
+                status_detail={"events": []},
+            )
+        )
+
+    try:
+        upload_id = f"up-{uuid.uuid4().hex}"
+        _put_upload_file(upload_id)
+        check_session.put_session(check_id, "new", [_upload_item(upload_id, source_url=source_url)])
+
+        probe_calls, robots_calls, assess_calls = _stub_assess_only(
+            monkeypatch, verdict=Verdict(verdict="will_work")
+        )
+
+        CheckHandler().handle({"check_id": check_id, "item_id": "u1"}, _meta())
+
+        # Still no fetch on the upload path.
+        assert probe_calls == []
+        assert robots_calls == []
+        # assess received the supplied source URL as the (never-fetched) final_url.
+        _view, final_url, _robots = assess_calls[0]
+        assert final_url == source_url
+
+        session = check_session.get_session(check_id)
+        assert session is not None
+        existing = session.items["u1"].existing_dataset
+        assert existing is not None
+        assert existing["id"] == ds_id
+        assert existing["name"] == "Tracked Page"
+    finally:
+        with core_db.session_scope() as session:
+            session.execute(
+                text("DELETE FROM datasets WHERE id = CAST(:id AS uuid)"), {"id": ds_id}
+            )
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

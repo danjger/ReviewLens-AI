@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Ingestion Module lets an analyst add review datasets in one of two ways. The first is to submit one or more URLs for products or entities on public review platforms. The second is to upload a CSV or other tabular file of reviews.
+The Ingestion Module lets an analyst add review datasets in one of three ways. The first is to submit one or more URLs for products or entities on public review platforms. The second is to upload a CSV or other tabular file of reviews. The third is to upload the saved HTML of a review page the analyst opened in their own browser, for sites the app's own capture cannot read; the Extraction Engine then reads reviews from that uploaded page exactly as it reads them from a live capture (see Requirement 8).
 
 URL submission has two steps: **Check**, then **Add**.
 
@@ -24,6 +24,9 @@ Depends on: `platform-foundation`, `review-extraction` (the Extraction Engine). 
 - **Extraction Plan**: The Review Locator's output after verification: the chosen extraction method, validated selectors (if any), the next-page rule, and the verified reviews found on the first page.
 - **Check Session**: A short-lived record of one Check run. It holds each URL's verdict, Extraction Plan, and captured content until the URLs are added or the session expires. Anyone with the Check's ID can view it; the app has no user accounts.
 - **Refresh**: Re-capturing and re-processing an existing dataset as a new data version (shared with `dataset-library`).
+- **HTML Upload**: An ingestion path where the analyst saves a review page's rendered HTML in their own browser and uploads that file. The Extraction Engine runs on the uploaded markup exactly as it runs on a URL capture; the analyst's browser performed the rendering the app cannot (see Requirement 8).
+- **Upload Capture**: A capture produced from an uploaded file rather than a live render, used by the shared Refresh Service in place of a Check capture. For an HTML Upload it carries the uploaded HTML and its Extraction Plan; for a tabular upload it carries the file and column mapping.
+- **Source URL**: The original page URL an analyst may optionally supply with an HTML Upload. It is stored for display, provenance, and duplicate matching only, and is never fetched by the system.
 
 ## Requirements
 
@@ -136,3 +139,34 @@ Depends on: `platform-foundation`, `review-extraction` (the Extraction Engine). 
 4. WHEN a valid upload is submitted, the system SHALL store the file and the confirmed column mapping under the new dataset, SHALL create a dataset record with `source_type = upload`, a user-supplied name (required), optional source description, data version 1 with a version 1 record, and status `requested`, and SHALL enqueue processing.
 5. WHEN an upload is shown in the UI, the system SHALL display the file name in place of a URL and SHALL skip the page snapshot.
 6. WHEN the file has more usable rows than the configured maximum reviews per dataset, the preview SHALL say so before submitting, and SHALL say which rows will be kept: the most recent by date when a date column is mapped, otherwise the first rows in the file.
+
+### Requirement 8: Upload saved page HTML as a capture
+
+**User Story:** As an analyst, I want to upload the saved HTML of a review page I opened in my own browser, so that I can analyze sites that block the app's own capture (datacenter-IP blocking, client-side review widgets, or consent walls) while still having review text read from the page itself rather than typed into a spreadsheet.
+
+#### Acceptance Criteria
+
+1. THE system SHALL accept `.html`, `.htm`, and `.mhtml` single-file saved pages up to the configured upload size limit (the `MAX_UPLOAD_MB` limit shared with Requirement 7.1), and the browser SHALL upload the file directly to storage through the same pre-signed PUT mechanism used for tabular uploads (Requirement 7.1), so the file size is not limited by the API's request size.
+2. IF an uploaded file is not an accepted HTML type, exceeds the size limit, or cannot be read as text, THEN the system SHALL reject it with a specific message, SHALL NOT create a dataset, and SHALL delete the uploaded file (mirroring Requirement 7.3).
+3. WHEN an HTML upload is submitted for assessment, THE system SHALL run the Extraction Engine (`app.extraction.build_plan()` from `review-extraction`) on the uploaded HTML to produce an Extraction Plan and a Verdict, applying the same viability rules, thresholds, and method choice used by the URL Check (Requirements 3.2 through 3.7).
+4. EVERY review the Review Locator returns from an uploaded HTML file SHALL be verified against the uploaded page's text, and reviews whose text does not appear on the page SHALL be discarded and SHALL NOT count toward the verdict (the same verification as Requirement 3.3). THE Review Locator SHALL only point at elements in the uploaded page; it SHALL NOT supply or generate review text.
+5. WHILE assessing an uploaded HTML file, THE system SHALL read only the static saved markup and SHALL NOT perform any live network fetch of the uploaded page's links, scripts, images, iframes, or other sub-resources.
+6. WHERE a screenshot is rendered from an uploaded HTML file, THE rendering SHALL pass every sub-resource request through `assert_public_host` and SHALL block requests to private, loopback, link-local, or metadata addresses (the same capture route guard as Requirement 1.3).
+7. WHEN the assessment of an uploaded HTML file completes, and before the analyst adds the dataset, THE system SHALL show a preview analogous to the URL verdict card: the Verdict with plain-language reasons and evidence, the extraction method that will be used, and two or three verified sample reviews copied from the uploaded page.
+8. WHEN a valid HTML upload is added, THE system SHALL create a dataset record with a `source_type` that marks it an HTML upload (distinct from the tabular-upload `source_type = upload`), a required analyst-supplied name, an optional source description, and an optional original page URL supplied by the analyst that SHALL be stored for display and provenance only and SHALL NOT be fetched.
+9. WHEN a valid HTML upload is added, THE system SHALL set data version 1 with a version 1 record in `dataset_versions` (trigger `initial`), status `requested`, SHALL save the Verdict and evidence in `status_detail.viability`, SHALL store the uploaded HTML and its Extraction Plan as the dataset's version 1 capture, and SHALL enqueue a processing message carrying the dataset ID and data version (mirroring Requirements 4.2, 5.1, 5.2, and 5.3).
+10. WHEN an HTML upload is shown in the UI, THE system SHALL display the uploaded file name in place of a URL and SHALL skip the live page snapshot, and WHERE a screenshot was rendered from the uploaded HTML the UI MAY show it.
+11. WHERE the analyst does not supply an original page URL, THE HTML upload SHALL NOT participate in the normalized-URL duplicate matching of Requirement 6.
+12. WHERE the analyst supplies an original page URL whose normalized form matches an existing tracked dataset (Requirement 6.2), THE system SHALL refresh that dataset using the uploaded HTML as the new data version through the shared Refresh Service, rather than creating a duplicate, aligning with Requirements 6.3 through 6.6.
+13. IF the AI provider is unavailable or the global AI limit is reached while assessing an uploaded HTML file, THEN the system SHALL fall back to structured data only, SHALL mark the verdict at most `limited` with the reason "AI page reading unavailable," and SHALL let the analyst retry later (mirroring Requirement 3.13).
+14. THE New Dataset panel SHALL offer HTML upload alongside the URL and CSV paths, with a dropzone that uploads through the pre-signed mechanism with a progress indicator, then runs the assessment, then shows the Verdict, verified sample reviews, a required name field, and optional source URL and description fields before the analyst submits. THE verdict badge SHALL convey its state with text, not color alone (matching the accessibility pattern in Requirement 3.7 and the URL verdict card).
+
+### Requirement 9: A large server-rendered review fixture for evaluation and tests
+
+**User Story:** As a developer, I want at least one large server-rendered review fixture, so that the URL-check and HTML-upload paths can reach a genuine `will_work` verdict in automated tests instead of only ever reaching `limited`.
+
+#### Acceptance Criteria
+
+1. THE public fixtures site (`/fixtures-site`) and the extraction evaluation suite (`review-extraction`) SHALL include at least one server-rendered review page fixture that contains at least 20 reviews, each with review text and, where applicable, rating, date, and author.
+2. WHEN the Extraction Engine runs on the large server-rendered fixture, THE assessment SHALL produce a `will_work` verdict under the default viability thresholds (at least the default minimum of 5 verified reviews, no blocker, and Locator confidence not low), as defined in Requirement 3.4.
+3. THE large server-rendered fixture SHALL be loadable over HTTP by the URL-check E2E tests and SHALL be usable as an uploaded HTML file by the HTML-upload tests, so both paths exercise a `will_work` outcome from the same source page.

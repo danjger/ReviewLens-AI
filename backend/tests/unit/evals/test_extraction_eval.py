@@ -10,11 +10,24 @@ run — here those methods are always reported not-applicable because
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
+from app.core.config import get_settings
+from app.extraction.extract import extract_by_selectors
+from app.extraction.models import (
+    ExtractionPlan,
+    FirstPageStats,
+    LocatorSelectors,
+    NextPage,
+    NextPageRule,
+    PageResult,
+)
+from app.ingestion.verdict import build_verdict
 from evals.extraction import scorer
 from evals.extraction.labels import (
     REQUIRED_LAYOUT_TAGS,
+    LabeledPage,
     load_labeled_pages,
     missing_required_tags,
 )
@@ -217,3 +230,129 @@ def test_verdict_section_rendered_in_report() -> None:
     markdown = render_report(report, missing_tags=missing_required_tags(pages))
     assert "Viability verdict accuracy" in markdown
     assert "Requirement 3.14" in markdown
+
+
+# ---------------------------------------------------------------------------
+# Large server-rendered fixture (dataset-ingestion Requirement 9)
+# ---------------------------------------------------------------------------
+
+
+def _selectors_plan(page: LabeledPage) -> ExtractionPlan:
+    """Build a ``selectors`` plan from a page's labelled known-good selectors.
+
+    Mirrors the offline ``selectors`` method the scorer runs (no AI): the plan
+    carries the labelled item/field selectors, a 5-star rating scale, no
+    next-page rule, and high confidence, so ``extract_by_selectors`` reads the
+    reviews with code only.
+    """
+    assert page.selectors is not None, f"{page.name}: expected labelled selectors"
+    sel = page.selectors
+    return ExtractionPlan(
+        created_at=datetime.now(UTC).isoformat(),
+        method="selectors",
+        selectors=LocatorSelectors(
+            item=sel.item,
+            text=sel.text,
+            rating=sel.rating,
+            date=sel.date,
+            author=sel.author,
+            title=sel.title,
+        ),
+        rating_scale=5,
+        next_page_rule=NextPageRule(type="none"),
+        confidence="high",
+    )
+
+
+def test_large_fixture_is_registered_and_server_rendered() -> None:
+    """The large fixture is registered with >=20 fully-fielded server-rendered reviews.
+
+    Validates: Requirements 9.1
+    """
+    pages = {p.name: p for p in load_labeled_pages()}
+    assert "large_server_rendered" in pages, "the large fixture must be registered in labels.yaml"
+    page = pages["large_server_rendered"]
+
+    # At least 20 reviews, each with text, rating, date, and author (R9.1).
+    assert len(page.reviews) >= 20
+    for review in page.reviews:
+        assert review.prefix.strip()
+        assert review.rating is not None
+        assert review.date is not None
+        assert review.author is not None
+
+    # Genuinely server-rendered: every review's text is in the saved markup, so
+    # no JS injection is needed to read it (R9.1 / R9.2).
+    for review in page.reviews:
+        assert review.prefix in page.html
+
+
+def test_large_fixture_reaches_genuine_will_work_verdict() -> None:
+    """The large fixture reaches a genuine will_work verdict under default thresholds.
+
+    Runs the offline selectors path (no AI) that the extraction evaluation suite
+    scores, then applies the real ``build_verdict`` rules with the configured
+    default thresholds (``viability_min_reviews`` etc.). The verdict is
+    ``will_work`` because >=5 reviews verify, there is no blocker, and the
+    Locator confidence is not low (Requirement 3.4).
+
+    Validates: Requirements 9.2
+    """
+    pages = {p.name: p for p in load_labeled_pages()}
+    page = pages["large_server_rendered"]
+    settings = get_settings()
+
+    plan = _selectors_plan(page)
+    reviews, discarded = extract_by_selectors(page.html, plan)
+
+    # The default minimum is 5; this fixture far exceeds it with nothing discarded.
+    assert settings.viability_min_reviews == 5
+    assert len(reviews) >= settings.viability_min_reviews
+    assert len(reviews) >= 20
+    assert discarded == {}
+
+    plan.first_page = FirstPageStats(verified=len(reviews), discarded=0)
+    first_page = PageResult(
+        reviews=reviews,
+        method_used="selectors",
+        next_page=NextPage(url=None, rule_used="none"),
+    )
+    verdict = build_verdict(
+        plan,
+        first_page,
+        page_title=page.url,
+        main_status=200,
+        min_reviews=settings.viability_min_reviews,
+        reported_total_multiplier=settings.viability_reported_total_multiplier,
+        max_rejection_fraction=settings.viability_max_rejection_fraction,
+    )
+
+    assert verdict.verdict == "will_work"
+    # Genuine will_work conditions (R3.4 / R9.2): enough verified, no blocker,
+    # confidence not low.
+    assert verdict.evidence.reviews_verified >= settings.viability_min_reviews
+    assert verdict.evidence.blocker is None
+    assert verdict.evidence.locator_confidence != "low"
+
+
+def test_large_fixture_is_published_byte_for_byte_over_http() -> None:
+    """The HTTP-served copy is byte-identical to the eval page (R9.3).
+
+    Requirement 9.3 requires the SAME source page be loadable over HTTP (the
+    URL-check path) and reusable as an uploaded saved page (the HTML-upload
+    path). Both paths read from one file: the eval ``page.html`` and the
+    published ``fixtures-site`` copy must be identical bytes, so the two paths
+    exercise ``will_work`` from one source page.
+
+    Validates: Requirements 9.3
+    """
+    repo_root = Path(__file__).resolve().parents[4]
+    eval_page = repo_root / "evals/extraction/pages/large_server_rendered/page.html"
+    published = repo_root / "fixtures-site/extraction/large_server_rendered/index.html"
+
+    assert eval_page.exists(), f"missing eval page at {eval_page}"
+    assert published.exists(), f"missing published fixture at {published}"
+    assert eval_page.read_bytes() == published.read_bytes(), (
+        "the fixtures-site copy must be a byte-for-byte copy of the eval page "
+        "so the URL-check and HTML-upload paths share one source page"
+    )

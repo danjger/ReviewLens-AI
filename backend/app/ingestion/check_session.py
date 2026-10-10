@@ -124,7 +124,18 @@ _CLAIMABLE_STATES: tuple[ItemState, ...] = ("pending", "error")
 
 @dataclass
 class CheckItem:
-    """One submitted URL within a Check Session (one DynamoDB row)."""
+    """One submitted URL — or uploaded saved page — within a Check Session.
+
+    Stored as one DynamoDB row. A **URL item** carries ``input`` (the submitted
+    URL) and leaves ``upload_id``/``source_url`` null. An **HTML-upload item**
+    (dataset-ingestion task 19 / Requirement 8) instead sets ``upload_id`` to
+    the staged ``uploads/{upload_id}/file`` object and leaves ``input`` showing
+    the uploaded file name; the handler reads ``upload_id`` to take the upload
+    path (no probe/redirect/robots). ``source_url`` is the analyst's optional
+    original page URL, stored for display, provenance, and duplicate matching
+    only and never fetched; ``normalized``/``final_url`` are populated from it
+    only when it was supplied (design DynamoDB ``check-sessions`` data model).
+    """
 
     item_id: str
     input: str
@@ -136,6 +147,8 @@ class CheckItem:
     verdict: dict[str, Any] | None = None
     existing_dataset: dict[str, Any] | None = None
     capture_prefix: str | None = None
+    upload_id: str | None = None
+    source_url: str | None = None
 
 
 @dataclass
@@ -238,6 +251,8 @@ def _item_to_row(check_id: str, item: CheckItem, ttl: int) -> dict[str, Attribut
         "verdict": _to_attr(item.verdict),
         "existing_dataset": _to_attr(item.existing_dataset),
         "capture_prefix": _to_attr(item.capture_prefix),
+        "upload_id": _to_attr(item.upload_id),
+        "source_url": _to_attr(item.source_url),
         "ttl": {"N": str(ttl)},
     }
 
@@ -255,6 +270,13 @@ def _item_from_row(raw: dict[str, Any]) -> CheckItem:
         verdict=cast("dict[str, Any] | None", _from_attr(raw["verdict"])),
         existing_dataset=cast("dict[str, Any] | None", _from_attr(raw["existing_dataset"])),
         capture_prefix=cast("str | None", _from_attr(raw["capture_prefix"])),
+        # ``upload_id``/``source_url`` are absent on rows written before the
+        # HTML-upload path landed, so default them to ``None`` rather than
+        # requiring the attribute (a URL item leaves both null anyway).
+        upload_id=cast("str | None", _from_attr(raw["upload_id"])) if "upload_id" in raw else None,
+        source_url=(
+            cast("str | None", _from_attr(raw["source_url"])) if "source_url" in raw else None
+        ),
     )
 
 
@@ -540,5 +562,7 @@ _SETTABLE_FIELDS: frozenset[str] = frozenset(
         "verdict",
         "existing_dataset",
         "capture_prefix",
+        "upload_id",
+        "source_url",
     }
 )

@@ -1,5 +1,11 @@
 # Implementation Plan
 
+## Overview
+
+This plan covers dataset ingestion: URL ingestion (normalization, SSRF-safe probing, viability, Check Sessions), CSV upload parsing and preview, and the shared Refresh Service, together with the frontend New Dataset panel. Tasks 1–14 (the URL/CSV foundation plus three bug fixes — the upload keep-rule, the refresh concurrency guard, and separator-variant column matching) are complete. Tasks 15–24 add the newly introduced HTML-upload fallback path (a `html_upload` source type, an upload-backed capture, a dedicated check endpoint and handler branch, Add routing, and the HTML tab) and a large server-rendered review fixture that exercises a `will_work` outcome across both the URL and HTML-upload paths.
+
+## Tasks
+
 - [x] 1. Implement URL normalization and validation
   - [x] 1.1 Implement `url_normalizer.normalize()` with a configurable tracking-parameter list
     - Write unit tests for case, `www`, fragment, tracking parameters, query order, and trailing slash
@@ -121,3 +127,142 @@
   - Fix: `_normalize_header` now collapses `_`/`-`/repeated spaces to a single space, so `review_text`/`review-text`/`Review  Text` match. Generalizes to `star_rating`, `review_date`, etc. Added 6 regression cases.
   - Verify: parser unit tests green (44); live preview auto-detects text/rating/date/author on the sample. DONE (code + local proof); live re-verify after deploy.
   - _Requirements: 7.2_
+
+- [x] 15. Add the `html_upload` source_type (schema)
+  - Write one Alembic revision extending the native `source_type` enum (today `url`, `upload`) with a third value `html_upload`, applied through `core.db` / the RDS Data API
+  - Leave the `normalized_url` unique partial index unchanged (`WHERE source_type = 'url'`), so `html_upload` rows are not covered by URL dedupe
+  - Write a migration/unit test that the new enum value is accepted on insert and that the unique index still only covers `url` rows (two `html_upload` rows with the same `normalized_url` are allowed)
+  - _Requirements: 8.8, 8.11_
+
+- [x] 16. Widen `POST /uploads` to accept saved-page HTML
+  - Extend the accepted extension/content-type gate in the `/uploads` endpoint to include `.html`, `.htm`, and `.mhtml` alongside `.csv`/`.tsv`, keeping the extension as the authoritative gate
+  - Share `MAX_UPLOAD_MB` and the content-length pin with the tabular path; reject any other type with 422 before a pre-signed URL is issued; stage at the same `uploads/{upload_id}/file` key
+  - [x] 16.1 Write unit tests for the extended gate: accept `.html`/`.htm`/`.mhtml`, still reject a disallowed type (e.g. `.exe`), still enforce the size limit
+    - _Requirements: 8.1, 8.2_
+  - _Requirements: 8.1, 8.2_
+
+- [x] 17. Implement `capture.from_upload()` — an upload-backed CaptureView
+  - In the base image (no browser, no network), add `capture.from_upload(upload_id, source_url) -> CaptureView`: read `uploads/{upload_id}/file` from S3 and decode it as text
+  - Reject a file that is not readable text with a specific message and delete the object, mirroring the bad-CSV handling (Requirement 7.3 / 8.2)
+  - Parse the `<title>` into `page_title`; synthesize `final_url` (the source URL when supplied, else `upload://{upload_id}`) and `main_status = 200`; return the existing `viability.CaptureView` with the uploaded markup as `html`; perform no sub-resource fetch
+  - [x] 17.1 Write unit tests: builds the view with the synthetic fields and the parsed title; a non-text file is rejected with a specific message and deleted
+    - _Requirements: 8.2, 8.3, 8.5, 4.3_
+  - _Requirements: 8.2, 8.3, 8.5, 4.3_
+
+- [x] 18. Add the upload-item branch to the check handler
+  - In `handlers.check.CheckHandler`, when a claimed item carries `upload_id` instead of a URL: skip the probe, redirect-following, and robots steps (nothing is fetched)
+  - Build the capture via `capture.from_upload`, then run the SAME `viability.assess()` and verdict rules used for a URL, passing a "no restriction" robots result
+  - Run the duplicate lookup ONLY when the item carries a `source_url`; copy the uploaded HTML into `checks/{check_id}/{item_id}/page.html` and write `plan.json`; write the item and publish `check.updated`; keep the item bounded by `CHECK_TIMEOUT_S`
+  - [x] 18.1 Write integration tests (AI stub): an upload item reaches the expected verdict/plan/`check.updated` event with no probe or robots fetch occurring; the duplicate lookup runs only when a `source_url` is present
+    - _Requirements: 8.3, 8.4, 8.13, 3.3, 3.5_
+  - _Requirements: 8.3, 8.4, 8.13, 3.3, 3.5_
+
+- [x] 19. Add the `POST /ingest/html-checks` endpoint
+  - Add the endpoint: validate the staged object exists (422 if missing), validate the optional `source_url` is well-formed (422 if malformed), create a one-item Check Session (`origin="new"`, item carrying `upload_id`/`source_url`), and enqueue one `check-queue` message
+  - Rate-limit on the shared `checks` per-IP and global counters, returning 429 with `Retry-After` when a limit is hit
+  - [x] 19.1 Write integration/unit tests: happy path enqueues one message; missing staged object → 422; malformed `source_url` → 422; the 429 path after the limit
+    - _Requirements: 8.1, 8.3, 8.7_
+  - _Requirements: 8.1, 8.3, 8.7_
+
+- [x] 20. Implement `create_from_html_upload()` and route Add for uploads
+  - Add `ingestion.service.create_from_html_upload(check_id, item, name, source_url, description)`: copy `checks/{check_id}/{item_id}/page.html` and `plan.json` into `datasets/{id}/raw/v1`, insert the dataset with `source_type = html_upload`, the required `name`, optional `description`, `original_url`/`normalized_url` from `source_url` only when supplied (else null), no `final_url`/`normalized_final_url`, no snapshot, viability in `status_detail.viability`, and a version 1 row (trigger `initial`); enqueue `{dataset_id, 1}`; failure cleanup identical to `create_from_check`
+  - Extend `add_items` so an upload item with no `source_url` always creates (Requirement 8.11) and one whose `source_url` matched an existing dataset routes to `refresh_service.refresh(..., trigger="upload_replace")` carrying a `CheckCapture` (uploaded HTML + plan, no snapshot) (Requirement 8.12); carry `name`/`source_url`/`description` from the Add body on the request item and use them only on the HTML-upload create path
+  - [x] 20.1 Write integration tests: no source URL → one `html_upload` dataset v1 plus enqueue; tracked source URL → no new row, version 2 via `upload_replace` with a `refresh_requested` event; two uploads of the same page with no source URL → two datasets (Requirement 8.11); `wont_work` refused; `limited` needs confirmation
+    - _Requirements: 8.8, 8.9, 8.11, 8.12, 3.8, 3.9_
+  - _Requirements: 8.8, 8.9, 8.11, 8.12, 3.8, 3.9_
+
+- [x] 21. Build the HTML tab in the New Dataset panel
+  - Add the HTML tab contents: a dropzone (`.html`/`.htm`/`.mhtml`) → pre-signed upload with a progress bar (reusing the upload hook) → `POST /ingest/html-checks` to start the assessment → a verdict card identical to the URL card (badge conveying state with text not color alone, reasons, warnings, evidence, two or three verified sample reviews copied from the uploaded page) listening on the same `check.updated` channel
+  - Add the required name field plus optional source URL and description fields before Add; show the "Already tracked as *…* — will refresh" note when the supplied source URL is tracked
+  - [x] 21.1 Write component tests: upload progress, verdict rendering with samples, disabled Add on `wont_work`, the `limited` confirmation, the tracked note, and name required
+    - _Requirements: 8.7, 8.10, 8.14_
+  - _Requirements: 8.7, 8.10, 8.14_
+
+- [x] 22. Write property-based tests for HTML upload
+  - [x] 22.1 Write the Property 8 test (Hypothesis), docstring referencing "Property 8": for any uploaded HTML file, assessing it makes no outbound network request for the page or any sub-resource (asserted with a network guard / no capture route calls)
+    - _Requirements: 8.5, 8.6_
+  - [x] 22.2 Write the Property 9 test (Hypothesis), docstring referencing "Property 9": for any uploaded HTML file, every verified review the assessment keeps has text appearing verbatim (after whitespace and Unicode normalization) in the uploaded markup, reusing the URL verification generators
+    - _Requirements: 8.4, 3.3_
+
+- [x] 23. Add the large server-rendered review fixture (Requirement 9)
+  - Add a new fixture under `fixtures-site/extraction/` with at least 20 server-rendered reviews (each with review text and, where applicable, rating, date, and author)
+  - Register the fixture in the `review-extraction` evaluation suite labels so it is scored, and add a test asserting it reaches a genuine `will_work` verdict under the default thresholds (≥5 verified reviews, no blocker, Locator confidence not low)
+  - Load the SAME fixture over HTTP from the URL-check path and reuse it as an uploaded saved page in the HTML-upload path, so both exercise a `will_work` outcome from one source page
+  - Note: the fixture file is added here as a code task; deploying it to the public fixtures site (the TestFixtures stack) is an infra/ops redeploy, not a code task
+  - _Requirements: 9.1, 9.2, 9.3_
+
+- [x] 24. Write the HTML-upload E2E test
+  - Add a Playwright test (AI stubbed unless `E2E_LIVE_AI=1`): upload the large saved fixture page as HTML, confirm a `will_work` verdict card with sample reviews, add it, and confirm the dataset appears in the Library and processes
+  - Add a case that uploads a blocked/empty saved page and confirms `wont_work` is refused (not addable)
+  - _Requirements: 8.7, 8.9, 8.14_
+
+## Task Dependency Graph
+
+```mermaid
+graph TD
+    Foundation["Tasks 1–14 (complete foundation)"]
+
+    T15["15. html_upload source_type"]
+    T16["16. widen POST /uploads to accept HTML"]
+    T17["17. capture.from_upload"]
+    T18["18. check handler upload branch"]
+    T19["19. POST /ingest/html-checks"]
+    T20["20. create_from_html_upload + Add routing"]
+    T21["21. frontend HTML tab"]
+    T22["22. property tests (Properties 8 & 9)"]
+    T23["23. large server-rendered fixture"]
+    T24["24. HTML-upload E2E"]
+
+    Foundation --> T15
+    Foundation --> T16
+    Foundation --> T18
+    Foundation --> T19
+    Foundation --> T20
+    Foundation --> T23
+
+    T16 --> T17
+    T17 --> T18
+    T16 --> T19
+    T15 --> T20
+    T17 --> T20
+    T18 --> T20
+    T19 --> T21
+    T20 --> T21
+    T17 --> T22
+    T18 --> T22
+    T20 --> T24
+    T21 --> T24
+    T23 --> T24
+```
+
+```json
+{
+  "waves": [
+    { "wave": 1, "tasks": ["15", "16", "23"] },
+    { "wave": 2, "tasks": ["17", "19"] },
+    { "wave": 3, "tasks": ["18"] },
+    { "wave": 4, "tasks": ["20", "22"] },
+    { "wave": 5, "tasks": ["21"] },
+    { "wave": 6, "tasks": ["24"] }
+  ],
+  "dependencies": {
+    "15": [],
+    "16": [],
+    "17": ["16"],
+    "18": ["17"],
+    "19": ["16"],
+    "20": ["15", "17", "18"],
+    "21": ["19", "20"],
+    "22": ["17", "18"],
+    "23": [],
+    "24": ["20", "21", "23"]
+  }
+}
+```
+
+## Notes
+
+- Tasks 1–14 are complete; they form the URL/CSV ingestion foundation that the new HTML-upload tasks (15–24) build on.
+- Sub-tasks marked with `*` (e.g. 16.1, 17.1, 18.1, 19.1, 20.1, 21.1, 22.1, 22.2) are optional test sub-tasks and may be skipped for a faster MVP.
+- Per `tech.md` steering, a task is done only when `make lint` and `make test` pass; tasks that touch queues, storage, or the database must also pass `make test-int`.
+- Task 23 adds the fixture file as a code task; deploying it to the public fixtures site (the TestFixtures stack) is an infra/ops redeploy, not a code task.

@@ -114,11 +114,13 @@ class ParsedItem:
     message: str | None = None
 
 
-def _is_wellformed_http_url(url: str) -> bool:
+def is_wellformed_http_url(url: str) -> bool:
     """Return True when *url* is a syntactically valid http/https URL.
 
     Requires an ``http``/``https`` scheme and a non-empty host. This is a
-    syntax check only; reachability and SSRF are handled later.
+    syntax check only; reachability and SSRF are handled later. Shared with the
+    HTML-upload endpoint, which validates the analyst's optional ``source_url``
+    the same way a submitted URL line is validated (dataset-ingestion task 19).
     """
     try:
         parts = urlsplit(url)
@@ -128,6 +130,11 @@ def _is_wellformed_http_url(url: str) -> bool:
         return False
     # ``hostname`` lower-cases and strips brackets; empty means no authority.
     return bool(parts.hostname)
+
+
+#: Backwards-compatible private alias (the module used ``_is_wellformed_http_url``
+#: internally before the check was shared with the HTML-upload endpoint).
+_is_wellformed_http_url = is_wellformed_http_url
 
 
 def parse_submission(
