@@ -708,3 +708,42 @@ Deeper diagnosis of the realtime gap (was task 35): three compounding problems.
 3. RealtimeStack was deployed once by hand but was NOT in `deploy.yml`'s stack
    list, so these fixes (and future ones) wouldn't ship. Fixed: added
    `ReviewLens-Realtime` to the pipeline's `cdk deploy`.
+
+### Perf test errors (not skips) when the DB schema is absent — CI false red
+
+Found 2026-10-10 by the `CI / API performance test (non-blocking)` job on the
+`main` merge of dataset-ingestion PR #1 (GitHub issue follow-up to this entry).
+`tests/perf/test_api_latency.py::test_api_read_latency_p95_under_budget` errored
+at fixture setup with `psycopg.errors.UndefinedTable: relation "datasets" does
+not exist` (reported by pytest as `1 error`, not `1 failed`), so the perf job's
+run was red.
+
+Root cause: the `seeded_dataset` fixture's skip gates run `_database_reachable()`
+(a bare `SELECT 1`) but never check that **migrations have been applied**. In
+the perf job's Compose stack PostgreSQL is up (so `SELECT 1` passes and the test
+does NOT skip), but the `datasets` table has not been created, so the fixture's
+`INSERT INTO datasets ...` raises `UndefinedTable`. The test is explicitly
+designed to "skip cleanly until the stack/endpoints are ready" (it already skips
+on an unreachable API, unreachable DB, or a 404 from an unbuilt endpoint), so an
+un-migrated schema should be another clean skip, not a setup error.
+
+Severity: low / non-gating. The perf job is `continue-on-error: true` and nothing
+`needs:` it, so it does NOT change the `CI` workflow conclusion and does NOT
+block `deploy.yml` (confirmed in `ci.yml`). The impact is purely a misleading red
+check on the commit; the actual deploy-gating chain (lint → unit → build →
+integration → scale → synth) is unaffected. NOT caused by the HTML-upload work —
+the perf fixture seeds the pre-existing `datasets` table and is unrelated to that
+change; it was simply the first time the perf job ran against a stack whose
+schema wasn't migrated first.
+
+Fix direction (platform-foundation, `tests/perf/test_api_latency.py` and/or the
+perf CI job): either (a) add a schema-readiness skip gate to the `seeded_dataset`
+fixture — e.g. check `to_regclass('public.datasets') IS NOT NULL` (or catch the
+`UndefinedTable`/`ProgrammingError` from the first seed write) and `pytest.skip`
+rather than error — so the test keeps its "clean skip until ready" contract; or
+(b) run `alembic upgrade head` in the perf job before pytest (as the integration
+job's `make test-int` already does via compose) so the schema always exists. (a)
+is the smaller, more honest fix and keeps the perf job self-skipping in any
+half-provisioned environment; (b) makes the perf job actually measure once the
+later-spec endpoints exist. Either way, an absent schema must be a skip, never a
+red error.
