@@ -1,0 +1,274 @@
+{
+  "id": "msg_011Cft6tv8enDZnPv5XCy9u8",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_01LcQPKt1vk1fVU6TNVUhujf",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "items": [
+          {
+            "item_ref": "e8",
+            "author_ref": null,
+            "date_ref": "e9",
+            "title_ref": null,
+            "text_ref": "e10",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e11",
+            "author_ref": null,
+            "date_ref": "e12",
+            "title_ref": null,
+            "text_ref": "e13",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e14",
+            "author_ref": null,
+            "date_ref": "e15",
+            "title_ref": null,
+            "text_ref": "e16",
+            "rating_ref": null,
+            "rating_value": 2
+          },
+          {
+            "item_ref": "e17",
+            "author_ref": null,
+            "date_ref": "e18",
+            "title_ref": null,
+            "text_ref": "e19",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e20",
+            "author_ref": null,
+            "date_ref": "e21",
+            "title_ref": null,
+            "text_ref": "e22",
+            "rating_ref": null,
+            "rating_value": 3
+          },
+          {
+            "item_ref": "e23",
+            "author_ref": null,
+            "date_ref": "e24",
+            "title_ref": null,
+            "text_ref": "e25",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e26",
+            "author_ref": null,
+            "date_ref": "e27",
+            "title_ref": null,
+            "text_ref": "e28",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e29",
+            "author_ref": null,
+            "date_ref": "e30",
+            "title_ref": null,
+            "text_ref": "e31",
+            "rating_ref": null,
+            "rating_value": 2
+          },
+          {
+            "item_ref": "e32",
+            "author_ref": null,
+            "date_ref": "e33",
+            "title_ref": null,
+            "text_ref": "e34",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e35",
+            "author_ref": null,
+            "date_ref": "e36",
+            "title_ref": null,
+            "text_ref": "e37",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e38",
+            "author_ref": null,
+            "date_ref": "e39",
+            "title_ref": null,
+            "text_ref": "e40",
+            "rating_ref": null,
+            "rating_value": 3
+          },
+          {
+            "item_ref": "e41",
+            "author_ref": null,
+            "date_ref": "e42",
+            "title_ref": null,
+            "text_ref": "e43",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e44",
+            "author_ref": null,
+            "date_ref": "e45",
+            "title_ref": null,
+            "text_ref": "e46",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e47",
+            "author_ref": null,
+            "date_ref": "e48",
+            "title_ref": null,
+            "text_ref": "e49",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e50",
+            "author_ref": null,
+            "date_ref": "e51",
+            "title_ref": null,
+            "text_ref": "e52",
+            "rating_ref": null,
+            "rating_value": 3
+          },
+          {
+            "item_ref": "e53",
+            "author_ref": null,
+            "date_ref": "e54",
+            "title_ref": null,
+            "text_ref": "e55",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e56",
+            "author_ref": null,
+            "date_ref": "e57",
+            "title_ref": null,
+            "text_ref": "e58",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e59",
+            "author_ref": null,
+            "date_ref": "e60",
+            "title_ref": null,
+            "text_ref": "e61",
+            "rating_ref": null,
+            "rating_value": 2
+          },
+          {
+            "item_ref": "e62",
+            "author_ref": null,
+            "date_ref": "e63",
+            "title_ref": null,
+            "text_ref": "e64",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e65",
+            "author_ref": null,
+            "date_ref": "e66",
+            "title_ref": null,
+            "text_ref": "e67",
+            "rating_ref": null,
+            "rating_value": 4
+          },
+          {
+            "item_ref": "e68",
+            "author_ref": null,
+            "date_ref": "e69",
+            "title_ref": null,
+            "text_ref": "e70",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e71",
+            "author_ref": null,
+            "date_ref": "e72",
+            "title_ref": null,
+            "text_ref": "e73",
+            "rating_ref": null,
+            "rating_value": 3
+          },
+          {
+            "item_ref": "e74",
+            "author_ref": null,
+            "date_ref": "e75",
+            "title_ref": null,
+            "text_ref": "e76",
+            "rating_ref": null,
+            "rating_value": 5
+          },
+          {
+            "item_ref": "e77",
+            "author_ref": null,
+            "date_ref": "e78",
+            "title_ref": null,
+            "text_ref": "e79",
+            "rating_ref": null,
+            "rating_value": 4
+          }
+        ],
+        "excluded_refs": [],
+        "next_page": {
+          "ref": null
+        },
+        "reported_total": 24,
+        "rating_scale": 5,
+        "selectors": {
+          "item": "article",
+          "text": "p",
+          "rating": null,
+          "date": "time",
+          "author": null,
+          "title": null
+        },
+        "blocker": null,
+        "entity_hint": "Pathfinder Standing Desk",
+        "confidence": "medium"
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 5355,
+    "output_tokens": 2056,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}

@@ -38,7 +38,9 @@ def test_status_enum_has_exactly_four_values() -> None:
 
 
 def test_source_type_enum_values() -> None:
-    assert {s.value for s in SourceType} == {"url", "upload"}
+    # dataset-ingestion task 15 (Requirement 8.8): the enum gains a third value
+    # ``html_upload`` for datasets created from a saved page.
+    assert {s.value for s in SourceType} == {"url", "upload", "html_upload"}
 
 
 # ---------------------------------------------------------------------------

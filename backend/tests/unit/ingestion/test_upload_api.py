@@ -149,6 +149,99 @@ def test_create_upload_rate_limit_uses_uploads_action(
 
 
 # ---------------------------------------------------------------------------
+# HTML-upload path reuses POST /uploads (dataset-ingestion task 16, Req 8.1)
+#
+# The widened gate accepts saved single-file pages (.html/.htm/.mhtml) alongside
+# .csv/.tsv, stages them at the same uploads/{upload_id}/file key, and shares
+# MAX_UPLOAD_MB / the content-length pin with the tabular path. The extension
+# remains the authoritative gate.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("filename", "content_type"),
+    [
+        ("saved-page.html", "text/html"),
+        ("saved-page.htm", "text/html"),
+        ("saved-page.mhtml", "multipart/related"),
+        # Case-insensitive: the gate lowercases the declared name.
+        ("SAVED-PAGE.HTML", "application/octet-stream"),
+    ],
+)
+def test_create_upload_accepts_html_extensions(
+    client: TestClient,
+    wiring: dict[str, Any],
+    s3_bucket: Any,
+    filename: str,
+    content_type: str,
+) -> None:
+    """A saved HTML page is accepted and staged at uploads/{upload_id}/file."""
+    resp = client.post(
+        "/api/uploads",
+        json={"filename": filename, "size_bytes": 4096, "content_type": content_type},
+    )
+
+    assert resp.status_code == 201
+    body = resp.json()
+    # Same staging key as the tabular path, so the Check can read it back.
+    path = urlparse(body["put_url"]).path
+    assert path.endswith(f"uploads/{body['upload_id']}/file")
+
+
+def test_create_upload_disallowed_type_is_422(
+    client: TestClient, wiring: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An extension outside the accepted set (e.g. .exe) is refused with 422
+    before any pre-signed URL is issued."""
+    presign_calls: list[Any] = []
+    monkeypatch.setattr(
+        api_mod.s3,
+        "presign_put",
+        lambda *a, **kw: presign_calls.append((a, kw)) or "should-not-be-used",
+    )
+
+    resp = client.post(
+        "/api/uploads",
+        json={
+            "filename": "malware.exe",
+            "size_bytes": 100,
+            "content_type": "application/octet-stream",
+        },
+    )
+
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert presign_calls == []
+
+
+def test_create_upload_html_over_limit_is_422_without_presigning(
+    client: TestClient, wiring: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The shared MAX_UPLOAD_MB limit still applies to an HTML upload: an
+    over-limit file is refused with 422 before any URL is issued."""
+    monkeypatch.setenv("MAX_UPLOAD_MB", "10")
+    get_settings.cache_clear()
+    presign_calls: list[Any] = []
+    monkeypatch.setattr(
+        api_mod.s3,
+        "presign_put",
+        lambda *a, **kw: presign_calls.append((a, kw)) or "should-not-be-used",
+    )
+
+    over = {
+        "filename": "huge-page.html",
+        "size_bytes": 10 * 1024 * 1024 + 1,
+        "content_type": "text/html",
+    }
+    resp = client.post("/api/uploads", json=over)
+
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert presign_calls == []
+    get_settings.cache_clear()
+
+
+# ---------------------------------------------------------------------------
 # Over-limit → 422 (refused before any URL is issued)
 # ---------------------------------------------------------------------------
 

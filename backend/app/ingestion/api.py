@@ -63,7 +63,8 @@ from app.ingestion import check_session, service, upload_parser
 from app.ingestion.check_session import CheckItem, ItemState
 from app.ingestion.service import AddRequestItem
 from app.ingestion.upload_parser import UploadInvalidError
-from app.ingestion.url_validator import parse_submission
+from app.ingestion.url_normalizer import normalize
+from app.ingestion.url_validator import is_wellformed_http_url, parse_submission
 from app.storage import keys, s3
 
 logger = logging.getLogger(__name__)
@@ -89,11 +90,15 @@ _UPLOAD_ACTION = "uploads"
 #: Pre-signed PUT lifetime for uploads (design: "15 minutes").
 _UPLOAD_URL_TTL_SECONDS = 15 * 60
 
-#: Content types accepted for a tabular review upload (``.csv`` / ``.tsv``).
-#: ``text/plain`` and the generic binary type are allowed too because browsers
-#: frequently send those for ``.csv``/``.tsv`` files; the extension is the
-#: authoritative gate (Requirement 7.1).
-_ALLOWED_UPLOAD_EXTENSIONS = (".csv", ".tsv")
+#: Extensions accepted by ``POST /uploads``. The tabular path accepts
+#: ``.csv``/``.tsv`` (Requirement 7.1); the HTML-upload path reuses the same
+#: endpoint and widens the set to saved single-file pages ``.html``/``.htm``/
+#: ``.mhtml`` (Requirement 8.1). Browsers send inconsistent content types for
+#: all of these, so the declared filename extension — not ``content_type`` — is
+#: the authoritative gate. ``MAX_UPLOAD_MB`` and the content-length pin are
+#: shared across both paths; the Check that follows an HTML upload (not this
+#: endpoint) decides whether the saved page is actually readable.
+_ALLOWED_UPLOAD_EXTENSIONS = (".csv", ".tsv", ".html", ".htm", ".mhtml")
 
 #: Item states a retry may re-queue (design: "ended in ``error`` or timed out").
 #: ``error`` is the crashed-handler state; ``done`` is a finished item whose
@@ -138,16 +143,51 @@ class CreateCheckResponse(BaseModel):
     items: list[CheckItemView]
 
 
+class CreateHtmlCheckRequest(BaseModel):
+    """Body of ``POST /ingest/html-checks`` (design "API endpoints" table).
+
+    ``upload_id`` names the already-staged ``uploads/{upload_id}/file`` object
+    the analyst uploaded through ``POST /uploads`` (the HTML saved page).
+    ``source_url`` is the analyst's optional original page URL, stored for
+    display, provenance, and duplicate matching only and never fetched
+    (Requirement 8.8); when supplied it must be a well-formed ``http``/``https``
+    URL (validated in the handler → ``422`` on a malformed value).
+
+    ``upload_id`` carries a ``min_length=1`` bound so a missing/empty id is a
+    plain ``422`` from request validation before the staged-object check runs.
+    """
+
+    upload_id: str = Field(..., min_length=1)
+    source_url: str | None = None
+
+
+class CreateHtmlCheckResponse(BaseModel):
+    """``202`` body of ``POST /ingest/html-checks``: the one-item Check."""
+
+    check_id: str
+    item_id: str
+    state: str
+
+
 class AddItemRequest(BaseModel):
     """One item in the ``POST /ingest/checks/{check_id}/add`` body.
 
     ``confirm_limited`` is the analyst's explicit confirmation to add a
     ``limited`` URL (Requirement 3.9); it is ignored for other verdicts and
     defaults to ``False``.
+
+    For an HTML-upload item the body additionally carries the required ``name``,
+    the optional analyst-supplied ``source_url``, and an optional
+    ``description`` (design "API endpoints"; Requirement 8.8). These three
+    fields are **ignored for URL items** — the service only reads them on the
+    HTML-upload create path.
     """
 
     item_id: str
     confirm_limited: bool = False
+    name: str | None = None
+    source_url: str | None = None
+    description: str | None = None
 
 
 class AddRequest(BaseModel):
@@ -278,6 +318,91 @@ def create_check(request: Request, body: CreateCheckRequest) -> CreateCheckRespo
 
 
 # ---------------------------------------------------------------------------
+# POST /ingest/html-checks
+# ---------------------------------------------------------------------------
+
+
+@router.post("/html-checks", status_code=202)
+def create_html_check(request: Request, body: CreateHtmlCheckRequest) -> CreateHtmlCheckResponse:
+    """Start a one-item Check from an uploaded saved page (Requirement 8).
+
+    This is the only genuinely new endpoint of the HTML-upload path (design:
+    "``POST /ingest/html-checks`` is the only genuinely new endpoint"). The
+    analyst has already uploaded the saved HTML through ``POST /uploads``; this
+    starts the viability assessment by creating a one-item Check Session whose
+    single item carries ``upload_id`` (and the optional ``source_url``) in place
+    of a URL, then enqueuing one ``check-queue`` message. The verdict reaches
+    the browser through the same ``check.updated`` events and verdict card as a
+    URL check, and Add is the same endpoint.
+
+    Flow (design "HTML upload path" + Requirements 8.1, 8.3, 8.7):
+
+    1. Rate-limit the request on the **shared** ``checks`` per-IP and global
+       counters (reusing the mechanism ``POST /ingest/checks`` uses). A limit
+       hit raises :class:`RateLimitError` → ``429`` with ``Retry-After``.
+    2. Confirm the staged ``uploads/{upload_id}/file`` object exists — a missing
+       object is a ``422`` (the upload never completed or already expired).
+    3. Validate the optional ``source_url``: when supplied it must be a
+       well-formed ``http``/``https`` URL, else ``422``. When present it is
+       normalized onto the item (and used as the item's ``final_url``) so the
+       handler's duplicate lookup can match an existing tracked dataset
+       (Requirement 8.12); when absent, both stay null so the upload does not
+       participate in URL dedupe (Requirement 8.11).
+    4. Create the one-item Check Session (``origin="new"``) with the single item
+       in ``pending`` state, carrying ``upload_id``/``source_url`` and the
+       uploaded file name as ``input`` (the UI shows the file name in place of a
+       URL).
+    5. Enqueue one ``{check_id, item_id}`` message (IDs only; the handler reads
+       the rest from the session) and return ``202``.
+    """
+    settings = get_settings()
+
+    # 1. Rate limit on the SHARED ``checks`` counters (per-IP + global). Raises
+    #    RateLimitError (→ 429 with Retry-After) on a hit.
+    client_ip = get_client_ip(request)
+    _enforce_rate_limit(client_ip, settings.rl_checks_per_ip_hour)
+
+    # 2. The staged object must exist. A missing object means the pre-signed PUT
+    #    never completed (or already expired) — a client error, not a 404.
+    if not s3.object_exists(keys.upload_file(body.upload_id)):
+        raise AppValidationError("The uploaded file could not be found; please upload it again")
+
+    # 3. Validate the optional source_url and derive the item's normalized /
+    #    final URL from it only when supplied (design DynamoDB data model).
+    normalized: str | None = None
+    final_url: str | None = None
+    source_url = body.source_url.strip() if body.source_url is not None else None
+    if source_url:
+        if not is_wellformed_http_url(source_url):
+            raise AppValidationError("The source URL is not a valid http or https URL")
+        normalized = normalize(source_url)
+        final_url = source_url
+    else:
+        # Treat an empty/whitespace-only source_url as "not supplied".
+        source_url = None
+
+    # 4. Create the one-item Check Session (origin="new"). ``input`` shows the
+    #    uploaded file reference (the UI displays the file name, not a URL).
+    check_id = str(uuid.uuid4())
+    item_id = "u1"
+    item = CheckItem(
+        item_id=item_id,
+        input=f"upload:{body.upload_id}",
+        state="pending",
+        normalized=normalized,
+        final_url=final_url,
+        upload_id=body.upload_id,
+        source_url=source_url,
+    )
+    check_session.put_session(check_id, "new", [item])
+
+    # 5. Enqueue one message (IDs only) and return 202.
+    enqueue(settings.check_queue_url, {"check_id": check_id, "item_id": item_id})
+
+    return CreateHtmlCheckResponse(check_id=check_id, item_id=item_id, state="pending")
+
+
+# ---------------------------------------------------------------------------
 # GET /ingest/checks/{check_id}
 # ---------------------------------------------------------------------------
 
@@ -379,7 +504,14 @@ def add_check_items(check_id: str, body: AddRequest) -> dict[str, object]:
     lists one only for checks, retry, and uploads.
     """
     request_items = [
-        AddRequestItem(item_id=it.item_id, confirm_limited=it.confirm_limited) for it in body.items
+        AddRequestItem(
+            item_id=it.item_id,
+            confirm_limited=it.confirm_limited,
+            name=it.name,
+            source_url=it.source_url,
+            description=it.description,
+        )
+        for it in body.items
     ]
     results = service.add_items(check_id, request_items)
     return {"results": [r.to_dict() for r in results]}
@@ -392,14 +524,19 @@ def add_check_items(check_id: str, body: AddRequest) -> dict[str, object]:
 
 @uploads_router.post("", status_code=201)
 def create_upload(request: Request, body: CreateUploadRequest) -> CreateUploadResponse:
-    """Issue a pre-signed PUT so the browser can upload a CSV/TSV straight to S3.
+    """Issue a pre-signed PUT so the browser can upload a file straight to S3.
 
-    Flow (design "API endpoints" + Error Handling tables, Requirement 7.1):
+    Reused by both the tabular path (``.csv``/``.tsv``, Requirement 7.1) and the
+    HTML-upload path (``.html``/``.htm``/``.mhtml``, Requirement 8.1); the two
+    share ``MAX_UPLOAD_MB``, the content-length pin, and the ``uploads/{id}/file``
+    staging key.
+
+    Flow (design "API endpoints" + Error Handling tables, Requirements 7.1, 8.1):
 
     1. Rate-limit the request per client IP and globally (``uploads`` counters);
        a limit hit raises :class:`RateLimitError` → ``429`` with ``Retry-After``.
     2. Refuse an over-limit file (``size_bytes`` above ``MAX_UPLOAD_MB``) and a
-       file whose extension is not ``.csv``/``.tsv`` with ``422`` — *before* any
+       file whose extension is not accepted with ``422`` — *before* any
        pre-signed URL is issued, so an over-limit file never gets an upload slot.
     3. Mint a random ``upload_id``, build the key via
        :func:`app.storage.keys.upload_file`, and generate a 15-minute pre-signed
@@ -422,11 +559,13 @@ def create_upload(request: Request, body: CreateUploadRequest) -> CreateUploadRe
             f"File is larger than the {settings.max_upload_mb} MB upload limit"
         )
 
-    # 2b. Extension: only .csv / .tsv are accepted (Requirement 7.1). The
-    #     declared filename is the authoritative gate.
+    # 2b. Extension: .csv / .tsv (tabular, Requirement 7.1) and .html / .htm /
+    #     .mhtml (saved pages, Requirement 8.1) are accepted. Any other type is
+    #     refused here, before a pre-signed URL is issued. The declared filename
+    #     is the authoritative gate — browsers send inconsistent content types.
     lower_name = body.filename.lower()
     if not lower_name.endswith(_ALLOWED_UPLOAD_EXTENSIONS):
-        raise AppValidationError("Only .csv and .tsv files can be uploaded")
+        raise AppValidationError("Only .csv, .tsv, .html, .htm, and .mhtml files can be uploaded")
 
     # 3. Mint the upload id, build the key, and presign a content-length-pinned
     #    PUT for 15 minutes. S3 enforces the exact Content-Length as a second

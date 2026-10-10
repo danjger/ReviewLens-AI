@@ -1,25 +1,32 @@
 /**
- * UploadDropzone — the file picker for the Upload tab (dataset-ingestion task
- * 9.3, Requirement 7.1).
+ * UploadDropzone — the file picker shared by the Upload (CSV) and HTML tabs
+ * (dataset-ingestion tasks 9.3 and 21, Requirements 7.1 and 8.14).
  *
- * Accepts a single `.csv` or `.tsv` file, either by clicking to open the native
- * file dialog or by dragging a file onto the zone. The `accept` attribute hints
- * the dialog toward CSV/TSV, and this component also guards the extension
+ * Accepts a single file, either by clicking to open the native file dialog or
+ * by dragging a file onto the zone. The `accept` attribute hints the dialog
+ * toward the allowed types, and this component also guards the extension
  * client-side so a wrong file is rejected with a message before any upload is
  * started (the backend applies the authoritative check on `POST /uploads`).
  *
+ * The accepted extensions, prompt, and rejection message default to the Upload
+ * tab's CSV/TSV values but are overridable so the HTML tab can accept saved
+ * pages (`.html`/`.htm`/`.mhtml`) through the same component (Requirement 8.14).
+ *
  * It is a thin, controlled input: it reports the chosen `File` upward via
  * `onFile` and renders the currently-selected file name (shown in place of a
- * URL — Requirement 7.5). It owns no upload state; `UploadTab` drives the
- * pipeline.
+ * URL — Requirements 7.5, 8.10). It owns no upload state; the hosting tab drives
+ * the pipeline.
  */
 import { useCallback, useRef, useState, type DragEvent } from "react";
 
-/** Extensions the dropzone accepts (Requirement 7.1). */
-const ACCEPTED_EXTENSIONS = [".csv", ".tsv"] as const;
+/** Default extensions the dropzone accepts (Requirement 7.1, CSV/TSV). */
+const DEFAULT_EXTENSIONS = [".csv", ".tsv"] as const;
 
-/** The `accept` attribute value for the native file dialog. */
-const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
+/** Default rejection message when the chosen file is not an accepted type. */
+const DEFAULT_REJECTED = "Only .csv and .tsv files can be uploaded.";
+
+/** Default prompt text in the drop zone. */
+const DEFAULT_PROMPT = "Drop a .csv or .tsv file here, or click to choose one";
 
 export interface UploadDropzoneProps {
   /** Called with the chosen file once it passes the extension check. */
@@ -28,34 +35,43 @@ export interface UploadDropzoneProps {
   fileName?: string | null;
   /** Disable interaction while an upload/preview is in flight. */
   disabled?: boolean;
-}
-
-/** True when `name` ends in an accepted extension (case-insensitive). */
-function hasAcceptedExtension(name: string): boolean {
-  const lower = name.toLowerCase();
-  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  /**
+   * Accepted extensions (lowercase, with the leading dot). Defaults to CSV/TSV;
+   * the HTML tab passes `.html`/`.htm`/`.mhtml` (Requirement 8.14).
+   */
+  extensions?: readonly string[];
+  /** Prompt text shown in the zone. */
+  prompt?: string;
+  /** Message shown when the chosen file is not an accepted type. */
+  rejectMessage?: string;
 }
 
 export default function UploadDropzone({
   onFile,
   fileName,
   disabled = false,
+  extensions = DEFAULT_EXTENSIONS,
+  prompt = DEFAULT_PROMPT,
+  rejectMessage = DEFAULT_REJECTED,
 }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [rejected, setRejected] = useState<string | null>(null);
 
+  const acceptAttr = extensions.join(",");
+
   const handleFile = useCallback(
     (file: File | undefined) => {
       if (!file) return;
-      if (!hasAcceptedExtension(file.name)) {
-        setRejected("Only .csv and .tsv files can be uploaded.");
+      const lower = file.name.toLowerCase();
+      if (!extensions.some((ext) => lower.endsWith(ext))) {
+        setRejected(rejectMessage);
         return;
       }
       setRejected(null);
       onFile(file);
     },
-    [onFile],
+    [onFile, extensions, rejectMessage],
   );
 
   const openDialog = useCallback(() => {
@@ -103,9 +119,7 @@ export default function UploadDropzone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <p className="upload-dropzone__prompt">
-          Drop a .csv or .tsv file here, or click to choose one
-        </p>
+        <p className="upload-dropzone__prompt">{prompt}</p>
         {fileName && (
           <p className="upload-dropzone__filename" data-testid="upload-filename">
             {fileName}
@@ -116,7 +130,7 @@ export default function UploadDropzone({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT_ATTR}
+        accept={acceptAttr}
         data-testid="upload-file-input"
         className="upload-dropzone__input"
         disabled={disabled}

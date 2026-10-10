@@ -20,10 +20,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { UseAddItemsOptions } from "../hooks/useAddItems";
 import { CHECK_PARAM } from "../hooks/useCheckParam";
+import HtmlTab from "./HtmlTab";
 import UploadTab from "./UploadTab";
 import UrlTab from "./UrlTab";
 
-type TabKey = "url" | "upload";
+type TabKey = "url" | "upload" | "html";
 
 export interface NewDatasetPanelProps {
   /**
@@ -99,6 +100,16 @@ export default function NewDatasetPanel({
         >
           Upload file
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "html"}
+          data-testid="tab-html"
+          className={tab === "html" ? "is-active" : ""}
+          onClick={() => setTab("html")}
+        >
+          Saved page
+        </button>
       </div>
     ),
     [tab],
@@ -137,14 +148,14 @@ export default function NewDatasetPanel({
         <div id="add-panel-body" className="new-dataset-panel__body">
           {headingTab}
           <div className="new-dataset-panel__tabpanel" role="tabpanel">
-            {tab === "url" ? (
+            {tab === "url" && (
               <UrlTab
                 addNavigation={addNavigation}
                 onSelectionChange={() => setCheckActive(hasActiveCheck())}
               />
-            ) : (
-              <UploadTab />
             )}
+            {tab === "upload" && <UploadTab />}
+            {tab === "html" && <HtmlTab addNavigation={addNavigation} />}
           </div>
         </div>
       )}

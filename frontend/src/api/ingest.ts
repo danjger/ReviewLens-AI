@@ -95,6 +95,19 @@ export interface CreateCheckResponse {
   items: CheckItem[];
 }
 
+/** Body of `POST /ingest/html-checks` (backend `CreateHtmlCheckRequest`). */
+export interface CreateHtmlCheckInput {
+  upload_id: string;
+  source_url?: string;
+}
+
+/** `202` body of `POST /ingest/html-checks` (backend `CreateHtmlCheckResponse`). */
+export interface CreateHtmlCheckResponse {
+  check_id: string;
+  item_id: string;
+  state: ItemState;
+}
+
 /** The polling session shape (`GET /ingest/checks/{id}`). */
 export interface CheckSession {
   check_id: string;
@@ -220,6 +233,27 @@ export async function createCheck(urls: string[]): Promise<CreateCheckResponse> 
 }
 
 /**
+ * Start a one-item Check from an already-staged uploaded saved page (HTML tab).
+ *
+ * `POST /api/ingest/html-checks`. The analyst has already uploaded the saved
+ * HTML through `POST /uploads`; this starts the viability assessment on it,
+ * returning the new `check_id`/`item_id` and the item's initial `state`
+ * (Requirement 8.1, 8.3). A `422` means the staged object is missing or the
+ * optional `source_url` is malformed; a `429` raises an {@link ApiError}
+ * carrying `retryAfterSeconds` (Requirement 8.7).
+ */
+export async function createHtmlCheck(
+  input: CreateHtmlCheckInput,
+): Promise<CreateHtmlCheckResponse> {
+  const response = await fetch(url("/ingest/html-checks"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<CreateHtmlCheckResponse>(response);
+}
+
+/**
  * Fetch a Check Session for polling.
  *
  * `GET /api/ingest/checks/{checkId}`. A `404` (expired session) raises an
@@ -251,10 +285,21 @@ export async function retryCheckItem(
   }
 }
 
-/** One item in an Add request. */
+/**
+ * One item in an Add request.
+ *
+ * For a URL item only `item_id` and the optional `confirm_limited` are read.
+ * For an HTML-upload item (dataset-ingestion task 20/21) the body additionally
+ * carries the required `name`, the optional analyst-supplied `source_url`, and
+ * an optional `description` — these three fields are ignored for URL items
+ * (design "API endpoints"; Requirement 8.8).
+ */
 export interface AddItemInput {
   item_id: string;
   confirm_limited?: boolean;
+  name?: string;
+  source_url?: string;
+  description?: string;
 }
 
 /**

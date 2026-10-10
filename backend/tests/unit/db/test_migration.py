@@ -31,13 +31,24 @@ def _alembic_config() -> Config:
 def test_single_head_revision() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
     heads = script.get_heads()
-    assert heads == ["0001_datasets_and_versions"]
+    assert heads == ["0002_html_upload_source_type"]
 
 
 def test_base_migration_has_no_down_revision() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
     rev = script.get_revision("0001_datasets_and_versions")
     assert rev.down_revision is None
+
+
+def test_html_upload_revision_follows_base() -> None:
+    """The ``html_upload`` enum revision chains directly off the base one.
+
+    One Alembic revision per schema-changing task (dataset-ingestion task 15):
+    the second revision's down_revision is the first.
+    """
+    script = ScriptDirectory.from_config(_alembic_config())
+    rev = script.get_revision("0002_html_upload_source_type")
+    assert rev.down_revision == "0001_datasets_and_versions"
 
 
 def test_offline_upgrade_emits_expected_ddl(
@@ -67,8 +78,11 @@ def test_offline_upgrade_emits_expected_ddl(
         command.upgrade(_alembic_config(), "head", sql=True)
     sql = buffer.getvalue()
 
-    # Enum type + the four allowed status values.
+    # Enum type + the four allowed status values. Revision 0001 creates the
+    # source_type enum with just the two original values; revision 0002 then
+    # appends the third (html_upload) via ALTER TYPE (task 15, Requirement 8.8).
     assert "CREATE TYPE source_type AS ENUM ('url', 'upload')" in sql
+    assert "ALTER TYPE source_type ADD VALUE IF NOT EXISTS 'html_upload'" in sql
     assert (
         "CREATE TYPE dataset_status AS ENUM ('requested', 'processing', 'updated', 'failed')" in sql
     )

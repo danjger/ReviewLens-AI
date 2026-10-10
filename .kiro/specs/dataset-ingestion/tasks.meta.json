@@ -556,6 +556,225 @@
         "chatSessionId": "sess_bdc7db41-4856-4c05-8c4e-4890c3d4fd63",
         "timestamp": 1790888079311
       }
+    ],
+    "15. Add the `html_upload` source_type (schema)": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607202910
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607211292
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607989773
+      }
+    ],
+    "16.1 Write unit tests for the extended gate: accept `.html`/`.htm`/`.mhtml`, still reject a disallowed type (e.g. `.exe`), still enforce the size limit": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607202944
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607221728
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607991148
+      }
+    ],
+    "17.1 Write unit tests: builds the view with the synthetic fields and the parsed title; a non-text file is rejected with a specific message and deleted": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607202999
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791608060413
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791608999223
+      }
+    ],
+    "18.1 Write integration tests (AI stub): an upload item reaches the expected verdict/plan/`check.updated` event with no probe or robots fetch occurring; the duplicate lookup runs only when a `source_url` is present": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203041
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609065048
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609466710
+      }
+    ],
+    "19.1 Write integration/unit tests: happy path enqueues one message; missing staged object → 422; malformed `source_url` → 422; the 429 path after the limit": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203075
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791608075792
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609000101
+      }
+    ],
+    "20.1 Write integration tests: no source URL → one `html_upload` dataset v1 plus enqueue; tracked source URL → no new row, version 2 via `upload_replace` with a `refresh_requested` event; two uploads of the same page with no source URL → two datasets (Requirement 8.11); `wont_work` refused; `limited` needs confirmation": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203106
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609551644
+      }
+    ],
+    "21.1 Write component tests: upload progress, verdict rendering with samples, disabled Add on `wont_work`, the `limited` confirmation, the tracked note, and name required": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203133
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791610288309
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791611101963
+      }
+    ],
+    "22.1 Write the Property 8 test (Hypothesis), docstring referencing \"Property 8\": for any uploaded HTML file, assessing it makes no outbound network request for the page or any sub-resource (asserted with a network guard / no capture route calls)": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203160
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609554370
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791610219708
+      }
+    ],
+    "22.2 Write the Property 9 test (Hypothesis), docstring referencing \"Property 9\": for any uploaded HTML file, every verified review the assessment keeps has text appearing verbatim (after whitespace and Unicode normalization) in the uploaded markup, reusing the URL verification generators": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203191
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609557203
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791610221189
+      }
+    ],
+    "23. Add the large server-rendered review fixture (Requirement 9)": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203227
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607231724
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607992605
+      }
+    ],
+    "24. Write the HTML-upload E2E test": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607203259
+      },
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791611175233
+      }
+    ],
+    "16. Widen `POST /uploads` to accept saved-page HTML": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791607991189
+      }
+    ],
+    "17. Implement `capture.from_upload()` — an upload-backed CaptureView": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791608999277
+      }
+    ],
+    "19. Add the `POST /ingest/html-checks` endpoint": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609000978
+      }
+    ],
+    "18. Add the upload-item branch to the check handler": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791609466764
+      }
+    ],
+    "22. Write property-based tests for HTML upload": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791610221228
+      }
+    ],
+    "21. Build the HTML tab in the New Dataset panel": [
+      {
+        "executionId": "ea5a4464-ba34-4a89-aaa8-1ef1054f4739",
+        "chatSessionId": "sess_98151714-4c07-4040-b095-2d1b28daa18f",
+        "timestamp": 1791611102102
+      }
     ]
   }
 }

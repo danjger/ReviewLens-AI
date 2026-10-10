@@ -128,10 +128,22 @@ class AddRequestItem:
         item_id: The Check Session item to add.
         confirm_limited: True when the analyst confirmed adding a ``limited``
             URL (Requirement 3.9). Ignored for other verdicts.
+        name: The analyst-supplied dataset name. Required for an HTML-upload
+            item (Requirement 8.8) and ignored for URL items (whose name is
+            derived from the page title / URL). Carried from the Add body and
+            used only on the HTML-upload create path.
+        source_url: The analyst's optional original page URL for an HTML upload
+            (Requirement 8.8). Stored for display/provenance and used for
+            duplicate matching only; never fetched. Ignored for URL items.
+        description: Optional analyst-supplied source description for an HTML
+            upload. Ignored for URL items.
     """
 
     item_id: str
     confirm_limited: bool = False
+    name: str | None = None
+    source_url: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -231,6 +243,25 @@ def _add_one(session: CheckSession, request: AddRequestItem) -> AddResult:
         logger.info("add_items: item %s/%s already claimed by another Add", check_id, item.item_id)
         return AddResult(item.item_id, _reapplied_outcome(item))
 
+    # An HTML-upload item carries ``upload_id`` instead of a URL. Its per-item
+    # decision table is identical up to here (refuse wont_work, confirm limited,
+    # the applied claim); only the create-vs-refresh branch differs — the create
+    # path is create_from_html_upload, and routing to refresh happens only when
+    # the optional source URL matched an existing dataset at Check time. An
+    # upload with no source URL ALWAYS creates (Requirement 8.11); one whose
+    # source URL is tracked refreshes via the shared Refresh Service with
+    # trigger ``upload_replace`` (Requirement 8.12).
+    if item.upload_id is not None:
+        if item.existing_dataset:
+            return _route_html_upload_to_refresh(check_id, item)
+        return create_from_html_upload(
+            check_id,
+            item,
+            name=request.name,
+            source_url=request.source_url,
+            description=request.description,
+        )
+
     # Already tracked → refresh the existing dataset (Requirement 6.4).
     if item.existing_dataset:
         return _route_to_refresh(check_id, item)
@@ -264,6 +295,36 @@ def _route_to_refresh(check_id: str, item: CheckItem) -> AddResult:
         capture=capture,
     )
     # refresh_service's RefreshOutcome literals are a subset of our Outcome.
+    return AddResult(item.item_id, outcome, dataset_id=existing_id)
+
+
+def _route_html_upload_to_refresh(check_id: str, item: CheckItem) -> AddResult:
+    """Refresh the dataset an HTML upload's source URL already tracks (Req 8.12).
+
+    When the analyst supplied a ``source_url`` whose normalized form matched an
+    existing dataset at Check time, the upload refreshes that dataset rather
+    than creating a competing ``html_upload`` row for the same URL. The capture
+    is a :class:`CheckCapture` carrying the uploaded HTML (copied by the Check
+    handler to ``checks/{check_id}/{item_id}/page.html``) and its Extraction
+    Plan (``plan.json``) with **no snapshot** — exactly the shape a URL Check
+    produces, so the Refresh Service's URL branch copies it unchanged. The
+    trigger is ``upload_replace`` (design: an HTML-upload refresh uses
+    ``upload_replace``). The ``refresh_requested`` event is appended inside the
+    Refresh Service, so it is not duplicated here.
+    """
+    assert item.existing_dataset is not None  # guarded by the caller
+    existing_id = str(item.existing_dataset["id"])
+    # The uploaded HTML + plan live under the same check keys a URL capture
+    # uses (the Check handler wrote them there); no snapshot is produced for an
+    # upload, so _check_capture offers a snapshot key the Refresh Service simply
+    # finds absent and skips.
+    capture = _check_capture(check_id, item)
+
+    outcome = refresh_service.refresh(
+        existing_id,
+        trigger="upload_replace",
+        capture=capture,
+    )
     return AddResult(item.item_id, outcome, dataset_id=existing_id)
 
 
@@ -372,6 +433,206 @@ def create_from_check(check_id: str, item: CheckItem) -> AddResult:
     )
 
     return AddResult(item.item_id, "created", dataset_id=dataset_id)
+
+
+# ---------------------------------------------------------------------------
+# HTML upload → create a dataset from the uploaded page (Requirement 8.8, 8.9)
+# ---------------------------------------------------------------------------
+
+
+def create_from_html_upload(
+    check_id: str,
+    item: CheckItem,
+    *,
+    name: str | None,
+    source_url: str | None,
+    description: str | None,
+) -> AddResult:
+    """Create a new ``html_upload`` dataset (v1) from an assessed HTML upload.
+
+    The HTML-upload analogue of :func:`create_from_check` (design
+    ``ingestion.service.create_from_html_upload`` bullet, Requirements 8.8, 8.9).
+    The Check handler has already assessed the uploaded page and copied the
+    uploaded HTML to ``checks/{check_id}/{item_id}/page.html`` and the Extraction
+    Plan to ``plan.json`` under the same check prefix a URL capture uses, so this
+    reuses the same copy-into-``raw/v1`` + insert + enqueue path, with these
+    differences from the URL path:
+
+    - ``source_type = html_upload`` (Requirement 8.8).
+    - ``name`` is the analyst's **required** name (not derived from a URL/title).
+    - ``original_url``/``normalized_url`` are set from ``source_url`` **only when
+      supplied**, otherwise left null — so an upload with no source URL does not
+      participate in URL dedupe (Requirement 8.11).
+    - **No** ``final_url``/``normalized_final_url`` and **no** snapshot copy
+      (nothing was fetched; no live render — Requirement 8.10).
+    - ``status_detail`` carries the ``requested`` event and the viability verdict
+      exactly as the URL path (Requirements 8.9, 3.11).
+
+    Failure cleanup is identical to :func:`create_from_check`: any partial
+    permanent objects are deleted and no half-created row is left behind
+    (Requirement 4.5). The enqueue of ``{dataset_id, data_version: 1}`` is
+    identical too. There is no unique-URL race fallback: an upload without a
+    source URL never inserts a normalized URL, and an upload *with* a tracked
+    source URL is routed to refresh by :func:`_add_one` before this is reached
+    (so this is only ever called for a brand-new or source-URL-less upload).
+
+    Args:
+        check_id: The Check Session the item belongs to.
+        item: The completed, viable HTML-upload Check item (carries ``upload_id``
+            and the stored verdict/plan location).
+        name: The analyst-supplied dataset name (required for an HTML upload).
+        source_url: The analyst's optional original page URL, stored for display
+            and duplicate matching only; never fetched.
+        description: Optional analyst-supplied source description.
+
+    Returns:
+        An :class:`AddResult`: ``created`` with the new dataset's id.
+
+    Raises:
+        ValueError: If ``name`` is missing or blank (an HTML upload requires a
+            name — Requirement 8.8).
+    """
+    if name is None or not name.strip():
+        raise ValueError("an HTML-upload dataset requires a non-empty name")
+
+    dataset_id = _new_dataset_id()
+
+    # Destination keys (every key from storage.keys). v1 is the first version.
+    # The uploaded HTML + plan live under the SAME check keys a URL capture uses
+    # (the Check handler wrote them there); there is no snapshot for an upload.
+    page_dst = keys.dataset_raw_page(dataset_id, 1, 1)
+    plan_dst = keys.dataset_raw_plan(dataset_id, 1)
+
+    src_page = keys.check_page(check_id, item.item_id)
+    src_plan = keys.check_plan(check_id, item.item_id)
+
+    copied: list[str] = []
+    try:
+        s3.copy_object(src_page, page_dst)
+        copied.append(page_dst)
+        s3.copy_object(src_plan, plan_dst)
+        copied.append(plan_dst)
+
+        _insert_html_upload_dataset(dataset_id, item, name.strip(), source_url, description)
+    except Exception:
+        # Requirement 4.5: delete any partial permanent objects and do not
+        # leave a half-created row. The INSERT is one transaction so a failed
+        # INSERT rolled itself back; only the copied S3 objects remain.
+        logger.exception(
+            "create_from_html_upload failed for check %s item %s; cleaning up %d object(s)",
+            check_id,
+            item.item_id,
+            len(copied),
+        )
+        _cleanup_partial(copied, check_id, item.item_id)
+        raise
+
+    # Hand the new version to review-analysis (IDs only; FIFO per dataset).
+    enqueue(
+        get_settings().processing_queue_url,
+        {"dataset_id": dataset_id, "data_version": 1},
+        message_group_id=dataset_id,
+        # The processing FIFO queue has content-based dedup OFF (api-stack.ts),
+        # so the producer MUST supply the dedup id. Keyed dataset_id:version.
+        message_deduplication_id=f"{dataset_id}:1",
+    )
+
+    return AddResult(item.item_id, "created", dataset_id=dataset_id)
+
+
+def _insert_html_upload_dataset(
+    dataset_id: str,
+    item: CheckItem,
+    name: str,
+    source_url: str | None,
+    description: str | None,
+) -> None:
+    """Insert the ``html_upload`` ``datasets`` row and its v1 version row.
+
+    Mirrors :func:`_insert_dataset` for the HTML-upload case: the row is born
+    ``requested`` with a ``requested`` event in ``status_detail`` carrying the
+    viability verdict (Requirements 8.9, 3.11), ``source_type = html_upload``,
+    the analyst's required ``name``, and the optional source ``description`` on
+    the event. ``original_url``/``normalized_url`` are set from ``source_url``
+    **only when supplied** (else null, so the upload stays out of URL dedupe —
+    Requirement 8.11); ``final_url``/``normalized_final_url`` are always null and
+    no snapshot is produced. Both inserts share one transaction so a committed
+    dataset always has its v1 row.
+    """
+    verdict = item.verdict or {}
+    now = datetime.now(UTC)
+    now_iso = now.isoformat()
+
+    # Normalize the source URL for duplicate matching only when one was given.
+    normalized_url: str | None = None
+    if source_url is not None and source_url.strip():
+        from app.ingestion.url_normalizer import normalize
+
+        normalized_url = normalize(source_url)
+    else:
+        source_url = None
+
+    page_title = _page_title(verdict)
+    platform = _platform_from_url(source_url)
+
+    status_detail: dict[str, Any] = {
+        "events": [
+            {
+                "status": DatasetStatus.REQUESTED.value,
+                "at": now_iso,
+                "message": "requested",
+                "data": {
+                    "source": "html_upload",
+                    "description": description,
+                    "viability": verdict,
+                },
+            }
+        ],
+        "description": description,
+        "viability": verdict,
+    }
+
+    with session_scope() as session:
+        session.execute(
+            text(
+                """
+                INSERT INTO datasets (
+                    id, name, page_title, source_type,
+                    original_url, final_url, normalized_url, normalized_final_url,
+                    platform, status, status_detail,
+                    requested_at, updated_at, data_version, active_version
+                )
+                VALUES (
+                    CAST(:id AS uuid), :name, :page_title,
+                    CAST(:source_type AS source_type),
+                    :original_url, NULL, :normalized_url, NULL,
+                    :platform, CAST(:status AS dataset_status),
+                    CAST(:status_detail AS jsonb),
+                    :requested_at, :updated_at, 1, NULL
+                )
+                """
+            ).bindparams(
+                id=dataset_id,
+                name=name,
+                page_title=page_title,
+                source_type=SourceType.HTML_UPLOAD.value,
+                original_url=source_url,
+                normalized_url=normalized_url,
+                platform=platform,
+                status=DatasetStatus.REQUESTED.value,
+                status_detail=json.dumps(status_detail),
+                requested_at=now,
+                updated_at=now,
+            ),
+        )
+        session.execute(
+            text(
+                """
+                INSERT INTO dataset_versions (dataset_id, version, trigger, requested_at)
+                VALUES (CAST(:id AS uuid), 1, :trigger, :requested_at)
+                """
+            ).bindparams(id=dataset_id, trigger=_INITIAL_TRIGGER, requested_at=now),
+        )
 
 
 def _cleanup_partial(copied: list[str], check_id: str, item_id: str) -> None:

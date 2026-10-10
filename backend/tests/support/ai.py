@@ -68,8 +68,24 @@ def _to_namespace(obj: Any) -> Any:  # noqa: ANN401 - recursive JSON → attrs
     This lets replayed responses expose ``response.usage.input_tokens`` and
     ``response.content[0].text`` just like the real SDK's pydantic models,
     which the instrumented client reads via ``getattr``.
+
+    One shape is preserved as a plain dict rather than a namespace: a
+    ``tool_use`` content block's ``input``. The real Anthropic SDK models a
+    tool call's ``input`` as a ``dict`` (``ToolUseBlock.input``), and callers
+    read it with ``isinstance(block.input, dict)`` (see
+    ``app.extraction.locator._extract_tool_input``). Deep-converting it to a
+    ``SimpleNamespace`` would fail that check and make every *recorded*
+    tool-use fixture unreplayable — which is exactly the Review Locator path
+    ``make record-ai`` captures. So when a dict looks like a ``tool_use`` block
+    (``type == "tool_use"`` with an ``input``), its ``input`` is kept as a dict.
     """
     if isinstance(obj, dict):
+        if obj.get("type") == "tool_use" and isinstance(obj.get("input"), dict):
+            # Mirror the SDK: the block is attribute-accessible, but its
+            # ``input`` stays a plain dict (recursively plain, not a namespace).
+            converted = {k: _to_namespace(v) for k, v in obj.items() if k != "input"}
+            converted["input"] = obj["input"]
+            return SimpleNamespace(**converted)
         return SimpleNamespace(**{k: _to_namespace(v) for k, v in obj.items()})
     if isinstance(obj, list):
         return [_to_namespace(v) for v in obj]
