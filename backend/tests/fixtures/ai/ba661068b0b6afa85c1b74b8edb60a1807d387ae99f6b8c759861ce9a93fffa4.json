@@ -1,0 +1,118 @@
+{
+  "id": "msg_011Cfu9X9gj3JLWVSHUpcfe1",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_01RjTJQF7w17LixYyUFgsMXY",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "items": [
+          {
+            "item_ref": "e9",
+            "title_ref": "e10",
+            "author_ref": null,
+            "date_ref": "e11",
+            "text_ref": "e12",
+            "rating_ref": null,
+            "rating_value": 5,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e13",
+            "title_ref": "e14",
+            "author_ref": null,
+            "date_ref": "e15",
+            "text_ref": "e16",
+            "rating_ref": null,
+            "rating_value": 4,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e17",
+            "title_ref": "e18",
+            "author_ref": null,
+            "date_ref": "e19",
+            "text_ref": "e20",
+            "rating_ref": null,
+            "rating_value": 2,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e21",
+            "title_ref": "e22",
+            "author_ref": null,
+            "date_ref": "e23",
+            "text_ref": "e24",
+            "rating_ref": null,
+            "rating_value": 5,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e25",
+            "title_ref": "e26",
+            "author_ref": null,
+            "date_ref": "e27",
+            "text_ref": "e28",
+            "rating_ref": null,
+            "rating_value": 4,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e29",
+            "title_ref": "e30",
+            "author_ref": null,
+            "date_ref": "e31",
+            "text_ref": "e32",
+            "rating_ref": null,
+            "rating_value": 3,
+            "kind": "review"
+          }
+        ],
+        "reported_total": 6,
+        "rating_scale": 5,
+        "selectors": {
+          "item": "article",
+          "title": "h3",
+          "text": "p",
+          "date": "time",
+          "author": null,
+          "rating": null
+        },
+        "next_page": {
+          "ref": null
+        },
+        "excluded_refs": [],
+        "blocker": null,
+        "entity_hint": "Acme CRM",
+        "confidence": "medium"
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 3899,
+    "output_tokens": 776,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}

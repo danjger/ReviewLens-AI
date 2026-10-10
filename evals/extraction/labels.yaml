@@ -56,6 +56,18 @@ structured_jsonld:
       rating: 2
       date: "2023-12-05"
       author: "Marcus Lee"
+    - prefix: "The workflow automations saved our sales team hours"
+      rating: 5
+      date: "2023-11-19"
+      author: "Elena Castro"
+    - prefix: "Integrations with our email and calendar worked flawlessly"
+      rating: 4
+      date: "2023-10-30"
+      author: "Tom Baker"
+    - prefix: "A capable platform once you learn it, but the initial learning curve"
+      rating: 3
+      date: "2023-09-14"
+      author: "Aisha Rahman"
 
 structured_microdata:
   url: https://orchid.example.com/hotel/reviews
@@ -78,6 +90,22 @@ structured_microdata:
       rating: 3
       date: "2024-06-15"
       author: "Hassan R."
+    - prefix: "The spa and the heated pool were spotless"
+      rating: 5
+      date: "2024-05-28"
+      author: "Grace Hughes"
+    - prefix: "Lovely rooftop bar and attentive service, although check-in took"
+      rating: 4
+      date: "2024-05-12"
+      author: "Daniel Oyelaran"
+    - prefix: "The room photos online looked far nicer than reality"
+      rating: 2
+      date: "2024-04-20"
+      author: "Mei Tanaka"
+    - prefix: "Easily the best breakfast spread I have had in the city"
+      rating: 5
+      date: "2024-04-03"
+      author: "Felix Braun"
 
 js_rendered:
   url: https://nimbus.example.com/app/reviews
@@ -104,6 +132,18 @@ js_rendered:
       rating: 2
       date: "2024-04-18"
       author: "Kofi A."
+    - prefix: "The web clipper and the quick-capture shortcut have completely replaced"
+      rating: 5
+      date: "2024-04-05"
+      author: "Mia Lindqvist"
+    - prefix: "Reliable sync and a tidy editor, but the mobile widget occasionally"
+      rating: 4
+      date: "2024-03-22"
+      author: "Omar Haddad"
+    - prefix: "Does the basics well and starts up quickly, though the free tier"
+      rating: 3
+      date: "2024-03-08"
+      author: "Priscilla Owens"
 
 plain_list:
   url: https://bluebird.example.com/grinder/reviews
@@ -134,6 +174,14 @@ plain_list:
       rating: 5
       date: "2023-12-22"
       author: "Sofia M."
+    - prefix: "Dialing in espresso is quick thanks to the stepless adjustment"
+      rating: 4
+      date: "2023-11-30"
+      author: "Lars Petersen"
+    - prefix: "Build quality feels premium and the burrs produce almost no fines"
+      rating: 5
+      date: "2023-11-11"
+      author: "Priya Nair"
 
 no_ratings:
   url: https://harbor.example.com/books/lantern-keeper/comments
@@ -179,6 +227,18 @@ multipage_listing:
       rating: 3
       date: "2024-03-21"
       author: "Amara J."
+    - prefix: "Grippy outsole that handled wet pavement confidently on my commute"
+      rating: 4
+      date: "2024-03-14"
+      author: "Victor Alvarez"
+    - prefix: "Broke these in within a single run and they have been my go-to"
+      rating: 5
+      date: "2024-03-07"
+      author: "Chloe Dubois"
+    - prefix: "The cushioning felt flat after barely two months of road running"
+      rating: 2
+      date: "2024-02-28"
+      author: "Hiroshi Sato"
 
 mixed_qa_seller:
   url: https://outfitters.example.com/summit-tent-2p/reviews
@@ -205,6 +265,18 @@ mixed_qa_seller:
       rating: 3
       date: "2024-05-09"
       author: "Noah F."
+    - prefix: "Took it on a week-long alpine trek and the footprint kept the floor"
+      rating: 5
+      date: "2024-04-22"
+      author: "Sofia Martinez"
+    - prefix: "Packs down smaller than my old two-person tent"
+      rating: 4
+      date: "2024-04-08"
+      author: "Wei Zhang"
+    - prefix: "Solid in wind but condensation builds up badly on cold mornings"
+      rating: 3
+      date: "2024-03-29"
+      author: "Nadia Haddad"
 
 blocker_consent:
   url: https://gatewall.example.com/product/reviews

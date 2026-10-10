@@ -1,0 +1,118 @@
+{
+  "id": "msg_011Cfu9s7RbiufEtcWHDN1P7",
+  "container": null,
+  "content": [
+    {
+      "id": "toolu_016ukKz9SoEVBWjEG2XWhsWd",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "has_reviews": true,
+        "items": [
+          {
+            "item_ref": "e8",
+            "text_ref": "e9",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 5,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e10",
+            "text_ref": "e11",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 4,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e12",
+            "text_ref": "e13",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 2,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e14",
+            "text_ref": "e15",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 5,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e16",
+            "text_ref": "e17",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 4,
+            "title_ref": null,
+            "kind": "review"
+          },
+          {
+            "item_ref": "e18",
+            "text_ref": "e19",
+            "author_ref": null,
+            "date_ref": null,
+            "rating_ref": null,
+            "rating_value": 3,
+            "title_ref": null,
+            "kind": "review"
+          }
+        ],
+        "rating_scale": 5,
+        "reported_total": null,
+        "next_page": {
+          "ref": null
+        },
+        "selectors": {
+          "item": "div[class*='review']",
+          "text": "p",
+          "rating": null,
+          "date": null,
+          "author": null,
+          "title": null
+        },
+        "excluded_refs": [],
+        "blocker": null,
+        "entity_hint": "Nimbus Notes App",
+        "confidence": "medium"
+      },
+      "name": "locator_result",
+      "type": "tool_use",
+      "toolset_name": null
+    }
+  ],
+  "diagnostics": null,
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available",
+    "input_tokens": 3727,
+    "output_tokens": 751,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}
