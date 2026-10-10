@@ -63,6 +63,17 @@ permissions:
   id-token: write
   contents: read
 
+# Serialize production deploys. Two deploys that overlap (e.g. back-to-back
+# merges to `main`) collide in CloudFormation — the second aborts with
+# "Stack ... is in UPDATE_IN_PROGRESS state and can not be updated." This group
+# makes a new deploy WAIT for the in-flight one instead of racing it.
+# cancel-in-progress is false on purpose: never interrupt a half-applied
+# production CloudFormation update (that can leave a stack stuck in
+# UPDATE_ROLLBACK_FAILED); let it finish, then run the newer deploy.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   PYTHON_VERSION: "3.12"
