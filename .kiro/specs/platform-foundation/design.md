@@ -669,3 +669,11 @@ Realtime CDK, with the right origin-request/upgrade handling. Until then the UI
 works but without live row/status updates (it still reflects state on
 navigation/refetch). Scope: Edge + Realtime stacks; verify with a live
 check/process watching a row update without reload.
+
+UPDATE: a second Docker Hub incident (502 Bad Gateway pulling postgres:16-alpine
+during `docker compose up`) failed the integration tier — the GCR-mirror pin
+(task 33) only covered BuildKit, not the Compose service images. Hardened the
+integration/scale/perf CI jobs to write a Docker daemon `registry-mirrors`
+config (`https://mirror.gcr.io`) and restart Docker before the Compose step, so
+ALL Docker Hub pulls go through the pull-through cache name-agnostically (no
+image strings change; falls through to Docker Hub on a miss).

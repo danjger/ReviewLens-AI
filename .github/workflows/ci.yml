@@ -167,6 +167,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure Docker registry mirror (avoid Docker Hub flakiness)
+        # Route Docker Hub pulls through the GCR pull-through cache so the
+        # Compose stack (postgres/localstack/nginx) doesn't fail CI when
+        # registry-1.docker.io is slow or 5xx (seen: 502, timeouts).
+        # Name-agnostic; mirror.gcr.io falls through to Docker Hub on a miss.
+        run: |
+          echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
         with:
@@ -196,6 +205,15 @@ jobs:
     needs: integration-tests
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Docker registry mirror (avoid Docker Hub flakiness)
+        # Route Docker Hub pulls through the GCR pull-through cache so the
+        # Compose stack (postgres/localstack/nginx) doesn't fail CI when
+        # registry-1.docker.io is slow or 5xx (seen: 502, timeouts).
+        # Name-agnostic; mirror.gcr.io falls through to Docker Hub on a miss.
+        run: |
+          echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
 
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
@@ -259,6 +277,15 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure Docker registry mirror (avoid Docker Hub flakiness)
+        # Route Docker Hub pulls through the GCR pull-through cache so the
+        # Compose stack (postgres/localstack/nginx) doesn't fail CI when
+        # registry-1.docker.io is slow or 5xx (seen: 502, timeouts).
+        # Name-agnostic; mirror.gcr.io falls through to Docker Hub on a miss.
+        run: |
+          echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
 
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
