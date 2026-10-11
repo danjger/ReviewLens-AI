@@ -1,0 +1,74 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a mobile app store reviews list
+  (App Store / Play Store style) with original, synthetic review text.
+  Structural challenges exercised:
+    - A "Version 4.x" tag per review that is page chrome, not review text.
+    - Developer responses ("Developer Response") interleaved and must be
+      excluded from the review set.
+    - Rating as N filled stars via aria-label; title and body are separate nodes.
+    - A ratings-summary header with an average that is not a review.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>FocusFlow — Ratings &amp; Reviews</title></head>
+  <body>
+    <main>
+      <h1>FocusFlow: Timers &amp; Habits</h1>
+      <section class="ratings-summary"><span class="avg">4.5</span><span class="count">out of 5 · 8.2K Ratings</span></section>
+
+      <section class="we-customer-reviews" id="reviews">
+        <div class="review">
+          <h3 class="title">Finally stuck with a habit</h3>
+          <span class="we-star" aria-label="5 out of 5"></span>
+          <span class="reviewer">by trailrunner_jo</span>
+          <span class="version">Version 4.3.0</span>
+          <time datetime="2024-09-05">Sep 5, 2024</time>
+          <p class="body">The gentle streak reminders and the weekly review screen are what finally made a habit app click for me. Ninety days and counting.</p>
+        </div>
+
+        <div class="review">
+          <h3 class="title">Good, wants an iPad layout</h3>
+          <span class="we-star" aria-label="4 out of 5"></span>
+          <span class="reviewer">by desk_dweller</span>
+          <span class="version">Version 4.3.0</span>
+          <time datetime="2024-08-18">Aug 18, 2024</time>
+          <p class="body">Love the focus timer and the calm sounds, but on an iPad it just stretches the phone layout. A proper tablet view would make this five stars.</p>
+        </div>
+
+        <div class="dev-response">
+          <h4>Developer Response</h4>
+          <time datetime="2024-08-20">Aug 20, 2024</time>
+          <p class="body">Thanks! A dedicated iPad layout is in beta and ships next month — watch the changelog.</p>
+        </div>
+
+        <div class="review">
+          <h3 class="title">Subscription nag is too much</h3>
+          <span class="we-star" aria-label="2 out of 5"></span>
+          <span class="reviewer">by minimalist_mia</span>
+          <span class="version">Version 4.2.1</span>
+          <time datetime="2024-07-30">Jul 30, 2024</time>
+          <p class="body">The core timer is nice but a full-screen upgrade prompt appears almost every time I open the app, and twice it hid the start button until I tapped around.</p>
+        </div>
+
+        <div class="review">
+          <h3 class="title">Rock solid and distraction free</h3>
+          <span class="we-star" aria-label="5 out of 5"></span>
+          <span class="reviewer">by quiet_coder</span>
+          <span class="version">Version 4.2.1</span>
+          <time datetime="2024-07-12">Jul 12, 2024</time>
+          <p class="body">No ads, no clutter, and the home-screen widget shows my next session at a glance. It syncs across my phone and watch without a hitch.</p>
+        </div>
+
+        <div class="review">
+          <h3 class="title">Lost my data on update</h3>
+          <span class="we-star" aria-label="3 out of 5"></span>
+          <span class="reviewer">by garden_variety</span>
+          <span class="version">Version 4.2.0</span>
+          <time datetime="2024-06-24">Jun 24, 2024</time>
+          <p class="body">The latest update wiped my streak history even though I was signed in. Support restored most of it after a few days, but the scare cost it a couple of stars.</p>
+        </div>
+      </section>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models the markup pattern of a B2B software
+  review site (G2 / Capterra style) with original, synthetic review text.
+  Structural challenges exercised:
+    - JSON-LD <Product> carries only an AggregateRating + the FIRST TWO reviews,
+      while the visible DOM renders SIX. A JSON-LD-only extractor under-reports;
+      the correct extraction reads the six visible review cards.
+    - Each review is split into separate "What do you like best?" / "What do you
+      dislike?" prose blocks that together form the review body.
+    - Authors are pseudonymous ("Verified User in Marketing").
+    - Rating is shown on a 10-point scale in text but as 5 stars visually.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Helio Analytics Reviews — business software</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "Helio Analytics",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.2",
+          "reviewCount": "6"
+        },
+        "review": [
+          {
+            "@type": "Review",
+            "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+            "author": { "@type": "Person", "name": "Verified User in Marketing" },
+            "datePublished": "2024-08-14",
+            "reviewBody": "Dashboards that used to take a BI analyst a day now take me ten minutes. The templating is the standout feature."
+          },
+          {
+            "@type": "Review",
+            "reviewRating": { "@type": "Rating", "ratingValue": "4", "bestRating": "5" },
+            "author": { "@type": "Person", "name": "Verified User in Finance" },
+            "datePublished": "2024-07-30",
+            "reviewBody": "Strong scheduled-report engine, but the row-level permissions model is confusing to administer for a large team."
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header><nav><a href="/">Reviews</a> <a href="/categories">Categories</a></nav></header>
+    <main>
+      <h1>Helio Analytics</h1>
+      <div class="rating-summary">Overall: 8.4/10 · 6 reviews</div>
+
+      <section class="reviews" id="reviews">
+        <article class="review" data-review-id="r1">
+          <div class="review-head">
+            <span class="author">Verified User in Marketing</span>
+            <span class="score" aria-label="5 out of 5">★★★★★ <em>10/10</em></span>
+            <time datetime="2024-08-14">August 14, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">Dashboards that used to take a BI analyst a day now take me ten minutes. The templating is the standout feature and rollout across three teams was painless.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">Mobile layouts for wide tables still wrap awkwardly.</p></div>
+        </article>
+
+        <article class="review" data-review-id="r2">
+          <div class="review-head">
+            <span class="author">Verified User in Finance</span>
+            <span class="score" aria-label="4 out of 5">★★★★☆ <em>8/10</em></span>
+            <time datetime="2024-07-30">July 30, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">Strong scheduled-report engine and the audit trail satisfied our compliance team on the first pass.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">The row-level permissions model is confusing to administer for a large team.</p></div>
+        </article>
+
+        <article class="review" data-review-id="r3">
+          <div class="review-head">
+            <span class="author">Priyanka D.</span>
+            <span class="score" aria-label="5 out of 5">★★★★★ <em>9/10</em></span>
+            <time datetime="2024-07-11">July 11, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">The warehouse connectors just worked with our Snowflake instance and the query cache keeps dashboards snappy under load.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">Onboarding docs assume you already know SQL.</p></div>
+        </article>
+
+        <article class="review" data-review-id="r4">
+          <div class="review-head">
+            <span class="author">Marcus O.</span>
+            <span class="score" aria-label="2 out of 5">★★☆☆☆ <em>4/10</em></span>
+            <time datetime="2024-06-22">June 22, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">When it works the visualizations are genuinely attractive.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">We hit three multi-hour outages in a quarter and support took days to acknowledge the second one.</p></div>
+        </article>
+
+        <article class="review" data-review-id="r5">
+          <div class="review-head">
+            <span class="author">Verified User in Information Technology</span>
+            <span class="score" aria-label="4 out of 5">★★★★☆ <em>8/10</em></span>
+            <time datetime="2024-06-03">June 3, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">Single sign-on setup took an afternoon and the granular API lets us provision users automatically.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">The pricing jumps steeply once you pass fifty seats.</p></div>
+        </article>
+
+        <article class="review" data-review-id="r6">
+          <div class="review-head">
+            <span class="author">Elena V.</span>
+            <span class="score" aria-label="3 out of 5">★★★☆☆ <em>6/10</em></span>
+            <time datetime="2024-05-18">May 18, 2024</time>
+          </div>
+          <div class="segment likes"><h4>What do you like best?</h4>
+            <p class="prose">Good balance of power and approachability for a mixed-skill team.</p></div>
+          <div class="segment dislikes"><h4>What do you dislike?</h4>
+            <p class="prose">Version upgrades have twice broken a saved dashboard and we had to rebuild filters by hand.</p></div>
+        </article>
+      </section>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>
