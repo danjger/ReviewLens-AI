@@ -22,6 +22,7 @@ Everything is driven by environment variables, so the same tests run anywhere.
 | `E2E_BASE_URL` | Where the app (SPA) is reachable | `http://localhost:5173` (vite dev server) | the stack's CloudFront URL |
 | `E2E_FIXTURE_BASE_URL` | Where the fixture review site is served | `http://fixtures` (the compose `fixtures` **service name**, reachable + allowlisted from inside the backend container) | the public fixtures CloudFront site |
 | `E2E_LIVE_AI` | `1` = backend uses the live Claude model; anything else = backend uses `FakeClaude` | unset (stubbed) | unset (stubbed) |
+| `E2E_REALTIME` | `1` = a real WebSocket channel is expected, so the realtime spec ASSERTS the no-reload live push; unset = it skips (no socket locally) | unset (skips) | `1` (deployed WS) |
 
 These are read in `support/env.ts` and in `playwright.config.ts`, and threaded
 to tests from there — tests import `baseUrl`, `fixtureBaseUrl`, `fixtureUrl()`,
@@ -92,6 +93,21 @@ and replays recorded responses from `backend/tests/fixtures/ai/`.
     specs only applies to assertions that genuinely depend on a `will_work`
     verdict or on deterministic stubbed answer text; dataset seeding itself works
     under the stub once the fixture host is backend-reachable (`http://fixtures`).
+
+- **`realtime.spec.ts`** — the **issue #10 regression** check. It asserts the
+  real-time WebSocket actually connects and that a dataset added in another
+  browser context appears and settles in the observing tab **with no reload**
+  (the live-push guarantee; platform-foundation tasks 35/35b). Because a real
+  socket only exists against a deployed stack whose SPA build got
+  `VITE_WS_URL`, the spec runs its assertions ONLY when `E2E_REALTIME=1` and
+  otherwise annotates + skips — so it never false-fails under local
+  `make e2e`, where there is no socket (issue #10). The OTHER live specs
+  (`library`, `ingestion-summary`) assert the same OUTCOMES locally via a
+  reload fallback (`support/live.ts`); this spec is the one that proves the
+  push itself. Run it against a deployed stack:
+  ```bash
+  E2E_BASE_URL=https://<cloudfront-domain> E2E_REALTIME=1 npx playwright test realtime.spec.ts
+  ```
 
 ## Conventions (from steering `testing.md`)
 

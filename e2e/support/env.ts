@@ -36,6 +36,21 @@ export const fixtureBaseUrl =
  */
 export const liveAi = process.env.E2E_LIVE_AI === "1";
 
+/**
+ * Whether a real-time WebSocket channel is expected in this environment.
+ *
+ * Set `E2E_REALTIME=1` ONLY when running against a stack that actually fronts
+ * the API Gateway WebSocket API — i.e. a deployed stack whose SPA build was
+ * given `VITE_WS_URL` (the deploy workflow sets it from the
+ * `ReviewLens-Realtime` `WebSocketBrowserUrl` output). Under local `make e2e`
+ * the SPA is the vite dev server, which serves no `/realtime` socket and sets
+ * no `VITE_WS_URL`, so there is no live push (GitHub issue #10) and this stays
+ * unset. The realtime regression spec (`realtime.spec.ts`) uses this to decide
+ * whether to ASSERT the strict no-reload live-push path or skip cleanly, so it
+ * never false-fails where no socket can exist.
+ */
+export const realtimeEnabled = process.env.E2E_REALTIME === "1";
+
 /** Build a fixture page URL from a relative path. */
 export function fixtureUrl(path: string): string {
   const base = fixtureBaseUrl.replace(/\/$/, "");
