@@ -184,6 +184,12 @@ class Settings(BaseSettings):
     """Comma-separated hostnames allowed for SSRF tests (e.g. ``fixtures``).
     MUST be empty in production – the process refuses to start otherwise."""
 
+    ai_stub: bool = False
+    """Use the deterministic, network-free AI stub instead of the real Anthropic
+    client (``app.core.ai_stub.ScriptedStubClient``). For the LOCAL Compose stack
+    so ``make e2e`` needs no API key/credits. MUST be False in production – the
+    process refuses to start otherwise."""
+
     chat_signing_secret: str = ""
     """Server-side secret used to HMAC-sign saved chat Exchange payloads.
 
@@ -470,6 +476,21 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SSRF_TEST_ALLOW_HOSTS must not be set when ENV=production. "
                 "Remove SSRF_TEST_ALLOW_HOSTS from the environment before "
+                "starting the service in production."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _forbid_ai_stub_in_production(self) -> Settings:
+        """Refuse to start in production when the AI stub is enabled.
+
+        The stub synthesizes derived AI fields (profile/sentiment/themes) and
+        must never serve real users; it is a local/test convenience only.
+        """
+        if self.env == "production" and self.ai_stub:
+            raise ValueError(
+                "AI_STUB must not be set when ENV=production. "
+                "Remove AI_STUB from the environment before "
                 "starting the service in production."
             )
         return self

@@ -81,6 +81,9 @@ services:
       WS_CONNECTIONS_TABLE: ws-connections
       EVENTBRIDGE_BUS_NAME: reviewlens-events
       SSRF_TEST_ALLOW_HOSTS: fixtures
+      # Local-only: use the deterministic AI stub so the pipeline needs no
+      # Anthropic key/credits for make e2e (refused when ENV=production).
+      AI_STUB: "1"
       # Local dev: the origin guard is disabled (empty secret) so the SPA /
       # browser can reach the API directly (see app/core/origin_guard.py:
       # "In local docker-compose the secret is not set"). AWS sets the real
@@ -124,6 +127,7 @@ services:
     environment:
       ENV: local
       SERVICE_NAME: chat
+      AI_STUB: "1"  # local-only AI stub (refused when ENV=production)
       DATABASE_URL: postgresql+psycopg://reviewlens:reviewlens@postgres:5432/reviewlens
       AWS_ENDPOINT_URL: http://localstack:4566
       AWS_DEFAULT_REGION: us-east-1
@@ -175,6 +179,9 @@ services:
       CHECK_SESSIONS_TABLE: check-sessions
       EVENTBRIDGE_BUS_NAME: reviewlens-events
       SSRF_TEST_ALLOW_HOSTS: fixtures
+      # Local-only: use the deterministic AI stub so the pipeline needs no
+      # Anthropic key/credits for make e2e (refused when ENV=production).
+      AI_STUB: "1"
     depends_on:
       postgres:
         condition: service_healthy
@@ -212,6 +219,9 @@ services:
       RATE_LIMITS_TABLE: rate-limits
       EVENTBRIDGE_BUS_NAME: reviewlens-events
       SSRF_TEST_ALLOW_HOSTS: fixtures
+      # Local-only: use the deterministic AI stub so the pipeline needs no
+      # Anthropic key/credits for make e2e (refused when ENV=production).
+      AI_STUB: "1"
     depends_on:
       postgres:
         condition: service_healthy
