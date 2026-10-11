@@ -1,0 +1,86 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a modern review platform (Trustpilot /
+  Next.js style) with original, synthetic review text.
+
+  This fixture is the POST-HYDRATION / post-capture snapshot: the review cards
+  are rendered into #reviews-list (as the headless capture step — review-
+  extraction task 12 _wait_for_content — leaves them before the HTML is saved
+  and assessed), AND the original __NEXT_DATA__ JSON island is kept.
+  Structural challenges exercised:
+    - The SAME review data appears both as rendered DOM cards AND in a
+      <script id="__NEXT_DATA__" type="application/json"> island (NOT schema.org
+      JSON-LD). A correct extraction reads the five reviews once (from the DOM),
+      and must NOT double-count the JSON island as five more reviews.
+    - Ratings are rendered as a data-service-review-rating attribute (integer),
+      with no star text — exercises attribute-based rating reads.
+    - Dates are ISO timestamps in a <time datetime> attribute.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>CloudNest Backup — Reviews</title></head>
+  <body>
+    <main>
+      <h1>CloudNest Backup</h1>
+      <div class="trustscore">TrustScore 4.3 · 2,041 reviews</div>
+
+      <section id="reviews-list" aria-live="polite">
+        <article class="review-card" data-review-id="a1">
+          <span class="consumer-name">Hannah Price</span>
+          <div class="star-rating" data-service-review-rating="5" aria-label="Rated 5 out of 5 stars"></div>
+          <h3 class="review-title">Saved me after a drive failure</h3>
+          <time datetime="2024-09-10T08:12:00Z">September 10, 2024</time>
+          <p class="review-text">My laptop SSD died the week before a deadline and the restore pulled back every file, including versions from three days earlier. Worth every penny.</p>
+        </article>
+
+        <article class="review-card" data-review-id="a2">
+          <span class="consumer-name">Owen Baptiste</span>
+          <div class="star-rating" data-service-review-rating="4" aria-label="Rated 4 out of 5 stars"></div>
+          <h3 class="review-title">Reliable, pricey egress</h3>
+          <time datetime="2024-08-27T14:40:00Z">August 27, 2024</time>
+          <p class="review-text">Backups run quietly in the background and I have never had a corrupt archive. Restoring a large dataset does cost extra in egress fees, which is worth knowing up front.</p>
+        </article>
+
+        <article class="review-card" data-review-id="a3">
+          <span class="consumer-name">Fatima Noor</span>
+          <div class="star-rating" data-service-review-rating="2" aria-label="Rated 2 out of 5 stars"></div>
+          <h3 class="review-title">Sync kept pausing</h3>
+          <time datetime="2024-08-05T19:05:00Z">August 5, 2024</time>
+          <p class="review-text">The desktop agent kept pausing itself whenever my VPN reconnected, so a whole folder silently went un-backed-up for a week. Support eventually fixed it but it shook my confidence.</p>
+        </article>
+
+        <article class="review-card" data-review-id="a4">
+          <span class="consumer-name">Greg Olsen</span>
+          <div class="star-rating" data-service-review-rating="5" aria-label="Rated 5 out of 5 stars"></div>
+          <h3 class="review-title">Set and forget</h3>
+          <time datetime="2024-07-22T06:33:00Z">July 22, 2024</time>
+          <p class="review-text">Installed it on three machines for my parents and myself, set a schedule, and have not thought about it since. The monthly email summary is a nice reassurance.</p>
+        </article>
+
+        <article class="review-card" data-review-id="a5">
+          <span class="consumer-name">Lucia Ferraro</span>
+          <div class="star-rating" data-service-review-rating="3" aria-label="Rated 3 out of 5 stars"></div>
+          <h3 class="review-title">Good core, clunky mobile</h3>
+          <time datetime="2024-07-01T11:20:00Z">July 1, 2024</time>
+          <p class="review-text">The core backup is dependable, but the mobile app for browsing restored files is slow and crashes on large folders. I mostly use the web console instead.</p>
+        </article>
+      </section>
+      <button id="load-more">Show more reviews</button>
+    </main>
+
+    <script id="__NEXT_DATA__" type="application/json">
+    {
+      "props": { "pageProps": {
+        "business": { "displayName": "CloudNest Backup" },
+        "reviews": [
+          { "id": "a1", "consumer": { "displayName": "Hannah Price" }, "stars": 5, "title": "Saved me after a drive failure", "text": "My laptop SSD died the week before a deadline and the restore pulled back every file, including versions from three days earlier. Worth every penny.", "dates": { "publishedDate": "2024-09-10T08:12:00Z" } },
+          { "id": "a2", "consumer": { "displayName": "Owen Baptiste" }, "stars": 4, "title": "Reliable, pricey egress", "text": "Backups run quietly in the background and I have never had a corrupt archive. Restoring a large dataset does cost extra in egress fees, which is worth knowing up front.", "dates": { "publishedDate": "2024-08-27T14:40:00Z" } },
+          { "id": "a3", "consumer": { "displayName": "Fatima Noor" }, "stars": 2, "title": "Sync kept pausing", "text": "The desktop agent kept pausing itself whenever my VPN reconnected, so a whole folder silently went un-backed-up for a week. Support eventually fixed it but it shook my confidence.", "dates": { "publishedDate": "2024-08-05T19:05:00Z" } },
+          { "id": "a4", "consumer": { "displayName": "Greg Olsen" }, "stars": 5, "title": "Set and forget", "text": "Installed it on three machines for my parents and myself, set a schedule, and have not thought about it since. The monthly email summary is a nice reassurance.", "dates": { "publishedDate": "2024-07-22T06:33:00Z" } },
+          { "id": "a5", "consumer": { "displayName": "Lucia Ferraro" }, "stars": 3, "title": "Good core, clunky mobile", "text": "The core backup is dependable, but the mobile app for browsing restored files is slow and crashes on large folders. I mostly use the web console instead.", "dates": { "publishedDate": "2024-07-01T11:20:00Z" } }
+        ]
+      } }
+    }
+    </script>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

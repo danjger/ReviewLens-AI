@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a travel/hotel reviews block
+  (Booking / TripAdvisor style) with original, synthetic review text.
+  Structural challenges exercised:
+    - DATES in varied, locale-specific formats: "Reviewed 14 March 2024",
+      "il y a 3 semaines" (French relative), "2024年3月2日" (Japanese),
+      "Stayed February 2024". The labels assert ISO dates ONLY where the format
+      maps to a fixed calendar date; relative strings omit the date field.
+    - Each review splits into "Liked" (👍) and "Disliked" (👎) prose blocks that
+      together form the body; some reviews have only one of the two.
+    - Non-English review text (French, Japanese) alongside English — Unicode and
+      NFKC normalization in the matcher.
+    - A "Traveler type" chip (Business / Family) that is NOT part of the body.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Hôtel Marianne — Guest reviews</title></head>
+  <body>
+    <main>
+      <h1>Hôtel Marianne</h1>
+      <div class="score">Guest score 8.6 · 974 reviews</div>
+
+      <section class="reviews" id="guest-reviews">
+        <article class="rev">
+          <header><span class="guest">Amélie R.</span><span class="type">Traveler type: Couple</span>
+            <span class="stars" aria-label="5 out of 5 stars">★★★★★</span>
+            <span class="when">Reviewed 14 March 2024</span></header>
+          <div class="liked"><span class="label">👍 Liked</span><p class="body">The balcony overlooking the courtyard was gorgeous at breakfast and the staff upgraded us without being asked.</p></div>
+          <div class="disliked"><span class="label">👎 Disliked</span><p class="body">The lift was out of service on our last morning.</p></div>
+        </article>
+
+        <article class="rev">
+          <header><span class="guest">Julien P.</span><span class="type">Traveler type: Business</span>
+            <span class="stars" aria-label="4 out of 5 stars">★★★★☆</span>
+            <span class="when">il y a 3 semaines</span></header>
+          <div class="liked"><span class="label">👍 Liked</span><p class="body">Emplacement idéal à cinq minutes de la gare, et le wifi était rapide et fiable pour mes visioconférences.</p></div>
+          <div class="disliked"><span class="label">👎 Disliked</span><p class="body">La climatisation était bruyante la nuit.</p></div>
+        </article>
+
+        <article class="rev">
+          <header><span class="guest">Keiko T.</span><span class="type">Traveler type: Solo</span>
+            <span class="stars" aria-label="5 out of 5 stars">★★★★★</span>
+            <span class="when">2024年3月2日</span></header>
+          <div class="liked"><span class="label">👍 Liked</span><p class="body">スタッフがとても親切で、朝食のペストリーは今まで泊まった中で一番美味しかったです。</p></div>
+        </article>
+
+        <article class="rev">
+          <header><span class="guest">Mark Devlin</span><span class="type">Traveler type: Family</span>
+            <span class="stars" aria-label="3 out of 5 stars">★★★☆☆</span>
+            <span class="when">Stayed February 2024</span></header>
+          <div class="liked"><span class="label">👍 Liked</span><p class="body">Spacious family room and a genuinely helpful concierge who booked our museum tickets.</p></div>
+          <div class="disliked"><span class="label">👎 Disliked</span><p class="body">Thin walls meant we heard every footstep from the room above, and breakfast ran out of most hot options by nine.</p></div>
+        </article>
+
+        <article class="rev">
+          <header><span class="guest">Sofia Lindgren</span><span class="type">Traveler type: Couple</span>
+            <span class="stars" aria-label="4 out of 5 stars">★★★★☆</span>
+            <span class="when">Reviewed 28 January 2024</span></header>
+          <div class="liked"><span class="label">👍 Liked</span><p class="body">Charming historic building with a lovely little bar, and the bed was one of the most comfortable we have slept in.</p></div>
+          <div class="disliked"><span class="label">👎 Disliked</span><p class="body">Checkout took a while because only one receptionist was on duty.</p></div>
+        </article>
+      </section>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

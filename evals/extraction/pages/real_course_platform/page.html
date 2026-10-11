@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models an online-course reviews list
+  (Udemy / Coursera style) with original, synthetic review text.
+  Structural challenges exercised:
+    - "Helpful? Yes (N)" counters per review (N must not be read as a rating).
+    - Learner-progress chrome ("Completed 80% of course") that is not review text.
+    - Instructor replies interleaved and must be excluded.
+    - Rating shown as a DECIMAL badge ("4.5") plus a star glyph; the review
+      rating should be the whole-star value shown in the aria-label.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Practical SQL for Analysts — Reviews</title></head>
+  <body>
+    <main>
+      <h1>Practical SQL for Analysts</h1>
+      <div class="course-rating">4.6 course rating · 12,803 ratings</div>
+
+      <section class="reviews" id="reviews">
+        <div class="review">
+          <span class="student">Nina Abara</span>
+          <span class="rating-badge" aria-label="5 out of 5"><em>5.0</em> ★</span>
+          <span class="progress">Completed 100% of course</span>
+          <time datetime="2024-09-01">a week ago</time>
+          <p class="review-text">The window-functions section alone was worth the price. Every concept has a tiny exercise right after it, so it actually sticks instead of washing over you.</p>
+          <span class="helpful">Helpful? Yes (54)</span>
+        </div>
+
+        <div class="review">
+          <span class="student">Rajiv Menon</span>
+          <span class="rating-badge" aria-label="4 out of 5"><em>4.0</em> ★</span>
+          <span class="progress">Completed 80% of course</span>
+          <time datetime="2024-08-19">3 weeks ago</time>
+          <p class="review-text">Clear explanations and good pacing. I would have liked more coverage of query optimization, but as a working foundation it is excellent.</p>
+          <span class="helpful">Helpful? Yes (31)</span>
+        </div>
+
+        <div class="instructor-reply">
+          <span class="instructor">Instructor reply</span>
+          <p class="review-text">Thanks Rajiv — an optimization bonus module is being recorded now and will be free for existing students.</p>
+        </div>
+
+        <div class="review">
+          <span class="student">Chloe Winters</span>
+          <span class="rating-badge" aria-label="2 out of 5"><em>2.0</em> ★</span>
+          <span class="progress">Completed 35% of course</span>
+          <time datetime="2024-07-28">1 month ago</time>
+          <p class="review-text">The first few sections are solid, but the audio quality drops noticeably halfway through and a couple of the practice datasets link to the wrong files.</p>
+          <span class="helpful">Helpful? Yes (88)</span>
+        </div>
+
+        <div class="review">
+          <span class="student">Dev Patel</span>
+          <span class="rating-badge" aria-label="5 out of 5"><em>5.0</em> ★</span>
+          <span class="progress">Completed 100% of course</span>
+          <time datetime="2024-07-05">2 months ago</time>
+          <p class="review-text">I went from writing basic SELECTs to building reporting queries at work in a fortnight. The downloadable cheat sheet is now taped to my monitor.</p>
+          <span class="helpful">Helpful? Yes (120)</span>
+        </div>
+
+        <div class="review">
+          <span class="student">Yuki Nakamura</span>
+          <span class="rating-badge" aria-label="4 out of 5"><em>4.0</em> ★</span>
+          <span class="progress">Completed 60% of course</span>
+          <time datetime="2024-06-14">3 months ago</time>
+          <p class="review-text">Great for beginners and the instructor answers questions quickly in the Q&amp;A. Docked a star because a few lectures still reference an older interface.</p>
+          <span class="helpful">Helpful? Yes (22)</span>
+        </div>
+      </section>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

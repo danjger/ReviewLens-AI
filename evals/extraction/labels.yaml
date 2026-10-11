@@ -409,3 +409,502 @@ large_server_rendered:
       rating: 4
       date: "2024-02-17"
       author: "Chloe Dubois"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Realistic RECONSTRUCTIONS of real review-platform markup (Task 9.3).
+# Original/synthetic review text; each models a real platform's DOM patterns
+# and adds a structural challenge beyond the clean synthetic seed above. See
+# each page.html header comment for the specific challenge. Published
+# byte-for-byte under fixtures-site/extraction/<name>/index.html.
+# ───────────────────────────────────────────────────────────────────────────
+
+# G2/Capterra-style B2B software reviews. JSON-LD under-reports (2 of 6); the
+# six visible review cards are the truth. Pros/cons split bodies; 10-pt rating
+# shown as 5 stars. prefix matches the leading "likes" segment text.
+real_g2_style:
+  url: https://reviews.example.com/helio-analytics
+  verdict: will_work
+  type: structured_jsonld
+  tags: [structured_jsonld, plain_list, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: "article.review"
+    text: ".segment.likes .prose"
+    rating: ".score"
+    date: "time"
+    author: ".author"
+  reviews:
+    - prefix: "Dashboards that used to take a BI analyst a day now take me ten minutes"
+      rating: 5
+      date: "2024-08-14"
+      author: "Verified User in Marketing"
+    - prefix: "Strong scheduled-report engine and the audit trail satisfied our compliance team"
+      rating: 4
+      date: "2024-07-30"
+      author: "Verified User in Finance"
+    - prefix: "The warehouse connectors just worked with our Snowflake instance"
+      rating: 5
+      date: "2024-07-11"
+      author: "Priyanka D."
+    - prefix: "When it works the visualizations are genuinely attractive"
+      rating: 2
+      date: "2024-06-22"
+      author: "Marcus O."
+    - prefix: "Single sign-on setup took an afternoon"
+      rating: 4
+      date: "2024-06-03"
+      author: "Verified User in Information Technology"
+    - prefix: "Good balance of power and approachability for a mixed-skill team"
+      rating: 3
+      date: "2024-05-18"
+      author: "Elena V."
+
+# Amazon-style marketplace. Sponsored + related strips carry star markup but are
+# NOT reviews; "helpful (N)" counts must not be read as ratings; real rating is
+# in a nested .a-icon-alt span.
+real_marketplace_photos:
+  url: https://market.example.com/parchmentpro-air-fryer/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: "#customer-reviews .review"
+    text: ".review-body"
+    rating: ".rating"
+    date: ".review-date"
+    author: ".profile-name"
+    title: ".review-title"
+  reviews:
+    - prefix: "Replaced our old fryer, a toaster oven, and a dehydrator in one go"
+      rating: 5
+      date: "2024-09-03"
+      author: "Gina H."
+    - prefix: "Cooks evenly and the presets are accurate"
+      rating: 4
+      date: "2024-08-21"
+      author: "Darnell W."
+    - prefix: "Worked beautifully at first, but the nonstick coating on the basket started flaking"
+      rating: 2
+      date: "2024-08-02"
+      author: "Mei L."
+    - prefix: "We use it almost every night"
+      rating: 5
+      date: "2024-07-19"
+      author: "Theo R."
+    - prefix: "The results are fine once you figure it out, but the manual is a maze"
+      rating: 3
+      date: "2024-06-28"
+      author: "Sandra K."
+
+# Google-Maps-style local business. Relative dates (date field OMITTED), SVG-only
+# ratings via group aria-label, owner responses excluded, no titles.
+real_maps_local:
+  url: https://maps.example.com/place/riverside-dental-studio/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, mixed_qa_seller, no_ratings]
+  next_page: null
+  selectors:
+    item: ".jftiEf.review"
+    text: ".text"
+    rating: ".rating"
+    author: ".author"
+  reviews:
+    - prefix: "Dr. Okafor talked me through every step"
+      rating: 5
+      author: "Carla Mendez"
+    - prefix: "Clean office and almost no wait, but the parking lot is tiny"
+      rating: 4
+      author: "Brian Takahashi"
+    - prefix: "They rescheduled my appointment twice at short notice"
+      rating: 2
+      author: "Priya Anand"
+    - prefix: "Needed an emergency extraction on a Saturday"
+      rating: 5
+      author: "Samuel Grant"
+    - prefix: "Great care and modern equipment"
+      rating: 4
+      author: "Deborah Nwosu"
+
+# Trustpilot/Next.js-style. Review container empty in DOM; data in a
+# __NEXT_DATA__ JSON island (NOT schema.org). No offline selectors (DOM empty);
+# this is the live ai_direct / client-render case.
+real_infinite_scroll:
+  url: https://trust.example.com/review/cloudnest-backup
+  verdict: will_work
+  type: js_rendered
+  tags: [js_rendered, plain_list]
+  next_page: null
+  selectors:
+    item: "#reviews-list .review-card"
+    text: ".review-text"
+    rating: ".star-rating"
+    date: "time"
+    author: ".consumer-name"
+    title: ".review-title"
+  reviews:
+    - prefix: "My laptop SSD died the week before a deadline and the restore pulled back every file"
+      rating: 5
+      date: "2024-09-10"
+      author: "Hannah Price"
+    - prefix: "Backups run quietly in the background and I have never had a corrupt archive"
+      rating: 4
+      date: "2024-08-27"
+      author: "Owen Baptiste"
+    - prefix: "The desktop agent kept pausing itself whenever my VPN reconnected"
+      rating: 2
+      date: "2024-08-05"
+      author: "Fatima Noor"
+    - prefix: "Installed it on three machines for my parents and myself"
+      rating: 5
+      date: "2024-07-22"
+      author: "Greg Olsen"
+    - prefix: "The core backup is dependable, but the mobile app for browsing restored files is slow"
+      rating: 3
+      date: "2024-07-01"
+      author: "Lucia Ferraro"
+
+# Booking/TripAdvisor-style travel. Mixed-locale text (French, Japanese) and
+# varied date formats (ISO only where the format maps to a fixed date; relative
+# "il y a 3 semaines" omits date). Liked/disliked split bodies; traveler-type
+# chip excluded. prefix matches the "liked" body.
+real_multilang_dates:
+  url: https://travel.example.com/hotel/marianne/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: "article.rev"
+    text: ".liked .body"
+    rating: ".stars"
+    date: ".when"
+    author: ".guest"
+  reviews:
+    - prefix: "The balcony overlooking the courtyard was gorgeous at breakfast"
+      rating: 5
+      date: "2024-03-14"
+      author: "Amélie R."
+    - prefix: "Emplacement idéal à cinq minutes de la gare"
+      rating: 4
+      author: "Julien P."
+    - prefix: "スタッフがとても親切で"
+      rating: 5
+      date: "2024-03-02"
+      author: "Keiko T."
+    - prefix: "Spacious family room and a genuinely helpful concierge"
+      rating: 3
+      date: "2024-02"
+      author: "Mark Devlin"
+    - prefix: "Charming historic building with a lovely little bar"
+      rating: 4
+      date: "2024-01-28"
+      author: "Sofia Lindgren"
+
+# App Store/Play Store-style. Version tag chrome, developer responses excluded,
+# title + body split, stars via aria-label.
+real_app_store:
+  url: https://apps.example.com/app/focusflow/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: "#reviews .review"
+    text: ".body"
+    rating: ".we-star"
+    date: "time"
+    author: ".reviewer"
+    title: ".title"
+  reviews:
+    - prefix: "The gentle streak reminders and the weekly review screen"
+      rating: 5
+      date: "2024-09-05"
+      author: "trailrunner_jo"
+    - prefix: "Love the focus timer and the calm sounds, but on an iPad it just stretches"
+      rating: 4
+      date: "2024-08-18"
+      author: "desk_dweller"
+    - prefix: "The core timer is nice but a full-screen upgrade prompt appears almost every time"
+      rating: 2
+      date: "2024-07-30"
+      author: "minimalist_mia"
+    - prefix: "No ads, no clutter, and the home-screen widget shows my next session"
+      rating: 5
+      date: "2024-07-12"
+      author: "quiet_coder"
+    - prefix: "The latest update wiped my streak history even though I was signed in"
+      rating: 3
+      date: "2024-06-24"
+      author: "garden_variety"
+
+# Healthgrades/Zocdoc-style provider. Overall star rating per review PLUS
+# categorical sub-ratings (which must not be counted as reviews/overall). No
+# titles; verified-patient tag.
+real_healthcare_provider:
+  url: https://health.example.com/provider/alanna-whitfield-md/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, no_ratings, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: ".patient-review"
+    text: ".comment"
+    rating: ".overall"
+    date: "time"
+  reviews:
+    - prefix: "Dr. Whitfield never rushes me and actually remembers details"
+      rating: 5
+      date: "2024-08-29"
+    - prefix: "Thorough and reassuring during my annual physical"
+      rating: 4
+      date: "2024-08-10"
+    - prefix: "The doctor was knowledgeable, but the front desk lost my referral twice"
+      rating: 2
+      date: "2024-07-25"
+    - prefix: "She spent twenty minutes explaining my options in plain language"
+      rating: 5
+      date: "2024-07-03"
+    - prefix: "Great listener and very thorough"
+      rating: 4
+      date: "2024-06-16"
+
+# Udemy/Coursera-style course. Helpful-vote counters (not ratings), learner
+# progress chrome, instructor replies excluded, decimal rating badge with a
+# whole-star aria-label. Dates are relative (date field OMITTED).
+real_course_platform:
+  url: https://learn.example.com/course/practical-sql-for-analysts/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, no_ratings, mixed_qa_seller]
+  next_page: null
+  selectors:
+    item: "#reviews .review"
+    text: ".review-text"
+    rating: ".rating-badge"
+    author: ".student"
+  reviews:
+    - prefix: "The window-functions section alone was worth the price"
+      rating: 5
+      author: "Nina Abara"
+    - prefix: "Clear explanations and good pacing"
+      rating: 4
+      author: "Rajiv Menon"
+    - prefix: "The first few sections are solid, but the audio quality drops noticeably"
+      rating: 2
+      author: "Chloe Winters"
+    - prefix: "I went from writing basic SELECTs to building reporting queries at work"
+      rating: 5
+      author: "Dev Patel"
+    - prefix: "Great for beginners and the instructor answers questions quickly"
+      rating: 4
+      author: "Yuki Nakamura"
+
+# ───────────────────────────────────────────────────────────────────────────
+# REAL saved pages from web-scraping.dev — a public scraping-practice sandbox
+# whose review/testimonial content is the site's own synthetic text (safe to
+# redistribute; see pages/SOURCES.md for provenance + licensing). Captured with
+# the headless renderer (hydrated HTML). Review TEXT is copied verbatim from the
+# rendered DOM; ratings are encoded as star-SVG COUNTS (offline selectors can't
+# parse SVG counts, so offline rating accuracy is 0 by design — the live AI path
+# counts stars; review-text precision/recall is the graded signal).
+# ───────────────────────────────────────────────────────────────────────────
+
+# Real product page: 5 reviews, each a .review with N star SVGs (rating), a
+# <span> date, and a <p> body. No per-review author.
+real_webscrapingdev_product:
+  url: https://web-scraping.dev/product/12
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, js_rendered]
+  next_page: null
+  selectors:
+    item: "#reviews .review"
+    text: "p"
+    rating: ".review"
+    date: "span"
+  reviews:
+    - prefix: "Love this Cat Ear Beanie! It's so cute and surprisingly warm"
+      rating: 5
+      date: "2022-07-15"
+    - prefix: "A cozy and unique beanie. Received a lot of compliments"
+      rating: 4
+      date: "2022-09-20"
+    - prefix: "Great beanie, but I wish there were more colors available"
+      rating: 3
+      date: "2022-10-05"
+    - prefix: "I bought this for my daughter, and she adores it"
+      rating: 5
+      date: "2022-12-25"
+    - prefix: "A must-have for cat lovers. It's adorable and keeps me warm"
+      rating: 4
+      date: "2023-01-10"
+
+# Real reviews listing: 20 reviews with data-testid hooks. rating = count of
+# [data-testid=review-stars] svg; data-testid review-date / review-text.
+
+real_webscrapingdev_reviews:
+  url: https://web-scraping.dev/reviews
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, js_rendered, multipage]
+  next_page: null
+  selectors:
+    item: "[data-testid='review']"
+    text: "[data-testid='review-text']"
+    rating: "[data-testid='review-stars']"
+    date: "[data-testid='review-date']"
+  reviews:
+    - prefix: "Unique flavor and great energy boost. It's the perfect"
+      rating: 5
+      date: "2023-05-18"
+    - prefix: "Good flavor and keeps me energized. The bottle design is"
+      rating: 5
+      date: "2023-05-17"
+    - prefix: "Excellent energy drink for gamers. The tropical flavor is"
+      rating: 4
+      date: "2023-05-16"
+    - prefix: "It’s fun, tastes good, and the energy boost is helpful"
+      rating: 5
+      date: "2023-05-15"
+    - prefix: "The best sneakers I've bought in a long time. Stylish,"
+      rating: 5
+      date: "2023-05-15"
+    - prefix: "The cherry cola flavor is a win. Keeps me energized and"
+      rating: 5
+      date: "2023-05-12"
+    - prefix: "These shoes are a hit with my twins. They love the lights"
+      rating: 5
+      date: "2023-05-10"
+    - prefix: "Excellent boots for outdoor adventures. They offer great"
+      rating: 5
+      date: "2023-05-01"
+    - prefix: "Nice design and good quality, but a bit too tight for me."
+      rating: 4
+      date: "2023-05-01"
+    - prefix: "Really enjoyed the citrus flavor and the energy boost it"
+      rating: 5
+      date: "2023-04-25"
+    - prefix: "Great concept, but the sizing is a bit off. Order a size"
+      rating: 3
+      date: "2023-04-25"
+    - prefix: "Delicious chocolates, and the box is pretty substantial."
+      rating: 5
+      date: "2023-04-18"
+    - prefix: "The boots are durable, but the laces could be better"
+      rating: 4
+      date: "2023-04-12"
+    - prefix: "This potion is a game changer. Love the energy boost and"
+      rating: 5
+      date: "2023-04-11"
+    - prefix: "Light, comfortable, and nice design. I'm buying another"
+      rating: 5
+      date: "2023-04-10"
+    - prefix: "Highly recommend! These shoes are great for evening"
+      rating: 5
+      date: "2023-04-10"
+    - prefix: "It's like a health potion for gamers! The energy boost is"
+      rating: 4
+      date: "2023-04-09"
+    - prefix: "Really helps me focus during intense gaming marathons."
+      rating: 5
+      date: "2023-04-07"
+    - prefix: "The shoes are nice but they didn't fit me well. I had to"
+      rating: 3
+      date: "2023-04-07"
+    - prefix: "Great taste, and the energy kick is awesome. Feels just"
+      rating: 5
+      date: "2023-04-05"
+
+real_webscrapingdev_testimonials:
+  url: https://web-scraping.dev/testimonials
+  verdict: will_work
+  type: plain_list
+  tags: [plain_list, no_ratings]
+  next_page: null
+  selectors:
+    item: ".testimonial"
+    text: "p.text"
+    rating: "span.rating"
+  reviews:
+    - prefix: "We've been using this utility for years - awesome"
+      rating: 5
+    - prefix: "This Python app simplified my workflow significantly."
+      rating: 5
+    - prefix: "Had a few issues at first, but their support team is"
+      rating: 4
+    - prefix: "A fantastic tool - it has everything you need and"
+      rating: 5
+    - prefix: "The interface could be a little more"
+      rating: 5
+    - prefix: "Been a fan of this app since day one. It just keeps"
+      rating: 5
+    - prefix: "The recent updates really improved the overall"
+      rating: 4
+    - prefix: "A decent web app. There's room for improvement"
+      rating: 3
+    - prefix: "The app is reliable and efficient. I can't imagine my day"
+      rating: 5
+    - prefix: "Encountered some bugs. Hope they fix it"
+      rating: 1
+    - prefix: "This web app is a game-changer! I've boosted my"
+      rating: 5
+    - prefix: "The features are great but it took me a while to"
+      rating: 4
+    - prefix: "Love the simplicity and effectiveness of this"
+      rating: 4
+    - prefix: "It's an okay tool, but I've used"
+      rating: 5
+    - prefix: "Fantastic app! It's made my job so much"
+      rating: 5
+    - prefix: "The learning curve is steep, but it's worth"
+      rating: 5
+    - prefix: "Great concept but needs more work on the"
+      rating: 5
+    - prefix: "This app is innovative and has a lot of potentials. Keep"
+      rating: 4
+    - prefix: "It's a solid tool, but there are some minor"
+      rating: 5
+    - prefix: "A great app that delivers on its promises. Very"
+      rating: 5
+    - prefix: "I'm blown away by the features and functionality."
+      rating: 5
+    - prefix: "I'm not satisfied with the app's performance."
+      rating: 1
+    - prefix: "The customer support team went above and beyond to help"
+      rating: 5
+    - prefix: "The app crashes frequently, making it unreliable for my"
+      rating: 5
+    - prefix: "I've recommended this app to all my colleagues. It's a"
+      rating: 5
+    - prefix: "The user interface is intuitive and well-designed. Easy"
+      rating: 5
+    - prefix: "I expected more from this app. It didn't meet my"
+      rating: 5
+    - prefix: "The app's performance has improved significantly with the"
+      rating: 4
+    - prefix: "This app has saved me so much time and effort. Highly"
+      rating: 5
+    - prefix: "There are some minor bugs, but overall, a solid"
+      rating: 4
+    - prefix: "I've tried many similar apps, but this one stands out."
+      rating: 4
+    - prefix: "The app's user interface could use some improvements. It"
+      rating: 5
+    - prefix: "I'm extremely satisfied with the app's performance. Works"
+      rating: 5
+    - prefix: "The app's documentation is comprehensive and easy to"
+      rating: 4
+    - prefix: "I'm disappointed with the lack of updates and new"
+      rating: 3
+    - prefix: "This app has become an essential part of my workflow."
+      rating: 5
+    - prefix: "The app is slow and unresponsive at times. Needs"
+      rating: 2
+    - prefix: "I love the clean and modern design of the app. Pleasing"
+      rating: 5
+    - prefix: "I've encountered several bugs that hindered my"
+      rating: 2
+    - prefix: "This app has become an indispensable tool for me. Great"
+      rating: 5

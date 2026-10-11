@@ -1,0 +1,98 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a large e-commerce marketplace product
+  page (Amazon style) with original, synthetic review text.
+  Structural challenges exercised:
+    - Heavy page chrome: a sponsored-products carousel and a "related items"
+      strip that contain star markup and prices but are NOT reviews.
+    - Per-review "helpful (N)" vote counts and "N people found this helpful"
+      — these integers must NOT be mistaken for ratings.
+    - The real rating lives in a nested <span class="a-icon-alt"> inside two
+      wrapper spans; the visible stars are empty <i> glyphs.
+    - "Verified Purchase" badges and a global rating-histogram block up top.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>ParchmentPro 7-in-1 Air Fryer — Customer reviews</title></head>
+  <body>
+    <header><nav><a href="/">Shop</a></nav></header>
+
+    <aside class="sponsored">
+      <h2>Sponsored products related to this item</h2>
+      <div class="sp-card"><span class="a-icon-alt">4.1 out of 5 stars</span><span class="price">$59.99</span><p>GlowKitchen Mini Fryer</p></div>
+      <div class="sp-card"><span class="a-icon-alt">3.8 out of 5 stars</span><span class="price">$42.00</span><p>Breezy 2L Compact Fryer</p></div>
+    </aside>
+
+    <main>
+      <h1>ParchmentPro 7-in-1 Air Fryer</h1>
+      <section class="histogram">
+        <div>4.4 out of 5 · 1,284 global ratings</div>
+        <ul><li>5 star 64%</li><li>4 star 20%</li><li>3 star 8%</li><li>2 star 4%</li><li>1 star 4%</li></ul>
+      </section>
+
+      <section id="customer-reviews">
+        <h2>Top reviews from the United States</h2>
+
+        <div class="review" data-hook="review">
+          <span class="profile-name">Gina H.</span>
+          <span class="rating"><span class="wrap"><i class="star-glyph"></i><span class="a-icon-alt">5.0 out of 5 stars</span></span></span>
+          <span class="review-title">Replaced three appliances</span>
+          <span class="review-date">Reviewed in the United States on September 3, 2024</span>
+          <span class="verified">Verified Purchase</span>
+          <p class="review-body">Replaced our old fryer, a toaster oven, and a dehydrator in one go. The basket is big enough for a whole chicken and cleanup is a two-minute job.</p>
+          <span class="helpful">214 people found this helpful</span>
+          <button class="vote">Helpful (214)</button>
+        </div>
+
+        <div class="review" data-hook="review">
+          <span class="profile-name">Darnell W.</span>
+          <span class="rating"><span class="wrap"><i class="star-glyph"></i><span class="a-icon-alt">4.0 out of 5 stars</span></span></span>
+          <span class="review-title">Great, but loud</span>
+          <span class="review-date">Reviewed in the United States on August 21, 2024</span>
+          <span class="verified">Verified Purchase</span>
+          <p class="review-body">Cooks evenly and the presets are accurate. My only gripe is the fan is noticeably louder than my previous model, enough to hear across the kitchen.</p>
+          <span class="helpful">87 people found this helpful</span>
+          <button class="vote">Helpful (87)</button>
+        </div>
+
+        <div class="review" data-hook="review">
+          <span class="profile-name">Mei L.</span>
+          <span class="rating"><span class="wrap"><i class="star-glyph"></i><span class="a-icon-alt">2.0 out of 5 stars</span></span></span>
+          <span class="review-title">Coating flaked after two months</span>
+          <span class="review-date">Reviewed in the United States on August 2, 2024</span>
+          <span class="verified">Verified Purchase</span>
+          <p class="review-body">Worked beautifully at first, but the nonstick coating on the basket started flaking after about two months of weekly use. I would not risk it near food now.</p>
+          <span class="helpful">143 people found this helpful</span>
+          <button class="vote">Helpful (143)</button>
+        </div>
+
+        <div class="review" data-hook="review">
+          <span class="profile-name">Theo R.</span>
+          <span class="rating"><span class="wrap"><i class="star-glyph"></i><span class="a-icon-alt">5.0 out of 5 stars</span></span></span>
+          <span class="review-title">Perfect for a small family</span>
+          <span class="review-date">Reviewed in the United States on July 19, 2024</span>
+          <span class="verified">Verified Purchase</span>
+          <p class="review-body">We use it almost every night. The dishwasher-safe tray and the clear window so you can watch the food without opening it are small touches that make a big difference.</p>
+          <span class="helpful">31 people found this helpful</span>
+          <button class="vote">Helpful (31)</button>
+        </div>
+
+        <div class="review" data-hook="review">
+          <span class="profile-name">Sandra K.</span>
+          <span class="rating"><span class="wrap"><i class="star-glyph"></i><span class="a-icon-alt">3.0 out of 5 stars</span></span></span>
+          <span class="review-title">Good cooker, confusing manual</span>
+          <span class="review-date">Reviewed in the United States on June 28, 2024</span>
+          <span class="verified">Verified Purchase</span>
+          <p class="review-body">The results are fine once you figure it out, but the manual is a maze of tiny icons and the preset numbers do not match the quick-start card in the box.</p>
+          <span class="helpful">52 people found this helpful</span>
+          <button class="vote">Helpful (52)</button>
+        </div>
+      </section>
+
+      <aside class="related">
+        <h2>Products related to this item</h2>
+        <div class="rel-card"><span class="a-icon-alt">4.6 out of 5 stars</span><span class="price">$24.99</span><p>Silicone Liner 2-Pack</p></div>
+      </aside>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a healthcare provider reviews page
+  (Healthgrades / Zocdoc style) with original, synthetic review text.
+  Structural challenges exercised:
+    - Each review carries an OVERALL star rating PLUS categorical sub-ratings
+      (Wait time, Bedside manner, Office environment). The overall is the review
+      rating; the sub-ratings are extra fields that must not be miscounted as
+      separate reviews or as the overall rating.
+    - "Verified patient" tags and no per-review title.
+    - Overall rating via aria-label on the summary node; sub-ratings are plain
+      label/value rows.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Dr. Alanna Whitfield, MD — Patient reviews</title></head>
+  <body>
+    <main>
+      <h1>Dr. Alanna Whitfield, MD — Family Medicine</h1>
+      <div class="provider-summary"><span aria-label="4.5 out of 5">4.5</span> overall · 206 patient ratings</div>
+
+      <section class="patient-reviews" id="reviews">
+        <div class="patient-review">
+          <div class="overall" aria-label="5 out of 5 stars"></div>
+          <span class="patient">Verified patient</span>
+          <time datetime="2024-08-29">Aug 29, 2024</time>
+          <p class="comment">Dr. Whitfield never rushes me and actually remembers details from my last visit. She caught a thyroid issue two other doctors had waved off.</p>
+          <ul class="subratings"><li>Wait time: 4/5</li><li>Bedside manner: 5/5</li><li>Office environment: 5/5</li></ul>
+        </div>
+
+        <div class="patient-review">
+          <div class="overall" aria-label="4 out of 5 stars"></div>
+          <span class="patient">Verified patient</span>
+          <time datetime="2024-08-10">Aug 10, 2024</time>
+          <p class="comment">Thorough and reassuring during my annual physical. The only downside was a long wait past my appointment time, close to forty minutes.</p>
+          <ul class="subratings"><li>Wait time: 2/5</li><li>Bedside manner: 5/5</li><li>Office environment: 4/5</li></ul>
+        </div>
+
+        <div class="patient-review">
+          <div class="overall" aria-label="2 out of 5 stars"></div>
+          <span class="patient">Verified patient</span>
+          <time datetime="2024-07-25">Jul 25, 2024</time>
+          <p class="comment">The doctor was knowledgeable, but the front desk lost my referral twice and I could not get anyone to return a call about my lab results for a week.</p>
+          <ul class="subratings"><li>Wait time: 2/5</li><li>Bedside manner: 4/5</li><li>Office environment: 2/5</li></ul>
+        </div>
+
+        <div class="patient-review">
+          <div class="overall" aria-label="5 out of 5 stars"></div>
+          <span class="patient">Verified patient</span>
+          <time datetime="2024-07-03">Jul 3, 2024</time>
+          <p class="comment">She spent twenty minutes explaining my options in plain language and followed up personally the next day. I have already referred two family members.</p>
+          <ul class="subratings"><li>Wait time: 5/5</li><li>Bedside manner: 5/5</li><li>Office environment: 5/5</li></ul>
+        </div>
+
+        <div class="patient-review">
+          <div class="overall" aria-label="4 out of 5 stars"></div>
+          <span class="patient">Verified patient</span>
+          <time datetime="2024-06-16">Jun 16, 2024</time>
+          <p class="comment">Great listener and very thorough. Scheduling online is easy, though the parking garage validation process at the clinic is needlessly complicated.</p>
+          <ul class="subratings"><li>Wait time: 4/5</li><li>Bedside manner: 5/5</li><li>Office environment: 4/5</li></ul>
+        </div>
+      </section>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>

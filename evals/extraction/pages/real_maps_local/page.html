@@ -1,0 +1,78 @@
+<!doctype html>
+<!--
+  RECONSTRUCTION — not a scrape. Models a local-business reviews panel
+  (Google Maps style) with original, synthetic review text.
+  Structural challenges exercised:
+    - RELATIVE dates ("2 weeks ago", "a month ago", "3 months ago") rather than
+      absolute dates — exercises dateparser's relative handling. The labels
+      intentionally OMIT the date field (relative dates have no fixed ISO value
+      to assert), so the scorer checks text/author/rating only.
+    - Ratings are expressed ONLY as filled/empty inline SVG star nodes with an
+      aria-label on the group — no star text and no numeric text.
+    - Owner responses ("Response from the owner") are interleaved and must be
+      excluded from the review set.
+    - No per-review title; "Local Guide · N reviews" author chrome.
+-->
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Riverside Dental Studio</title></head>
+  <body>
+    <main>
+      <h1>Riverside Dental Studio</h1>
+      <div class="overview"><span aria-label="4.6 stars">4.6</span> · 318 reviews</div>
+
+      <div class="reviews-scroll">
+        <div class="jftiEf review">
+          <div class="head"><span class="author">Carla Mendez</span><span class="meta">Local Guide · 42 reviews</span></div>
+          <div class="rating" role="img" aria-label="Rated 5.0 out of 5">
+            <svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg>
+          </div>
+          <span class="date">2 weeks ago</span>
+          <p class="text">Dr. Okafor talked me through every step and the hygienist was gentle with my sensitive gums. First time I have not dreaded a cleaning.</p>
+        </div>
+
+        <div class="jftiEf review">
+          <div class="head"><span class="author">Brian Takahashi</span><span class="meta">7 reviews</span></div>
+          <div class="rating" role="img" aria-label="Rated 4.0 out of 5">
+            <svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star empty"></svg>
+          </div>
+          <span class="date">a month ago</span>
+          <p class="text">Clean office and almost no wait, but the parking lot is tiny and I had to circle twice before a spot opened up.</p>
+        </div>
+
+        <div class="owner-response">
+          <span class="author">Response from the owner</span>
+          <span class="date">3 weeks ago</span>
+          <p class="text">Thanks Brian! Validated parking is available in the garage next door — just bring your ticket to the front desk.</p>
+        </div>
+
+        <div class="jftiEf review">
+          <div class="head"><span class="author">Priya Anand</span><span class="meta">Local Guide · 115 reviews</span></div>
+          <div class="rating" role="img" aria-label="Rated 2.0 out of 5">
+            <svg class="star filled"></svg><svg class="star filled"></svg><svg class="star empty"></svg><svg class="star empty"></svg><svg class="star empty"></svg>
+          </div>
+          <span class="date">3 months ago</span>
+          <p class="text">They rescheduled my appointment twice at short notice and the billing office double-charged my copay. The dentist was fine; the admin side was a headache.</p>
+        </div>
+
+        <div class="jftiEf review">
+          <div class="head"><span class="author">Samuel Grant</span><span class="meta">3 reviews</span></div>
+          <div class="rating" role="img" aria-label="Rated 5.0 out of 5">
+            <svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg>
+          </div>
+          <span class="date">4 months ago</span>
+          <p class="text">Needed an emergency extraction on a Saturday and they fit me in within the hour. Painless, kind, and they followed up by phone the next day.</p>
+        </div>
+
+        <div class="jftiEf review">
+          <div class="head"><span class="author">Deborah Nwosu</span><span class="meta">Local Guide · 28 reviews</span></div>
+          <div class="rating" role="img" aria-label="Rated 4.0 out of 5">
+            <svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star filled"></svg><svg class="star empty"></svg>
+          </div>
+          <span class="date">5 months ago</span>
+          <p class="text">Great care and modern equipment. Knocking a star off only because the earliest new-patient appointment was nearly six weeks out.</p>
+        </div>
+      </div>
+    </main>
+    <footer><p>Reconstruction fixture — synthetic content.</p></footer>
+  </body>
+</html>
