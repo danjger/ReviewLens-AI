@@ -553,7 +553,18 @@ def get_ai_client() -> AiClient:
     """
     global _ai_client  # noqa: PLW0603
     if _ai_client is None:
-        _ai_client = AiClient()
+        # Local/test convenience: when AI_STUB is enabled (refused in
+        # production by core.config), serve a deterministic, network-free stub
+        # so the Compose stack needs no API key/credits (platform-foundation
+        # task 17). Imported lazily so the stub never loads in normal runs.
+        from app.core.config import get_settings  # noqa: PLC0415
+
+        if get_settings().ai_stub:
+            from app.core.ai_stub import ScriptedStubClient  # noqa: PLC0415
+
+            _ai_client = AiClient(client=ScriptedStubClient())
+        else:
+            _ai_client = AiClient()
     return _ai_client
 
 
