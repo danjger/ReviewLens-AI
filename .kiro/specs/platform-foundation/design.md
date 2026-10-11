@@ -811,24 +811,42 @@ the four source-copied reviews. The Library list renders the seeded row (name,
 Ready, 4 reviews, v1) and the `Show archived` toggle, confirming the UI consumes
 the seeded data.
 
-Residual (NOT task 17 — owned by `dataset-library` / `ingestion-summary`): a few
-of the now-running tests still fail or flake on downstream UI/live assertions,
-not on seeding:
-- `ingestion-summary` scenario 1 asserts the reviews `<tbody>` is visible AFTER
-  selecting the rating filter `5`, but the `plain_list` fixture reviews have no
-  ratings, so that filter yields an empty tbody (Playwright reports it `hidden`).
-  This is a fixture/assertion mismatch in that spec's test (the UNFILTERED table
-  renders rows correctly), exposed only now that seeding works — fix belongs to
-  the ingestion-summary spec (filter on a value a fixture review has, or accept
-  the empty-state as the visible outcome).
-- `ingestion-summary` scenario 2 and some `library` live tests depend on the
-  real-time push flipping the detail page / list row without a reload, and on
-  targeting one specific seeded `data-dataset-id` while many leftover datasets
-  live-update; these are timing/row-targeting assertions owned by those specs,
-  flaky under a shared local DB with 5 Playwright workers. Running serially
-  (`--workers=1`, as CI already does) and/or de-cluttering the DB reduces the
-  churn; the underlying UI feature work is tracked by `dataset-library` /
-  `ingestion-summary`, not this platform-foundation task.
-- `main-flow` ends with the guardrailed-chat Q&A, which is completed in the
-  `guardrailed-chat` spec and needs a recorded/live AI answer — a genuine
-  `needs-record-ai` for the chat step, not a seeding gap.
+Follow-up on the now-running tests (deeper diagnosis). With seeding fixed, the
+pipeline tests RUN; `ingestion.spec.ts` (both tests) and the `ingestion-summary`
+summary scenario pass. The remaining failures were triaged precisely:
+
+Mechanical test bugs — FIXED on this branch (test-only):
+- `ingestion.spec.ts` carried a stale premise that `plain_list`/`no_ratings`
+  need a recorded Locator and resolve to `wont_work`; they actually resolve to
+  an addable `limited` via the free labelled-selectors path (no AI). It also
+  (a) asserted the include checkbox was auto-checked (racing the default-include
+  effect) and (b) matched Add outcomes with `.filter({ has: '[data-outcome=…]' })`
+  — a DESCENDANT match, but `data-outcome` sits on the `add-result-row` element
+  itself, so it found 0. Fixed: resolve verdicts via the free path, `.check()`
+  the box explicitly, select rows by their own attribute, and make the fixture
+  URLs unique per run. `library.spec.ts` scenario 4 had the same checkbox-race
+  (fixed the same way). These are the same classes repeated across specs.
+
+Real-time push NOT wired for the local vite E2E — ROOT CAUSE of the live tests:
+- `library` scenarios 1/3/4-tail and `ingestion-summary` scenario 2 assert the
+  Library list / detail page update IN PLACE (no reload) — e.g. a restored row
+  reappearing, a status flipping out of `checking`, a new row arriving in
+  another tab. All time out because the SPA's WebSocket never connects locally:
+  `useRealtime` resolves its URL from `VITE_WS_URL`, else same-origin
+  `ws://<host>/realtime`. For `make e2e` the SPA is the **vite dev server**
+  (`localhost:5173`), `VITE_WS_URL` is unset, and vite proxies only `/api`, not
+  `/realtime` — so it opens `ws://localhost:5173/realtime`, which nothing
+  serves, and no `check.updated`/`dataset.updated` frames ever arrive. This is a
+  local-dev real-time wiring gap (the same family as the fixture-host gap), NOT
+  a product defect: in production `VITE_WS_URL` points at the deployed WS API
+  (see the Realtime Known Issue). Fix direction (follow-up, test/compose/config
+  only): run the E2E SPA with `VITE_WS_URL` pointed at the local WS endpoint (or
+  add a `/realtime` proxy to `frontend/vite.config.ts`) so live frames reach the
+  browser; then the live assertions pass instead of timing out. Tracked for
+  `dataset-library` / realtime rather than hand-patched into each test.
+- `library` scenario 2 (archive→Show-archived→restore) times out on the
+  `Show archived` toggle for the same reason: the archive drop-out and the
+  archived-row appearance are in-place/live updates.
+- `main-flow` ends with the guardrailed-chat Q&A, which needs a recorded/live
+  AI answer — a genuine `needs-record-ai` for the chat step (guardrailed-chat
+  spec), independent of the real-time gap.
