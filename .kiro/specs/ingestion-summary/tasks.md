@@ -56,6 +56,7 @@
   - Open a processed fixture dataset and verify the header, metrics, snapshot, completeness, and filtered reviews
   - Add a dataset and watch the detail page move from processing to ready without a reload
   - _Requirements: 2.1, 3.1, 4.2, 5.2, 6.3_
+  - BREADCRUMB (from platform-foundation task 17 local E2E verification, 2026-10-11): scenario 1 ("open a processed dataset … filtered reviews") seeds `/extraction/plain_list/` then filters the reviews table by rating=5, but `plain_list` encodes ratings as PLAIN TEXT ("5/5") with no rating cue, so `postprocess._has_rating_cue` (Requirement 2.3) correctly extracts null ratings — under both the AI stub and the live model. The rating filter then matches nothing and the reviews `tbody` renders empty. Fix (owned here): seed scenario 1 from a rating-cue-bearing fixture (e.g. `/extraction/structured_jsonld/`, which has `class="stars" aria-label="…"`) so the rating filter has real ratings; optionally also confirm the empty-state renders (vs a hidden empty tbody) when a filter legitimately matches zero rows. Not changed from platform-foundation per steering (don't edit another spec's files).
 
 - [x] 9. Write property-based tests for the Correctness Properties
   - Implement one property test per property in the design (Hypothesis for backend, fast-check for frontend), each tagged with its property number
