@@ -831,22 +831,29 @@ Real-time push NOT wired for the local vite E2E — ROOT CAUSE of the live tests
 - `library` scenarios 1/3/4-tail and `ingestion-summary` scenario 2 assert the
   Library list / detail page update IN PLACE (no reload) — e.g. a restored row
   reappearing, a status flipping out of `checking`, a new row arriving in
-  another tab. All time out because the SPA's WebSocket never connects locally:
-  `useRealtime` resolves its URL from `VITE_WS_URL`, else same-origin
-  `ws://<host>/realtime`. For `make e2e` the SPA is the **vite dev server**
-  (`localhost:5173`), `VITE_WS_URL` is unset, and vite proxies only `/api`, not
-  `/realtime` — so it opens `ws://localhost:5173/realtime`, which nothing
-  serves, and no `check.updated`/`dataset.updated` frames ever arrive. This is a
-  local-dev real-time wiring gap (the same family as the fixture-host gap), NOT
-  a product defect: in production `VITE_WS_URL` points at the deployed WS API
-  (see the Realtime Known Issue). Fix direction (follow-up, test/compose/config
-  only): run the E2E SPA with `VITE_WS_URL` pointed at the local WS endpoint (or
-  add a `/realtime` proxy to `frontend/vite.config.ts`) so live frames reach the
-  browser; then the live assertions pass instead of timing out. Tracked for
-  `dataset-library` / realtime rather than hand-patched into each test.
-- `library` scenario 2 (archive→Show-archived→restore) times out on the
-  `Show archived` toggle for the same reason: the archive drop-out and the
-  archived-row appearance are in-place/live updates.
+  another tab. The SPA's WebSocket never connects locally: `useRealtime`
+  resolves its URL from `VITE_WS_URL`, else same-origin `ws://<host>/realtime`.
+  For `make e2e` the SPA is the **vite dev server** (`localhost:5173`),
+  `VITE_WS_URL` is unset, and vite proxies only `/api`, not `/realtime` — so it
+  opens `ws://localhost:5173/realtime`, which nothing serves, and no
+  `check.updated`/`dataset.updated` frames ever arrive. This is a local-dev
+  real-time wiring gap (the same family as the fixture-host gap), NOT a product
+  defect: in production `VITE_WS_URL` points at the deployed WS API (see the
+  Realtime Known Issue), fixed by tasks 35/35b.
+- RESOLVED for E2E via the reload fallback (`e2e/support/live.ts`
+  `settleViaReload`/`expectVisibleViaReload`, used with `allowReload: !liveAi`):
+  locally each live-update spec reaches the same asserted OUTCOME by reloading
+  between polls, so the tests PASS instead of timing out; on a deployed run
+  (`allowReload: false`) they still assert the strict no-reload push path. What
+  remains under GitHub issue #10 is purely a local developer-experience gap: a
+  human running the app against the vite dev server sees updates via polling
+  (list 10 s / check 2 s), not live push. Optional fix (Option A) only if local
+  live push is wanted: point the E2E/dev SPA at a local WS endpoint via
+  `VITE_WS_URL`, or add a `/realtime` proxy to `frontend/vite.config.ts` backed
+  by a Compose WebSocket bridge. Prod is unaffected.
+- `library` scenario 2 (archive→Show-archived→restore) is handled the same way:
+  the archive drop-out and the archived-row appearance are in-place/live updates
+  reached locally via the reload fallback above.
 - `main-flow` ends with the guardrailed-chat Q&A, which needs a recorded/live
   AI answer — a genuine `needs-record-ai` for the chat step (guardrailed-chat
   spec), independent of the real-time gap.
