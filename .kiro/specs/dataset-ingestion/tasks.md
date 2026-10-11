@@ -1,5 +1,13 @@
 # Implementation Plan
 
+> **Live-stack note (2026-10-03, RESOLVED):** the earlier "Add returns `created`
+> but inserts no `datasets` row" symptom was NOT a dataset-ingestion bug — it was
+> a shared data-layer `str`→`uuid`/enum bind-type mismatch in raw SQL, fixed in
+> **platform-foundation task 15** (explicit `CAST(... AS uuid)` /
+> `CAST(... AS dataset_status)` in `app/ingestion/service.py` and `app/jobs/sweep.py`).
+> Add now creates a dataset that reaches `ready`. No action needed here; see
+> `docs/known-issues-live-stack.md`. Kept as a breadcrumb only.
+
 ## Overview
 
 This plan covers dataset ingestion: URL ingestion (normalization, SSRF-safe probing, viability, Check Sessions), CSV upload parsing and preview, and the shared Refresh Service, together with the frontend New Dataset panel. Tasks 1–14 (the URL/CSV foundation plus three bug fixes — the upload keep-rule, the refresh concurrency guard, and separator-variant column matching) are complete. Tasks 15–24 add the newly introduced HTML-upload fallback path (a `html_upload` source type, an upload-backed capture, a dedicated check endpoint and handler branch, Add routing, and the HTML tab) and a large server-rendered review fixture that exercises a `will_work` outcome across both the URL and HTML-upload paths.
