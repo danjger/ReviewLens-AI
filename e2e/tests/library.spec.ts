@@ -456,8 +456,14 @@ test.describe("dataset library", () => {
     await expect(trackedNote).toHaveAttribute("data-variant", "refresh");
 
     // Add it: the original is restored + refreshed; no new dataset is created.
-    await expect(card.getByTestId("include-checkbox")).toBeChecked();
-    await page.getByTestId("add-selected-button").click();
+    // Check the include box explicitly so the Add selection is deterministic
+    // (the default-include effect can lag a one-shot toBeChecked read).
+    const include = card.getByTestId("include-checkbox");
+    await include.check();
+    await expect(include).toBeChecked();
+    const addSelected = page.getByTestId("add-selected-button");
+    await expect(addSelected).toBeEnabled();
+    await addSelected.click();
     const confirm = page.getByTestId("add-confirm-dialog");
     if ((await confirm.count()) > 0) {
       await page.getByTestId("add-confirm-confirm").click();

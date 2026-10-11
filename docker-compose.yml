@@ -86,6 +86,16 @@ services:
       # "In local docker-compose the secret is not set"). AWS sets the real
       # secret via CDK; this empty value is local-only.
       ORIGIN_VERIFY_SECRET: ""
+      # Local E2E only: raise the Check limit well above the conservative
+      # production default (.env RL_CHECKS_PER_IP_HOUR=30, kept for abuse/cost
+      # control in AWS). Locally there is no CloudFront-Viewer-Address header,
+      # so get_client_ip() returns None and ONLY the global `checks` counter
+      # applies — a single `make e2e` run seeds ~9 datasets plus the multi-URL
+      # ingestion checks, which easily exceeds 30/hour and makes seedDataset
+      # fail with 429 (the deeper half of the fixture-host/SSRF seeding gap).
+      # This is a local test knob, not a product change; AWS keeps the 30/hour
+      # default from .env. See platform-foundation task 17.
+      RL_CHECKS_PER_IP_HOUR: "100000"
     depends_on:
       postgres:
         condition: service_healthy

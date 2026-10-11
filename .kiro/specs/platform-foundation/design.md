@@ -754,3 +754,99 @@ table is absent, so a reachable-but-un-migrated DB skips cleanly instead of
 raising `UndefinedTable`. Verified: the gate returns the table when migrated and
 `None` when absent, and the perf test runs/skips without error against the live
 stack.
+
+### Live E2E could not seed a dataset locally — fixture-host/SSRF mismatch + check rate limit
+
+Found 2026-10-10 while making the Playwright pipeline tests run under the local
+stack (platform-foundation task 17). The library / ingestion-summary / main-flow
+pipeline specs seed a dataset through the real API (`POST /ingest/checks` →
+poll → `POST /ingest/checks/{id}/add`); when seeding returned null they
+annotated `needs-record-ai` and skipped. Two independent local-stack problems
+caused the null seed, and both were on the test/compose/config side — product
+SSRF and the production rate-limit defaults are unchanged.
+
+**1. Fixture host mismatch (docs only).** `seedDataset` fetches the fixture URL
+through the backend container, so the URL must resolve on the Docker network and
+be allowlisted by `SSRF_TEST_ALLOW_HOSTS=fixtures`. `support/env.ts` already
+defaulted `E2E_FIXTURE_BASE_URL` correctly to `http://fixtures` (the compose
+service name), but `playwright.config.ts` and `e2e/README.md` still documented
+the local default as `http://localhost:9090` (the host-published port). That
+host is NOT reachable from inside the backend/workers-check containers and is not
+on the allowlist, so a Check for it returns `wont_work: "Address not allowed"`.
+Reproduced live: a Check for `http://fixtures/extraction/plain_list/` renders
+(hop 200, 4 reviews via selectors) and returns `limited`, and Add(confirm_limited)
+creates a dataset row; the same path against `http://localhost:9090/...` returns
+`wont_work: Address not allowed`. Fix: reconcile the stale docs in
+`playwright.config.ts` and `e2e/README.md` to `http://fixtures` with the
+rationale, so no one exports the broken host. (The backend integration tests
+that legitimately use `localhost:9090` are a different context — they run on the
+host and set their own `SSRF_TEST_ALLOW_HOSTS=localhost`; left unchanged.)
+
+Also corrected a stale README claim that `plain_list`/`no_ratings` need a
+recorded Review Locator response: verified live under the default stub they
+resolve deterministically via the extraction engine's free selector path
+(`limited`, method `selectors`, 4 reviews) and `blocker_empty` via the
+structured pre-scan (`wont_work`) — no recorded Locator and no live AI call are
+needed to SEED a dataset.
+
+**2. Check rate limit exhausted (compose config).** Even with the right host,
+`POST /ingest/checks` began returning 429. Locally there is no
+`CloudFront-Viewer-Address` header, so `get_client_ip()` returns `None` and only
+the GLOBAL `checks` counter applies, capped at `RL_CHECKS_PER_IP_HOUR` (30, the
+conservative production default kept in `.env` for abuse/cost control). A single
+`make e2e` run issues far more than 30 Checks (≈9 seeded datasets plus the
+ingestion specs' multi-URL checks), so seeding reliably hit 429 and bailed to a
+`needs-record-ai` skip. Fix (local only): `docker-compose.yml` now overrides
+`RL_CHECKS_PER_IP_HOUR` to a large value on the `api` service (the only service
+that enforces the `checks` counter), with a comment that this is a local test
+knob and AWS keeps the 30/hour default from `.env`. Production is unchanged, and
+the `ENV=production` guard still refuses `SSRF_TEST_ALLOW_HOSTS`.
+
+Result: with the fixture-host docs reconciled and the local check limit raised,
+all nine pipeline tests now RUN the real seed→process→summary pipeline instead
+of skipping with `needs-record-ai`. The seed is proven end to end: a seeded
+dataset reaches `status: updated` / `display_state: ready`, `review_count: 4`,
+computed `metrics` (themes + sentiment), and `GET /datasets/{id}/reviews` returns
+the four source-copied reviews. The Library list renders the seeded row (name,
+Ready, 4 reviews, v1) and the `Show archived` toggle, confirming the UI consumes
+the seeded data.
+
+Follow-up on the now-running tests (deeper diagnosis). With seeding fixed, the
+pipeline tests RUN; `ingestion.spec.ts` (both tests) and the `ingestion-summary`
+summary scenario pass. The remaining failures were triaged precisely:
+
+Mechanical test bugs — FIXED on this branch (test-only):
+- `ingestion.spec.ts` carried a stale premise that `plain_list`/`no_ratings`
+  need a recorded Locator and resolve to `wont_work`; they actually resolve to
+  an addable `limited` via the free labelled-selectors path (no AI). It also
+  (a) asserted the include checkbox was auto-checked (racing the default-include
+  effect) and (b) matched Add outcomes with `.filter({ has: '[data-outcome=…]' })`
+  — a DESCENDANT match, but `data-outcome` sits on the `add-result-row` element
+  itself, so it found 0. Fixed: resolve verdicts via the free path, `.check()`
+  the box explicitly, select rows by their own attribute, and make the fixture
+  URLs unique per run. `library.spec.ts` scenario 4 had the same checkbox-race
+  (fixed the same way). These are the same classes repeated across specs.
+
+Real-time push NOT wired for the local vite E2E — ROOT CAUSE of the live tests:
+- `library` scenarios 1/3/4-tail and `ingestion-summary` scenario 2 assert the
+  Library list / detail page update IN PLACE (no reload) — e.g. a restored row
+  reappearing, a status flipping out of `checking`, a new row arriving in
+  another tab. All time out because the SPA's WebSocket never connects locally:
+  `useRealtime` resolves its URL from `VITE_WS_URL`, else same-origin
+  `ws://<host>/realtime`. For `make e2e` the SPA is the **vite dev server**
+  (`localhost:5173`), `VITE_WS_URL` is unset, and vite proxies only `/api`, not
+  `/realtime` — so it opens `ws://localhost:5173/realtime`, which nothing
+  serves, and no `check.updated`/`dataset.updated` frames ever arrive. This is a
+  local-dev real-time wiring gap (the same family as the fixture-host gap), NOT
+  a product defect: in production `VITE_WS_URL` points at the deployed WS API
+  (see the Realtime Known Issue). Fix direction (follow-up, test/compose/config
+  only): run the E2E SPA with `VITE_WS_URL` pointed at the local WS endpoint (or
+  add a `/realtime` proxy to `frontend/vite.config.ts`) so live frames reach the
+  browser; then the live assertions pass instead of timing out. Tracked for
+  `dataset-library` / realtime rather than hand-patched into each test.
+- `library` scenario 2 (archive→Show-archived→restore) times out on the
+  `Show archived` toggle for the same reason: the archive drop-out and the
+  archived-row appearance are in-place/live updates.
+- `main-flow` ends with the guardrailed-chat Q&A, which needs a recorded/live
+  AI answer — a genuine `needs-record-ai` for the chat step (guardrailed-chat
+  spec), independent of the real-time gap.
