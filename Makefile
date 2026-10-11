@@ -58,7 +58,7 @@ eval:
 	@if [ -z "$$ANTHROPIC_API_KEY" ]; then \
 	  echo "Error: ANTHROPIC_API_KEY is not set"; exit 1; \
 	fi
-	cd backend && uv run pytest evals/ -v -m live_ai
+	cd backend && uv run pytest ../evals -v -m live_ai
 
 ## record-ai: Record AI fixtures for tests (uses live model, needs ANTHROPIC_API_KEY)
 record-ai:
