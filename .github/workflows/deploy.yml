@@ -289,6 +289,34 @@ jobs:
         run: uv run python scripts/smoke_test.py
 
       # ---------------------------------------------------------------
+      # Post-deploy real-time regression guard (platform-foundation task 37,
+      # Req 8.7 / 6.1 / 6.3). Runs the issue-#10 regression spec against the
+      # DEPLOYED SPA with E2E_REALTIME=1, which asserts the SPA actually opens
+      # a wss:// WebSocket — directly catching a regression of the realtime
+      # wiring (CloudFront /realtime upgrade, the WS connect/disconnect Lambdas
+      # under the RIC, or VITE_WS_URL in the SPA build — tasks 35/35b).
+      #
+      # Scope: only the WebSocket-CONNECT test runs here (-g). The spec's
+      # second, SEEDING test needs the backend to fetch a fixture review page,
+      # but the public fixtures site (ReviewLens-TestFixtures) is deliberately
+      # ABSENT in production and prod SSRF refuses a host allowlist, so there is
+      # nothing to seed from. The connect test needs no seed and is the direct
+      # issue-#10 guard. A red result FAILS the deploy (it is a shipped-feature
+      # regression). The seeding test stays available for a non-prod / fixtures-
+      # bearing deployed run. E2E_LIVE_AI is left unset (no AI needed here).
+      # ---------------------------------------------------------------
+      - name: Post-deploy real-time WebSocket check
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: https://${{ steps.outputs.outputs.distribution_domain }}
+          E2E_REALTIME: "1"
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test realtime.spec.ts -g "opens a live WebSocket channel"
+
+      # ---------------------------------------------------------------
       # Report the deployed endpoints to the job summary.
       # ---------------------------------------------------------------
       - name: Write deploy summary
