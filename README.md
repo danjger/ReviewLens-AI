@@ -148,6 +148,45 @@ make synth
 
 Tests never call the live AI unless marked `@pytest.mark.live_ai` (backend) or `E2E_LIVE_AI=1` (E2E).
 
+### Extraction evaluation results
+
+The extraction evaluation (`evals/extraction/`) scores the review-extraction
+engine against **21 hand-labeled pages** — the required layout types (structured
+JSON-LD/microdata, client-rendered, plain lists, no-ratings, multi-page,
+mixed Q&A/seller-response, blockers) plus faithful reconstructions of real
+review-platform markup and real saved pages from a public scraping sandbox (see
+`evals/extraction/pages/SOURCES.md`). It scores each method and the automatic
+choice, and asserts the Requirement 8.3 extraction thresholds and the
+dataset-ingestion Requirement 3.14 verdict-accuracy threshold:
+
+```bash
+cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
+# or (numbers only, no assert):  python evals/extraction/run.py --live
+```
+
+Latest live run (extraction model `claude-haiku-4-5-20251001`):
+
+| Metric | Threshold | Result |
+|---|---|---|
+| `auto` precision on `will_work` pages | ≥ 98% | **99.3%** ✓ |
+| `auto` recall on `will_work` pages | ≥ 90% | **100.0%** ✓ |
+| Viability verdict accuracy | ≥ 90% | **95–100%** (20–21/21) ✓ |
+
+**Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
+choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,
+whereas `structured` alone recalls ~10% (most pages carry no schema.org data)
+and the pure `selectors` method needs a known-good selector set that only the
+AI plan produces at runtime. `auto` (plan-then-extract) is therefore the default
+in `core.config` and is what these thresholds are measured against.
+
+Note: the viability verdict uses a live model call and is **non-deterministic on
+borderline pages** — e.g. a page that shows 5 reviews but advertises thousands
+with no next-page link is correctly `limited`, but one such case occasionally
+flips `limited`↔`will_work` across runs. Accuracy stays at or above the 90%
+gate (observed 20–21 of 21). The `auto` precision/recall was stable across runs.
+The full per-method, per-page breakdown is written to
+[`evals/extraction/report.md`](evals/extraction/report.md) on every run.
+
 ### Scope-guard evaluation results
 
 The guardrail evaluation (`evals/scope_guard/`) grades 61 labeled questions — in-scope,

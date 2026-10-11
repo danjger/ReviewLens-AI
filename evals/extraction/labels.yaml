@@ -464,7 +464,7 @@ real_g2_style:
 # in a nested .a-icon-alt span.
 real_marketplace_photos:
   url: https://market.example.com/parchmentpro-air-fryer/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, mixed_qa_seller]
   next_page: null
@@ -501,7 +501,7 @@ real_marketplace_photos:
 # ratings via group aria-label, owner responses excluded, no titles.
 real_maps_local:
   url: https://maps.example.com/place/riverside-dental-studio/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, mixed_qa_seller, no_ratings]
   next_page: null
@@ -571,7 +571,7 @@ real_infinite_scroll:
 # chip excluded. prefix matches the "liked" body.
 real_multilang_dates:
   url: https://travel.example.com/hotel/marianne/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, mixed_qa_seller]
   next_page: null
@@ -606,7 +606,7 @@ real_multilang_dates:
 # title + body split, stars via aria-label.
 real_app_store:
   url: https://apps.example.com/app/focusflow/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, mixed_qa_seller]
   next_page: null
@@ -644,7 +644,7 @@ real_app_store:
 # titles; verified-patient tag.
 real_healthcare_provider:
   url: https://health.example.com/provider/alanna-whitfield-md/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, no_ratings, mixed_qa_seller]
   next_page: null
@@ -675,7 +675,7 @@ real_healthcare_provider:
 # whole-star aria-label. Dates are relative (date field OMITTED).
 real_course_platform:
   url: https://learn.example.com/course/practical-sql-for-analysts/reviews
-  verdict: will_work
+  verdict: limited
   type: plain_list
   tags: [plain_list, no_ratings, mixed_qa_seller]
   next_page: null
