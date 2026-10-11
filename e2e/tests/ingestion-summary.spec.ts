@@ -52,9 +52,12 @@ const PROCESS_TIMEOUT = 60_000;
  * real fixture page (so a Check/collection could render it); the query string
  * makes the normalized URL unique per test, so two runs never share a dataset.
  */
-function uniqueFixtureUrl(tag: string): string {
+function uniqueFixtureUrl(
+  tag: string,
+  path = "/extraction/plain_list/",
+): string {
   const nonce = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-  return fixtureUrl(`/extraction/plain_list/?e2e=${tag}-${nonce}`);
+  return fixtureUrl(`${path}?e2e=${tag}-${nonce}`);
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -237,7 +240,7 @@ test.describe("ingestion summary", () => {
 
     // Seed a dataset and wait until it has an active version (fully processed),
     // so the detail page renders the summary rather than skeletons.
-    const fixture = uniqueFixtureUrl("summary");
+    const fixture = uniqueFixtureUrl("summary", "/extraction/structured_jsonld/");
     const datasetId = await seedDataset(request, fixture);
     if (!datasetId) {
       skipNoSeed();
