@@ -52,3 +52,31 @@ make up                                   # stack healthy incl. worker consumers
 cd e2e && npx playwright install chromium # first time only
 E2E_LIVE_AI=1 make e2e                     # or: npx playwright test main-flow
 ```
+
+
+## Integration harness fix (2026 verification session)
+
+Two problems were found while running the full verification suite; both were in
+the test **harness**, not product code. Fixed in the root `Makefile`.
+
+1. **DB-backed integration tests silently self-skipped.** `make test-int` runs
+   `cd backend && uv run pytest ...`, but `core.config.Settings` loads `env_file=".env"`
+   relative to the CWD. After `cd backend` there is no `.env` (it lives at the repo
+   root), so `database_url` resolved empty and ~140 of 158 integration tests skipped
+   with "PostgreSQL not reachable" — in CI too, which is why the suite looked green
+   while the database tests never executed. Fix: the `test-int` / `test-scale` recipes
+   now `set -a && . ./.env && set +a` before `cd backend`, so the root `.env` is
+   exported into the pytest process. `config.py` is unchanged (prod behavior intact).
+
+2. **Live consumers raced the integration tests.** `make test-int` used
+   `docker compose up -d --wait` (the whole stack), so `workers-processing`,
+   `workers-check`, `push-consumer`, and `sweeper` polled the same SQS queues the
+   tests drain and asserted on. The processing worker consumed a test's message
+   first, then failed with `Dataset '...' does not exist` (the test had already
+   cleaned up its row), and the test's own `_drain_processing_queue()` came back
+   empty. Fix: `test-int` now brings up only `$(INTEGRATION_SERVICES)` = postgres,
+   localstack, fixtures — no consumers. `test-scale` still brings up the full stack
+   because the scale suite asserts on the live consumers.
+
+Result: `make test-int` now runs all 158 integration tests green (0 skipped),
+coverage 39% -> 77%.

@@ -1,5 +1,14 @@
 .PHONY: up down lint test test-int test-scale e2e eval synth record-ai help
 
+# Services the integration suite needs: the datastores and the fixture site,
+# but NOT the queue consumers. The consumers (workers-check, workers-processing,
+# push-consumer, sweeper) are live pollers on the shared SQS queues; if they run
+# during `make test-int` they race the tests for queue messages (the test drains
+# a queue and finds the message already consumed). Integration tests own the
+# queues themselves, so bring up only infrastructure. The scale suite is the
+# opposite — it asserts on the live consumers — so `test-scale` keeps them up.
+INTEGRATION_SERVICES := postgres localstack fixtures
+
 # ── Local stack ──────────────────────────────────────────────────────────────
 
 ## up: Start the full local stack (Docker Compose)
@@ -35,15 +44,15 @@ test-backend:
 test-frontend:
 	cd frontend && npm test
 
-## test-int: Integration tests against the Compose stack
+## test-int: Integration tests against the Compose stack (datastores only, no consumers)
 test-int:
-	docker compose up -d --wait
-	cd backend && uv run pytest tests/integration -v -m integration
+	docker compose up -d --wait $(INTEGRATION_SERVICES)
+	set -a && . ./.env && set +a && cd backend && uv run pytest tests/integration -v -m integration
 
 ## test-scale: Two consumer instances against shared queues
 test-scale:
 	docker compose up -d --wait
-	cd backend && uv run pytest tests/scale -v -m scale
+	set -a && . ./.env && set +a && cd backend && uv run pytest tests/scale -v -m scale
 
 # ── E2E ──────────────────────────────────────────────────────────────────────
 
