@@ -1,18 +1,17 @@
 /*
- * ReviewLens design tokens (dataset-library task 11).
+ * ReviewLens design tokens — "Warm Amber".
  *
- * An original, restrained system inspired by the CLARITY of apple.com (calm
- * surfaces, generous spacing, one confident accent) and the DENSITY of
- * amazon.com (compact tables, legible at a glance) — deliberately NOT a clone
- * of either: original palette, type pairing, and spacing scale.
+ * The brand is defined in .kiro/steering/branding.md (the source of truth).
+ * An orange / yellow / brown palette over a warm cream background: honey-amber
+ * accents, deep-brown text, soft tan borders. Shapes are generously rounded,
+ * borders are thin, and spacing is deliberately open.
  *
- * The palette is "Slate & Teal": calm neutral surfaces with a single confident
- * teal accent. Every surface reads these variables, so a future re-theme is a
- * one-file change.
+ * Every surface reads these variables, so a re-theme is a one-file change.
+ * Components must reference tokens, never hard-code colors, radii, or spacing.
  */
 
 :root {
-  /* ---- Type ---- */
+  /* ---- Type (sans-serif only; see branding.md "Typography") ---- */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
@@ -23,66 +22,72 @@
   --text-lg: 1.125rem;
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
-  --leading: 1.55;
+  --leading: 1.6;
   --weight-normal: 400;
   --weight-medium: 550;
   --weight-bold: 680;
 
-  /* ---- Spacing (4px base) ---- */
+  /* ---- Spacing (4px base, generous; see branding.md "Spacing") ---- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-8: 3rem;
+  --space-3: 0.875rem;
+  --space-4: 1.25rem;
+  --space-5: 1.75rem;
+  --space-6: 2.5rem;
+  --space-8: 4rem;
 
-  /* ---- Radius / elevation ---- */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
-  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.06);
+  /* ---- Radius / elevation (rounded objects, soft warm shadows) ---- */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(74, 48, 20, 0.06), 0 2px 6px rgba(74, 48, 20, 0.08);
+  --shadow-md: 0 6px 18px rgba(74, 48, 20, 0.10), 0 2px 6px rgba(74, 48, 20, 0.07);
 
-  /* ---- Palette: "Slate & Teal" ---- */
-  --color-bg: #f6f8fa;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #eef1f5;
-  --color-border: #d8dee6;
-  --color-text: #1b2430;
-  --color-text-muted: #5b6673;
-  --color-accent: #0f8a86;        /* teal */
-  --color-accent-strong: #0b6f6c;
-  --color-accent-weak: #e2f3f2;
-  --color-on-accent: #ffffff;
-  /* status */
-  --color-ok: #137a4b;
-  --color-ok-weak: #e3f4ec;
-  --color-warn: #9a6a06;
-  --color-warn-weak: #fbf0d8;
-  --color-danger: #b4231f;
-  --color-danger-weak: #fbe6e5;
-  --color-info: #1f5fb0;
-  --color-info-weak: #e5eefb;
-  --focus-ring: 0 0 0 3px rgba(15, 138, 134, 0.35);
+  /* ---- Palette: "Warm Amber" (orange / yellow / brown) ---- */
+  --color-bg: #fdf7ee;            /* warm cream */
+  --color-surface: #fffdf9;       /* near-white, warm */
+  --color-surface-sunken: #f5ebdc;/* insets, table hover */
+  --color-border: #e4d4bd;        /* thin, soft tan */
+  --color-text: #3b2a1a;          /* deep brown */
+  --color-text-muted: #725741;    /* warm brown-grey */
+  --color-accent: #e08a1e;        /* honey orange */
+  --color-accent-strong: #9c5a0c; /* amber-brown, hover/pressed */
+  --color-accent-weak: #fbeccd;   /* tinted fills, chips */
+  --color-on-accent: #2a1b0b;     /* dark brown text on amber */
+  /* status — kept in the warm family (no cool blues/greys) */
+  --color-ok: #4c6a19;            /* warm olive-green */
+  --color-ok-weak: #eef3dc;
+  --color-warn: #8a5f06;          /* goldenrod */
+  --color-warn-weak: #fbf1d4;
+  --color-danger: #b23c17;        /* burnt sienna */
+  --color-danger-weak: #fbe3d7;
+  --color-info: #875a24;          /* amber-brown */
+  --color-info-weak: #f6e8d3;
+  --focus-ring: 0 0 0 3px rgba(224, 138, 30, 0.40);
 }
 
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #11161c;
-    --color-surface: #192029;
-    --color-surface-sunken: #121820;
-    --color-border: #2b3744;
-    --color-text: #e8edf2;
-    --color-text-muted: #9fb0c0;
-    --color-accent: #35b0ab;
-    --color-accent-strong: #4cc6c1;
-    --color-accent-weak: #15312f;
-    --color-ok-weak: #10251b;
-    --color-warn-weak: #2a2110;
-    --color-danger-weak: #2c1413;
-    --color-info-weak: #122034;
+    --color-bg: #17110b;            /* espresso */
+    --color-surface: #231a11;
+    --color-surface-sunken: #1b140d;
+    --color-border: #3d2f1f;
+    --color-text: #f3e7d6;          /* warm cream text */
+    --color-text-muted: #c0a888;
+    --color-accent: #f2a63f;        /* brighter honey so it still pops */
+    --color-accent-strong: #ffbd5c;
+    --color-accent-weak: #3a2a14;
+    --color-on-accent: #241704;
+    --color-ok: #a7c05a;
+    --color-ok-weak: #202914;
+    --color-warn: #e0ad46;
+    --color-warn-weak: #2c2210;
+    --color-danger: #e07a4e;
+    --color-danger-weak: #2e1710;
+    --color-info: #d6a567;
+    --color-info-weak: #2a1f12;
+    --focus-ring: 0 0 0 3px rgba(242, 166, 63, 0.45);
   }
 }
 
