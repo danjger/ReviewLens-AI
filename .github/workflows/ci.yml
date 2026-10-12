@@ -187,6 +187,15 @@ jobs:
         working-directory: backend
         run: uv sync --extra dev
 
+      - name: Create .env from .env.example (local-equivalent config)
+        # make test-int sources the repo-root .env so the DB-backed integration
+        # tests get DATABASE_URL (localhost psycopg) and ENV=local. CI has no
+        # .env, so copy the committed example, which holds the same localhost
+        # values and no real secrets. Without this the ~140 DB-backed tests
+        # self-skip (PostgreSQL not reachable) and only the LocalStack-only
+        # tests run.
+        run: cp .env.example .env
+
       - name: Run container integration tests (make test-int)
         run: make test-int
 
