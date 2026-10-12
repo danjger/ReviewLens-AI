@@ -54,3 +54,6 @@ cdk.out/
 .vscode/
 *.swp
 *.swo
+
+# ── Kiro session transcripts (kept local; not committed) ──────────────────────
+.kiro/sessions/
