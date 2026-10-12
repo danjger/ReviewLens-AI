@@ -44,6 +44,11 @@ _CLEANED_LINE_RE = re.compile(r'^\s*(e\d+)\s+<(\w+)[^>]*>(?:\s+"([^"]*)")?')
 _REVIEW_TAGS = frozenset({"p"})
 _MIN_REVIEW_TEXT = 40
 
+#: Matches a Corpus review id in the assembled <reviews> JSON lines, e.g.
+#: ``{"id": "r_0003", ...}`` — used by the streaming chat stub to cite a real
+#: review so the answer produces a surviving citation chip.
+_CORPUS_ID_RE = re.compile(r'"id"\s*:\s*"(r_\d+)"')
+
 
 def _tool_use_response(tool_name: str, tool_input: dict[str, Any]) -> SimpleNamespace:
     """An SDK-shaped message carrying a single forced ``tool_use`` block."""
@@ -144,6 +149,14 @@ class _StubMessages:
         name = self._tool_name(kwargs)
         user_text = self._user_text(kwargs)
 
+        # Streaming chat (chat service calls stream_message -> create(stream=True)).
+        # Return an iterable of SDK-shaped stream events forming a short, in-scope
+        # answer that cites a real Corpus review id, so the browser streams tokens
+        # and the citation survives post-processing as a chip. (Local stub only;
+        # the nuanced grounded answer is a live-model / needs-record-ai concern.)
+        if kwargs.get("stream"):
+            return self._stream_chat_answer(user_text)
+
         if name == "locator_result":
             return _tool_use_response("locator_result", _locator_from_user(user_text))
         if name == "entity_profile":
@@ -180,6 +193,58 @@ class _StubMessages:
         # Any other (non-tool) call: a harmless, deterministic text answer. The
         # chat flow is exercised by a separate needs-record-ai E2E, not this stub.
         return _text_response("Stubbed response.")
+
+    def _stream_chat_answer(self, user_text: str) -> Any:  # noqa: ANN401 - SDK stream
+        """Yield SDK-shaped stream events for a cited, in-scope stub answer.
+
+        Text deltas arrive on ``content_block_delta`` events (``delta.text``);
+        usage arrives on ``message_start`` and a trailing ``message_delta`` —
+        the exact shapes app.core.ai._stream_event_text / _accumulate_stream_usage
+        read. The answer cites the first review id present in the Corpus so the
+        citation is valid (post-processing drops any id not in the Corpus).
+        """
+        ids = _CORPUS_ID_RE.findall(user_text)
+        first = ids[0] if ids else None
+        if first is not None:
+            answer = (
+                "Based on the reviews, people most often praise the overall "
+                f"experience and ease of setup [{first}]. This is a local stub "
+                "answer grounded in the dataset's reviews."
+            )
+        else:
+            answer = (
+                "I can only answer from this dataset's reviews, and I could not "
+                "find any to cite for that question."
+            )
+
+        def _events() -> Any:  # noqa: ANN401 - generator of SDK-shaped events
+            # message_start carries input/cache usage.
+            yield SimpleNamespace(
+                type="message_start",
+                message=SimpleNamespace(
+                    usage=SimpleNamespace(
+                        input_tokens=max(1, len(user_text) // 4),
+                        output_tokens=0,
+                        cache_creation_input_tokens=0,
+                        cache_read_input_tokens=0,
+                    )
+                ),
+            )
+            # Stream the answer word-by-word as text_delta events.
+            words = answer.split(" ")
+            for i, word in enumerate(words):
+                chunk = word if i == 0 else " " + word
+                yield SimpleNamespace(
+                    type="content_block_delta",
+                    delta=SimpleNamespace(type="text_delta", text=chunk),
+                )
+            # message_delta carries the final output token count.
+            yield SimpleNamespace(
+                type="message_delta",
+                usage=SimpleNamespace(output_tokens=max(1, len(answer) // 4)),
+            )
+
+        return _events()
 
     def count_tokens(self, **kwargs: Any) -> Any:  # noqa: ANN401
         # A cheap deterministic estimate; the stub never calls the network.
