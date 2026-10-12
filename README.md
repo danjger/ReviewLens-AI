@@ -15,6 +15,8 @@ A web portal for an Online Reputation Management (ORM) consultancy. Analysts pro
 5. [Compute modes](#compute-modes)
 6. [Deployment](#deployment)
 7. [Cost controls](#cost-controls)
+8. [Engineering decisions](#engineering-decisions)
+9. [Session logs](#session-logs)
 
 ---
 
@@ -306,3 +308,91 @@ Both controls are documented here and are required before going live (Requiremen
 - **Lambda** costs essentially nothing when idle.
 - **CloudFront** serves the SPA from the CDN, keeping origin requests low.
 - **S3 lifecycle rules** delete `checks/` and `uploads/` objects after 1 day.
+
+
+---
+
+## Engineering decisions
+
+Key decisions made while building and maintaining this project, with the
+reasoning behind each. Product-level decisions (no sign-in, AI-first extraction,
+Aurora via the Data API, Anthropic Claude) live in
+[`.kiro/steering/product.md`](.kiro/steering/product.md); this section records
+the engineering and process decisions that shaped the codebase.
+
+### Architecture & platform
+- **Stateless services, same image two ways.** Every backend service is a
+  stateless container that runs unchanged on Lambda (first deployment, near-zero
+  idle cost) or ECS Fargate. Shared state lives only in Aurora, S3, DynamoDB, or
+  SQS. See [Compute modes](#compute-modes).
+- **No VPC, no NAT.** Aurora is reached through the RDS Data API and Anthropic
+  over HTTPS, so there is no NAT gateway cost when idle.
+- **Aurora PostgreSQL Serverless v2 via the Data API**, auto-pausing when idle;
+  a prototype accepts the ~15s cold-resume for near-zero idle cost.
+- **FIFO processing queue, per-dataset message group**, so one dataset is never
+  processed concurrently while different datasets still parallelize.
+- **Queue messages carry IDs only**; payloads live in S3 or the database.
+
+### Extraction & AI
+- **AI-first, no site-specific parsers.** Review detection is dynamic; quality
+  is measured by the evaluation suite rather than brittle per-site scrapers.
+- **Default `EXTRACTION_STRATEGY=auto`** (plan-then-extract), chosen from the
+  evaluation report: `auto` reached 99.3% precision / 100% recall, versus
+  `structured` alone (~10% recall) or `selectors` (needs an AI-built plan). See
+  [Extraction evaluation results](#extraction-evaluation-results).
+- **Review text is always copied from the page, never AI-generated.** The AI may
+  point at elements; it may never supply review text.
+- **Model IDs come from config, never literals**, and every AI call goes through
+  one instrumented client (logging, global rate limit, test stub).
+
+### Security & cost
+- **No sign-in; abuse controlled by layers** — WAF, per-IP and global rate
+  limits, a budget alarm, and an Anthropic spend limit. See
+  [Cost controls](#cost-controls).
+- **SSRF guard on every user-supplied outbound fetch**; `SSRF_TEST_ALLOW_HOSTS`
+  is refused when `ENV=production`.
+- **Client IPs are hashed, never stored or logged raw.**
+- **Secrets come from Secrets Manager or env, never committed.** `.env` is
+  gitignored; CI uses the secret-free `.env.example`.
+
+### Testing & tooling (notable fixes)
+- **`make test-int` runs datastores only; `make test-scale` keeps the
+  consumers.** Integration tests own the queues they assert on, so the live
+  queue consumers must be absent during `test-int` or they race the tests; the
+  scale suite is the opposite and asserts on those consumers.
+- **The test harness loads the repo-root `.env`** (guarded by `if [ -f .env ]`),
+  and CI copies `.env.example` to `.env` before `make test-int`. Before this,
+  ~140 DB-backed integration tests silently self-skipped (locally and in CI)
+  because pydantic resolves `.env` relative to the working directory and the
+  tests run from `backend/`. Details in
+  [`docs/known-issues-live-stack.md`](docs/known-issues-live-stack.md).
+- **Property tests reference their design property number**, and tests never
+  call the live model unless explicitly marked.
+
+### Branding & frontend
+- **Design tokens are the single styling source.** The whole UI reads CSS custom
+  properties from `frontend/src/styles/theme.css`, so a re-theme is a one-file
+  change. The brand ("Warm Amber": orange/yellow/brown, rounded, thin borders,
+  generous spacing, sans-serif) is defined in
+  [`.kiro/steering/branding.md`](.kiro/steering/branding.md) and applied through
+  those tokens — components reference tokens, never hard-coded values.
+- **Palette tuned for WCAG AA** on normal-size text in both light and dark mode.
+  Full WCAG conformance still requires manual assistive-tech testing.
+
+### Process
+- **Feature branches + pull requests**, merged only after CI is green and with
+  explicit confirmation — never a direct push to `main`.
+- **Spec build order is fixed** (`platform-foundation` → `review-extraction` →
+  `dataset-ingestion` → `review-analysis` → `dataset-library` →
+  `ingestion-summary` → `guardrailed-chat`); a task reuses earlier specs'
+  implementations rather than re-implementing them. See
+  [`.kiro/steering/spec-workflow.md`](.kiro/steering/spec-workflow.md).
+
+---
+
+## Session logs
+
+Readable summaries of the working sessions with Kiro — what was requested, what
+changed, and the decisions made — live in [`sessions/`](sessions/). They are
+historical records; when a note disagrees with the specs, steering, or code,
+those win.
