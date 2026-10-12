@@ -9,6 +9,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      // Chat streaming lives on the separate chat service (compose: chat:8001).
+      // This rule MUST come before "/api" so chat requests are not swallowed by
+      // the API-service rule below. In AWS, CloudFront routes /api/chat to the
+      // Chat Function URL; this is the local-dev equivalent.
+      "/api/chat": {
+        target: "http://localhost:8001",
+        changeOrigin: true,
+      },
+      // Everything else under /api (datasets, ingest, history, suggestions, ...)
+      // goes to the API service.
       "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
