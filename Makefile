@@ -47,12 +47,12 @@ test-frontend:
 ## test-int: Integration tests against the Compose stack (datastores only, no consumers)
 test-int:
 	docker compose up -d --wait $(INTEGRATION_SERVICES)
-	set -a && . ./.env && set +a && cd backend && uv run pytest tests/integration -v -m integration
+	if [ -f .env ]; then set -a && . ./.env && set +a; fi && cd backend && uv run pytest tests/integration -v -m integration
 
 ## test-scale: Two consumer instances against shared queues
 test-scale:
 	docker compose up -d --wait
-	set -a && . ./.env && set +a && cd backend && uv run pytest tests/scale -v -m scale
+	if [ -f .env ]; then set -a && . ./.env && set +a; fi && cd backend && uv run pytest tests/scale -v -m scale
 
 # ── E2E ──────────────────────────────────────────────────────────────────────
 
