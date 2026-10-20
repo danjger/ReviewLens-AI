@@ -289,6 +289,28 @@ Merging to `main` triggers the GitHub Actions pipeline:
 
 The pipeline never deploys on a failed test step.
 
+#### When CI runs (keeping Actions usage down)
+
+CI triggers on **pull requests** and on **push to `main`** only — a push to a
+feature branch with an open PR runs CI once (via the PR), not twice, and a
+push to a branch with no PR runs nothing. Superseded commits are cancelled.
+
+Jobs are split into two tiers:
+
+- **Always run** (every PR, and push to `main`): lint + type check,
+  unit/property tests, and the container image build. Fast signal, no Docker
+  Compose stack.
+- **Heavy / opt-in** (container integration, scale, CDK synth, non-blocking
+  perf): run only when a push targets `main`, a PR's base is `main`, or the PR
+  carries the **`full-ci`** label — and only for the areas that changed
+  (a `changes` job path-filters backend / frontend / infra, so docs-only PRs
+  skip the container jobs and CDK synth runs only when `infra/**` changes).
+
+Everything that reaches `main` still runs the full pipeline before deploy, so
+the deploy gate and production safety are unchanged — only *when* the heavy
+jobs run on feature branches is reduced. To force the full pipeline on a PR
+that doesn't target `main`, add the `full-ci` label.
+
 ---
 
 ## Cost controls

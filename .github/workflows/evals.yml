@@ -29,6 +29,10 @@ on:
   # job's own live test SKIPS without ANTHROPIC_API_KEY, so an unrelated change
   # does not do real work in the other job.
   push:
+    # Only on main (merges). PR branches are covered by the pull_request
+    # trigger below, so an eval-affecting change runs at most once per
+    # change instead of once for the push and once for the PR.
+    branches: [main]
     paths:
       # --- Extraction evaluation inputs (review-extraction Req 8.4) ---
       # The page cleaner.
