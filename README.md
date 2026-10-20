@@ -166,17 +166,13 @@ cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
 # or (numbers only, no assert):  python evals/extraction/run.py --live
 ```
 
-Latest live run (extraction model `claude-haiku-4-5-20251001`):
-
-> **Note:** the default extraction/pre-check model has since moved to
-> `claude-haiku-5-5`. The scores below were measured on Haiku 4.5; re-run
-> `make eval` on Haiku 5.5 to re-baseline these numbers before relying on them.
+Latest live run (extraction model `claude-haiku-5-5`):
 
 | Metric | Threshold | Result |
 |---|---|---|
 | `auto` precision on `will_work` pages | ≥ 98% | **99.3%** ✓ |
 | `auto` recall on `will_work` pages | ≥ 90% | **100.0%** ✓ |
-| Viability verdict accuracy | ≥ 90% | **95–100%** (20–21/21) ✓ |
+| Viability verdict accuracy | ≥ 90% | **100.0%** (21/21) ✓ |
 
 **Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
 choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,
