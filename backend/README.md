@@ -124,3 +124,59 @@ ids are resolved from `Settings` by the purpose label in
 - **No third-party egress beyond Anthropic.** The only outbound AI call is to
   Anthropic through this client; prompts carry the dataset's own review text and
   the user's question, nothing else.
+
+## Processed review data: storage and reuse
+
+The output of the AI processing steps — the structured "model" of a dataset's
+reviews — is persisted in **two places**, split by size and access pattern.
+Everything is keyed by **version** (`v{n}`): a refresh writes a *new* version
+rather than mutating the old one, so a stored version is immutable once written.
+All S3 keys come from `app/storage/keys.py` (nothing builds a key by hand).
+
+### Where it is stored
+
+| What | Where | Written by | Contents |
+|------|-------|-----------|----------|
+| Full per-review document | **S3**: `datasets/{id}/reviews/v{n}.json` | `app/handlers/metrics.py` (`write_reviews`) | `{dataset_id, version, generated_at, entity (profile), pages[], reviews[]}`. Each review has a stable `r_0001`-style id, its text/rating/date/author/title, and its **sentiment** label. |
+| Headline metrics | **Aurora Postgres**: `datasets.metrics` (JSONB column) | `app/handlers/completion.py` | Review count, rating distribution, date range, **sentiment breakdown**, **themes** (`label/mentions/lean`), extraction details, warnings. |
+| Prediction vs. actual | **Aurora Postgres**: `datasets.status_detail.viability.actual` (JSONB) | `app/handlers/completion.py` | Reviews/pages/method/fallbacks actually produced, next to the Viability Check's prediction. |
+| Raw inputs / snapshot | **S3**: `datasets/{id}/raw/v{n}/…`, `snapshot/v{n}.png` | capture / collection | Captured HTML, extraction plan, uploaded CSV + mapping, above-the-fold screenshot. |
+
+The division is deliberate: the **bulk review text lives in S3** (cheap, large,
+read whole), while the **small summary numbers live in the DB** (queried for the
+library and summary pages). The review text is **copied from the page by code**,
+never generated — the AI only labelled sentiment and pointed themes at review
+ids (see "AI processing" above).
+
+`datasets.active_version` points at the latest version that finished `updated`.
+The `metrics` column and `active_version` are advanced **only on success** and
+**monotonically** (under the dataset row lock), so a failed refresh keeps serving
+the previous good version's stored model.
+
+### How it is reused
+
+- **Chat Q&A grounding.** `app/chat/corpus.py:load_corpus(dataset_id, version)`
+  reads `datasets/{id}/reviews/v{n}.json` for the dataset's `active_version` and
+  builds the Corpus the model is shown. It keeps a **warm in-memory cache keyed
+  by `(dataset_id, version)`** — safe because that object is write-once per
+  version (a refresh is a new key), so a cached entry can never go stale and a
+  cold process simply re-reads identical bytes from S3. Correctness never depends
+  on process memory (stateless-services rule).
+- **Anthropic prompt cache.** That same Corpus block is marked
+  `cache_control: {"type": "ephemeral"}` in `app/chat/assembly.py`, so repeat
+  questions on a dataset reuse the cached ~100k–150k-token prefix instead of
+  re-sending it (see "Cost mitigations").
+- **Summary and library pages.** These read the `datasets.metrics` JSONB column
+  for the headline numbers and `reviews/v{n}.json` for the reviews table —
+  always the `active_version`, so they reflect the last good processing run.
+- **Citations.** Chat answers cite the stored `r_0001` review ids; each saved
+  Q&A Exchange (`datasets/{id}/chat/{iso_ts}-{uuid}.json`) also stores the cited
+  review's snippet, so an old answer's citation keeps resolving even after a
+  refresh mints new ids for the next version.
+
+### Note on "models"
+
+The Anthropic models themselves are **not stored** in this repo — they are
+hosted by Anthropic and called by API (see "AI processing"). What is stored and
+reused is the *processed review data* above; the only model-side reuse is the
+prompt cache (the Corpus prefix) and the warm Corpus cache, not model weights.
