@@ -168,11 +168,21 @@ cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
 
 Latest live run (extraction model `claude-haiku-5-5`):
 
-| Metric | Threshold | Result |
+> **⚠️ Haiku 5.5 does not currently meet the recall gate on this corpus.** The
+> live run below shows recall **86.0%** (threshold ≥ 90%) — one page
+> (`real_webscrapingdev_reviews`) under-extracts and flips `will_work`→`limited`.
+> The model upgrade (PR #30) is **blocked** on recovering recall; the shipping
+> default remains `claude-haiku-4-5-20251001` until this passes. Precision and
+> the scope-guard suite are unaffected.
+
+| Metric | Threshold | Result (Haiku 5.5) |
 |---|---|---|
-| `auto` precision on `will_work` pages | ≥ 98% | **99.3%** ✓ |
-| `auto` recall on `will_work` pages | ≥ 90% | **100.0%** ✓ |
-| Viability verdict accuracy | ≥ 90% | **100.0%** (21/21) ✓ |
+| `auto` precision on `will_work` pages | ≥ 98% | **99.2%** ✓ |
+| `auto` recall on `will_work` pages | ≥ 90% | **86.0%** ✗ |
+| Viability verdict accuracy | ≥ 90% | **95.2%** (20/21) ✓ |
+
+For reference, Haiku 4.5 passed all three (precision 99.3%, recall 100.0%,
+verdict 95–100%).
 
 **Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
 choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,
