@@ -106,9 +106,9 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `CHECK_QUEUE_URL` | SQS check queue URL | LocalStack default |
 | `PROCESSING_QUEUE_URL` | SQS FIFO processing queue URL | LocalStack default |
 | `PUSH_QUEUE_URL` | SQS push queue URL | LocalStack default |
-| `CLAUDE_CHAT_MODEL` | Model ID for Q&A | `claude-3-5-sonnet-*` |
-| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-3-5-haiku-*` |
-| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-3-5-haiku-*` |
+| `CLAUDE_CHAT_MODEL` | Model ID for Q&A | `claude-sonnet-5-5` |
+| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-haiku-5-5` |
+| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-haiku-5-5` |
 | `RL_CHECKS_PER_IP_HOUR` | Per-IP check rate limit | `30` |
 | `RL_QUESTIONS_PER_IP_HOUR` | Per-IP question rate limit | `120` |
 | `RL_GLOBAL_AI_CALLS_PER_HOUR` | Global AI call rate limit | `2000` |
@@ -167,6 +167,10 @@ cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
 ```
 
 Latest live run (extraction model `claude-haiku-4-5-20251001`):
+
+> **Note:** the default extraction/pre-check model has since moved to
+> `claude-haiku-5-5`. The scores below were measured on Haiku 4.5; re-run
+> `make eval` on Haiku 5.5 to re-baseline these numbers before relying on them.
 
 | Metric | Threshold | Result |
 |---|---|---|

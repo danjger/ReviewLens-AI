@@ -40,7 +40,7 @@ the test/compose side; see **task 17**). Two things still gate a fully green
    is intentionally left open until #10 lands.
 2. **`main-flow`'s chat step needs a recorded Locator/chat response or
    `E2E_LIVE_AI=1`.** With `E2E_LIVE_AI=1` and the live key/models in `.env`
-   (chat `claude-sonnet-5-5`, precheck `claude-haiku-4-5-20251001`) the chat
+   (chat `claude-sonnet-5-5`, precheck `claude-haiku-5-5`) the chat
    step runs live.
 
 ## Re-running the guardrailed-chat live E2E
