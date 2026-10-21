@@ -104,10 +104,39 @@ and replays recorded responses from `backend/tests/fixtures/ai/`.
   `make e2e`, where there is no socket (issue #10). The OTHER live specs
   (`library`, `ingestion-summary`) assert the same OUTCOMES locally via a
   reload fallback (`support/live.ts`); this spec is the one that proves the
-  push itself. Run it against a deployed stack:
+  push itself.
+
+  Local `make e2e` now serves a **real** `/realtime` socket: the compose
+  `realtime-dev` relay (`backend/app/realtime_dev.py`, LOCAL-ONLY) is proxied by
+  vite (`/realtime` → `ws://localhost:8002`), the push-consumer delivers frames
+  to it (`WS_LOCAL_RELAY_URL`), and the LocalStack init routes broadcast events
+  from the bus to the push-queue. So the strict no-reload live-push spec can be
+  run **locally** against the compose stack, not just against a deployed stack:
   ```bash
+  # Local (compose stack up via `make up`):
+  E2E_REALTIME=1 npx playwright test realtime.spec.ts
+  # Deployed (SPA build got VITE_WS_URL):
   E2E_BASE_URL=https://<cloudfront-domain> E2E_REALTIME=1 npx playwright test realtime.spec.ts
   ```
+  The spec still asserts the same strict no-reload path either way; it skips
+  cleanly when `E2E_REALTIME` is unset. The relay is never deployed to AWS, so
+  production realtime behavior (API Gateway WebSocket + `postToConnection`) is
+  unchanged.
+
+## Serial execution (one worker)
+
+The suite runs with `workers: 1` everywhere (see `playwright.config.ts`), not
+just in CI. It drives **one** shared backend/database with no per-test
+namespacing, and the real-time channel now broadcasts every dataset's live
+frames to **every** open tab (the local `/realtime` relay mirrors production's
+API Gateway WebSocket "broadcast to all"). Under parallel workers that is a
+race: one test's newly-created dataset streams into another test's observing
+tab, where the correct unknown-id live refetch repopulates the Library list and
+defeats that test's client-side `tracked-search` scoping (the #12
+shared-single-stack isolation problem — whose real fix is a dedicated per-run
+stack). Serial execution is the honest acknowledgment that a shared-backend,
+live-broadcast suite is order/concurrency-sensitive by design. CI already ran
+one worker; local now matches CI rather than diverging from it.
 
 ## Conventions (from steering `testing.md`)
 

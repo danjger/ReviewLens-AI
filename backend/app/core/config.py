@@ -255,6 +255,16 @@ class Settings(BaseSettings):
     (PK ``connection_id``, TTL ``ttl``) is provisioned by ``platform-foundation``;
     this module only reads the name."""
 
+    ws_local_relay_url: str = ""
+    """LOCAL/dev only: when set (Docker Compose), the push handler delivers each
+    frame by HTTP POST to this relay's ``/broadcast`` endpoint instead of calling
+    API Gateway ``postToConnection``. The relay is the compose-only
+    :mod:`app.realtime_dev` service that the browser's WebSocket connects to via
+    the vite ``/realtime`` proxy, so ``make e2e`` has a working realtime path
+    without the AWS WebSocket API. Empty in AWS (and by default), which keeps the
+    production ``apigatewaymanagementapi`` delivery path (``ws_api_endpoint``)
+    byte-for-byte unchanged. Never set on the deployed push Lambda."""
+
     # ------------------------------------------------------------------
     # AI models
     # ------------------------------------------------------------------

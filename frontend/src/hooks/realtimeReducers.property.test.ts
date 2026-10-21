@@ -26,7 +26,11 @@ import { QueryClient } from "@tanstack/react-query";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { applyRealtimeFrame, DATASETS_QUERY_KEY } from "./realtimeReducers";
+import {
+  applyRealtimeFrame,
+  DATASETS_QUERY_KEY,
+  terminalDisplayState,
+} from "./realtimeReducers";
 import type { DatasetRow, DatasetStatusChangedFrame } from "./realtimeTypes";
 
 // A small fixed pool of dataset ids. Keeping the pool fixed (and seeding every
@@ -58,7 +62,9 @@ const frameArb: fc.Arbitrary<DatasetStatusChangedFrame> = fc.record({
  * Independent oracle: fold a dataset's frames (in delivery order) the way the
  * reducer does. Always-present fields take the latest frame's value;
  * `review_count` is sticky — it keeps the latest value a frame actually
- * carried. Returns the seeded bare row when no frame targeted the id.
+ * carried; `display_state` is settled from the latest frame when it is terminal
+ * (issue #10), a pure function of that frame so convergence still holds.
+ * Returns the seeded bare row when no frame targeted the id.
  */
 function expectedRow(id: string, frames: DatasetStatusChangedFrame[]): DatasetRow {
   const mine = frames.filter((f) => f.dataset_id === id);
@@ -72,6 +78,19 @@ function expectedRow(id: string, frames: DatasetStatusChangedFrame[]): DatasetRo
     data_version: last.data_version,
     active_version: last.active_version,
   };
+  // `display_state` is settled in place by a TERMINAL frame (issue #10) and is
+  // STICKY like review_count: the reducer's patch only SETS display_state on a
+  // terminal frame and never clears it, so a later non-terminal frame leaves a
+  // previously-settled badge in place. The oracle therefore keeps the value of
+  // the latest frame that DERIVED a terminal display_state. It is a pure
+  // function of that frame, so convergence (Property 4) still holds.
+  for (let i = mine.length - 1; i >= 0; i -= 1) {
+    const settled = terminalDisplayState(mine[i].status, mine[i].active_version);
+    if (settled !== undefined) {
+      row.display_state = settled;
+      break;
+    }
+  }
   // Latest frame that supplied a numeric review_count wins; if none did, the
   // field is never set (stays absent on the seeded row).
   for (let i = mine.length - 1; i >= 0; i -= 1) {

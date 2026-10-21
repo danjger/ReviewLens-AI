@@ -36,8 +36,21 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   // Deployed stacks and cold starts can be slow; retry once in CI.
   retries: process.env.CI ? 1 : 0,
-  // Keep workers modest; the shared backend has global rate limits.
-  workers: process.env.CI ? 1 : undefined,
+  // Run serially (one worker) everywhere, including locally. This suite drives
+  // ONE shared backend/database with no per-test namespacing, and the real-time
+  // channel now broadcasts every dataset's live frames to EVERY open tab (the
+  // local /realtime relay mirrors the production API Gateway WS "broadcast to
+  // all" — see e2e/README and issue #10). Under PARALLEL workers that is a race:
+  // one test's newly-created dataset streams into another test's observing tab,
+  // where the correct unknown-id live refetch (useDatasets/realtimeReducers)
+  // repopulates the Library list and defeats that test's client-side
+  // `tracked-search` scoping (the #12 shared-single-stack isolation problem,
+  // whose real fix is a per-run stack). Serial execution is the honest
+  // acknowledgment that a shared-backend, live-broadcast suite is
+  // order/concurrency-sensitive by design. CI already forced `workers: 1`; this
+  // makes LOCAL match CI rather than diverge from it. (The global rate limits on
+  // the shared backend are a second reason to keep workers modest.)
+  workers: 1,
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }]]
     : [["list"]],

@@ -170,3 +170,63 @@ def test_no_connections_is_a_noop(monkeypatch: pytest.MonkeyPatch) -> None:
         _meta(),
     )
     assert fake.posted == []
+
+
+def test_local_relay_branch_posts_and_skips_aws_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LOCAL-only delivery: WS_LOCAL_RELAY_URL set → POST /broadcast, NOT postToConnection.
+
+    This guards the dev-only realtime path (make e2e) without touching the AWS
+    branch: when ws_local_relay_url is set the handler must deliver the frame by
+    HTTP POST to the relay and must NOT call the API Gateway management client.
+    """
+    monkeypatch.setenv("WS_LOCAL_RELAY_URL", "http://realtime-dev:8002")
+    get_settings.cache_clear()
+
+    # If the AWS branch were taken it would build/use the mgmt client; make that
+    # a hard failure so the test proves the local branch is exclusive.
+    def _boom() -> Any:
+        raise AssertionError("AWS postToConnection path must not run when relay is set")
+
+    monkeypatch.setattr(push_mod, "_get_mgmt_client", _boom)
+
+    posted: list[tuple[str, dict[str, Any]]] = []
+
+    class _Resp:
+        def raise_for_status(self) -> None:
+            return None
+
+    def _fake_post(url: str, *, json: dict[str, Any], timeout: float) -> _Resp:
+        posted.append((url, json))
+        return _Resp()
+
+    monkeypatch.setattr(push_mod.httpx, "post", _fake_post)
+
+    PushHandler().handle(
+        {"detail-type": "dataset.status.changed", "detail": {"dataset_id": "d1"}},
+        _meta(),
+    )
+
+    assert len(posted) == 1
+    url, frame = posted[0]
+    assert url == "http://realtime-dev:8002/broadcast"
+    assert frame == {"dataset_id": "d1", "type": "dataset.status.changed"}
+
+
+def test_local_relay_failure_is_swallowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dev-relay POST failure must not raise (a push failure never fails processing)."""
+    monkeypatch.setenv("WS_LOCAL_RELAY_URL", "http://realtime-dev:8002")
+    get_settings.cache_clear()
+    monkeypatch.setattr(push_mod, "_get_mgmt_client", lambda: _FakeMgmtClient())
+
+    def _fake_post(url: str, *, json: dict[str, Any], timeout: float) -> Any:
+        raise RuntimeError("relay down")
+
+    monkeypatch.setattr(push_mod.httpx, "post", _fake_post)
+
+    # Must not raise.
+    PushHandler().handle(
+        {"detail-type": "check.updated", "detail": {"check_id": "c1"}},
+        _meta(),
+    )

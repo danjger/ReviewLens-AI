@@ -81,15 +81,87 @@ const REFRESH_MARKER_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Terminal dataset statuses whose live frame settles the row's badge IN PLACE
+ * (GitHub issue #10). See {@link applyDatasetStatusChanged} and
+ * {@link terminalDisplayState}. Only these terminal transitions carry a derived
+ * `display_state` into the patch; non-terminal frames (`requested`/`processing`)
+ * are patched without `display_state`, as before, so the row keeps its
+ * server-derived in-flight badge until it settles.
+ */
+const TERMINAL_STATUSES: ReadonlySet<string> = new Set(["updated", "failed"]);
+
+/**
+ * Derive the settled list-row `display_state` for a TERMINAL live frame, so the
+ * status badge converges live with NO reload (issue #10) WITHOUT refetching the
+ * list. A list refetch is deliberately avoided here: the list query is keyed on
+ * the constant `['datasets']` with the filter held only in the `useDatasets`
+ * queryFn, so an invalidation-triggered refetch races an active Library search
+ * filter (re-showing sibling rows, breaking the #12 isolation contract). The
+ * reducer's exact-key in-place patch is the safe place to settle the badge.
+ *
+ * This MUST mirror the server's single source of truth,
+ * `backend/app/datasets/library.py::derive_display_state`, for the terminal
+ * cases. It is pinned to that mapping by a unit test
+ * ({@link file://./realtimeReducers.test.ts} "terminal display_state derivation
+ * matches the server") that asserts agreement across the FULL terminal domain —
+ * so any future change to the server mapping turns that test red. The terminal
+ * cases are TOTAL here:
+ *
+ *   updated + active_version set   → "ready"
+ *   updated + no active_version    → undefined (cannot arise in practice; the
+ *                                     server maps it to "processing" as a safe
+ *                                     non-terminal fallback, so we delegate it
+ *                                     to the polling backstop rather than assert
+ *                                     a terminal badge — see the pinning test)
+ *   failed  + active_version set   → "ready_refresh_failed"
+ *   failed  + no active_version    → "failed"
+ *
+ * Returns `undefined` when there is nothing safe to settle in place, in which
+ * case the caller leaves `display_state` untouched and the polling backstop /
+ * reconnect resync reconciles it (same as a non-terminal frame).
+ */
+export function terminalDisplayState(
+  status: string,
+  activeVersion: number | null | undefined,
+): DatasetRow["display_state"] | undefined {
+  const hasActive = activeVersion != null;
+  if (status === "updated") return hasActive ? "ready" : undefined;
+  if (status === "failed") return hasActive ? "ready_refresh_failed" : "failed";
+  return undefined;
+}
+
+/**
+ * Check-item states the worker won't advance further. A terminal `check.updated`
+ * frame must refetch the full Check Session (see {@link applyCheckUpdated}),
+ * because the frame carries only {state, verdict} and the terminal in-place
+ * patch stops `useCheck`'s poll before the complete verdict detail arrives. Kept
+ * in sync with `TERMINAL_STATES` / `isTerminal` in `../api/ingest`.
+ */
+const TERMINAL_CHECK_STATES: ReadonlySet<string> = new Set([
+  "done",
+  "invalid",
+  "duplicate_in_batch",
+  "error",
+  "awaiting_confirmation",
+  "applied",
+]);
+
+/**
  * Build the patch a `dataset.status.changed` frame applies to a dataset row or
  * detail record. Only the fields the push carries are overwritten; everything
  * else on the cached object is preserved.
  *
- * `display_state` is intentionally NOT set here: it is derived on the server
- * from `status` + `active_version`, so the row keeps its server-derived badge
- * until the next list refetch (polling backstop / reconnect resync) reconciles
- * it. The live `status`, `last_message`, versions, and metrics still update in
- * place so the row reacts immediately.
+ * For a NON-TERMINAL frame (`requested`/`processing`), `display_state` is
+ * intentionally NOT set: it is derived on the server from `status` +
+ * `active_version`, so the row keeps its server-derived in-flight badge until it
+ * settles (polling backstop / reconnect resync reconciles it). For a TERMINAL
+ * frame (`updated`/`failed`), the settled `display_state` is derived here
+ * ({@link terminalDisplayState}) and patched IN PLACE so the status badge
+ * converges live with NO reload (GitHub issue #10) — without a list refetch
+ * that would race the Library search filter (#12 isolation). The derived value
+ * provably matches the server (pinning test). The live `status`,
+ * `last_message`, versions, and metrics still update in place so the row reacts
+ * immediately.
  */
 function datasetPatchFields(frame: DatasetStatusChangedFrame): Partial<DatasetRow> {
   const reviewCount =
@@ -103,6 +175,10 @@ function datasetPatchFields(frame: DatasetStatusChangedFrame): Partial<DatasetRo
     active_version: frame.active_version,
   };
   if (reviewCount !== undefined) patch.review_count = reviewCount;
+  if (TERMINAL_STATUSES.has(frame.status)) {
+    const settled = terminalDisplayState(frame.status, frame.active_version);
+    if (settled !== undefined) patch.display_state = settled;
+  }
   return patch;
 }
 
@@ -115,6 +191,16 @@ function datasetPatchFields(frame: DatasetStatusChangedFrame): Partial<DatasetRo
  *   dataset created elsewhere that this tab has never seen), invalidates
  *   `['datasets']` so the list refetches and picks the new row up
  *   (Requirement 6.5, design "Frontend").
+ * - For a TERMINAL frame ({@link TERMINAL_STATUSES}: `updated` / `failed`), the
+ *   in-place patch above ALSO carries a derived `display_state` (see
+ *   {@link datasetPatchFields} / {@link terminalDisplayState}) so the status
+ *   badge converges live with NO reload — the live-push convergence fix for
+ *   GitHub issue #10. This is done WITHOUT refetching the list, because the list
+ *   query holds its filter outside the (constant) query key, so a refetch would
+ *   race an active Library search and re-show sibling rows (breaking the #12
+ *   isolation contract). The derived badge provably equals what a list refetch
+ *   would return (pinned to the server mapping by a unit test). Non-terminal
+ *   frames keep the prior behavior of not touching `display_state`.
  * - If the frame's `status` is a refresh-marker lifecycle transition
  *   ({@link REFRESH_MARKER_STATUSES}), invalidates the dataset's chat-history
  *   query (`['chat-history', id]`) so `HistoryPane` refetches the latest page
@@ -148,6 +234,9 @@ export function applyDatasetStatusChanged(
   );
 
   // Unknown id (and the list is loaded): the row isn't here yet — refetch it.
+  // A KNOWN row's terminal badge is settled by the in-place display_state patch
+  // above (terminalDisplayState), so NO list refetch is needed — which keeps
+  // the Library search filter stable and preserves the #12 isolation contract.
   if (list !== undefined && !known) {
     void client.invalidateQueries({ queryKey: [...DATASETS_QUERY_KEY] });
   }
@@ -169,8 +258,10 @@ export function applyDatasetStatusChanged(
  * patched entry is exactly the one `useCheck` polls.
  */
 export function applyCheckUpdated(client: QueryClient, frame: CheckUpdatedFrame): void {
+  let patchedSession = false;
   client.setQueryData<CheckSession>(checkQueryKey(frame.check_id), (session) => {
     if (!session) return session;
+    patchedSession = true;
     const items: CheckItem[] = session.items.map((item) =>
       item.item_id === frame.item_id
         ? {
@@ -184,6 +275,25 @@ export function applyCheckUpdated(client: QueryClient, frame: CheckUpdatedFrame)
     );
     return { ...session, items };
   });
+
+  // When the pushed item reached a TERMINAL state, also refetch the full Check
+  // Session. The `check.updated` frame carries only {state, verdict} — not the
+  // full server verdict detail (reasons, sample reviews, and the "already
+  // tracked → refresh/duplicate" linkage that renders TrackedNote). The in-place
+  // patch above flips `state` to terminal, which stops `useCheck`'s poll
+  // (checkRefetchInterval returns false once every item is terminal); without a
+  // refetch the complete verdict detail would never land, so a browser that
+  // learns the result via the live push (issue #10, now wired locally) would be
+  // stuck showing a bare item with no verdict card detail. This refetch makes
+  // the check path converge live with NO reload — the same server-derived end
+  // state the poll would have fetched, just reached via the live frame. Only on
+  // a terminal frame, and only when this tab is actually showing the Check (the
+  // session was present to patch), so a non-showing tab stays a no-op
+  // (Requirement 6.5). Mirrors the terminal-frame list refetch in
+  // applyDatasetStatusChanged.
+  if (patchedSession && TERMINAL_CHECK_STATES.has(frame.state)) {
+    void client.invalidateQueries({ queryKey: checkQueryKey(frame.check_id) });
+  }
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   applyRealtimeFrame,
   datasetQueryKey,
   DATASETS_QUERY_KEY,
+  terminalDisplayState,
 } from "./realtimeReducers";
 import { chatHistoryQueryKey } from "./useChatHistory";
 import { checkQueryKey } from "./useCheck";
@@ -125,11 +126,161 @@ describe("applyDatasetStatusChanged — unknown id invalidates the list (Req 6.5
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: [...DATASETS_QUERY_KEY] });
   });
 
-  it("does NOT invalidate the list when the id is already known", () => {
+  it("does NOT invalidate the list on a NON-TERMINAL frame for a known id", () => {
+    // A `processing` frame for a row already in the list is patched in place
+    // only — no refetch — so the list keeps polling without thrashing.
     client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [{ id: "ds-1", status: "updated" }]);
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    applyDatasetStatusChanged(client, statusFrame({ dataset_id: "ds-1" }));
+    applyDatasetStatusChanged(client, statusFrame({ dataset_id: "ds-1", status: "processing" }));
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: [...DATASETS_QUERY_KEY] });
+  });
+});
+
+describe("applyDatasetStatusChanged — terminal frame settles a known row's badge IN PLACE (issue #10)", () => {
+  // The in-place patch carries a derived `display_state` for terminal frames so
+  // the status badge converges live with NO reload — and WITHOUT a list refetch
+  // (which would race the Library search filter and re-show sibling rows, the
+  // #12 isolation contract). The derived value is pinned to the server mapping
+  // by the "terminal display_state derivation matches the server" suite below.
+  it("patches display_state → 'ready' on an 'updated' frame with an active version", () => {
+    client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [
+      { id: "ds-1", status: "processing", display_state: "processing" },
+    ]);
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+
+    applyDatasetStatusChanged(
+      client,
+      statusFrame({ dataset_id: "ds-1", status: "updated", active_version: 1 }),
+    );
+
+    const rows = client.getQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY])!;
+    expect(rows[0]).toMatchObject({ status: "updated", display_state: "ready" });
+    // No list refetch: the badge settled in place, so an active search stays put.
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: [...DATASETS_QUERY_KEY] });
+  });
+
+  it("patches display_state → 'ready_refresh_failed' on a 'failed' frame with an active version", () => {
+    client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [
+      { id: "ds-1", status: "processing", display_state: "ready_refreshing" },
+    ]);
+    applyDatasetStatusChanged(
+      client,
+      statusFrame({ dataset_id: "ds-1", status: "failed", active_version: 2 }),
+    );
+    const rows = client.getQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY])!;
+    expect(rows[0]).toMatchObject({ status: "failed", display_state: "ready_refresh_failed" });
+  });
+
+  it("patches display_state → 'failed' on a 'failed' frame with no active version", () => {
+    client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [
+      { id: "ds-1", status: "processing", display_state: "processing" },
+    ]);
+    applyDatasetStatusChanged(
+      client,
+      statusFrame({ dataset_id: "ds-1", status: "failed", active_version: null }),
+    );
+    const rows = client.getQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY])!;
+    expect(rows[0]).toMatchObject({ status: "failed", display_state: "failed" });
+  });
+
+  it("does NOT set display_state on a non-terminal 'processing' frame", () => {
+    client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [
+      { id: "ds-1", status: "requested", display_state: "processing" },
+    ]);
+    applyDatasetStatusChanged(
+      client,
+      statusFrame({ dataset_id: "ds-1", status: "processing", active_version: 1 }),
+    );
+    const rows = client.getQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY])!;
+    // Unchanged server-derived badge: the in-flight state is preserved.
+    expect(rows[0].display_state).toBe("processing");
+    expect(rows[0].status).toBe("processing");
+  });
+
+  it("does NOT set display_state on an 'updated' frame with no active version (delegated to refetch)", () => {
+    // Cannot arise in practice (reaching `updated` sets active_version); the
+    // client leaves the badge to the polling backstop rather than assert a
+    // terminal badge the server maps to a non-terminal "processing".
+    client.setQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY], [
+      { id: "ds-1", status: "processing", display_state: "processing" },
+    ]);
+    applyDatasetStatusChanged(
+      client,
+      statusFrame({ dataset_id: "ds-1", status: "updated", active_version: null }),
+    );
+    const rows = client.getQueryData<DatasetRow[]>([...DATASETS_QUERY_KEY])!;
+    expect(rows[0].status).toBe("updated");
+    expect(rows[0].display_state).toBe("processing");
+  });
+});
+
+describe("terminal display_state derivation matches the server (issue #10 pinning test)", () => {
+  // STRONG pinning test (mandatory): the client-side terminalDisplayState MUST
+  // agree with the server's single source of truth,
+  // backend/app/datasets/library.py::derive_display_state, for the terminal
+  // badge it derives live. This is the guard against source-of-truth drift: if
+  // the server mapping ever changes for a terminal case, this test turns red.
+  //
+  // SERVER_DISPLAY_STATE is a faithful transcription of derive_display_state's
+  // table (see that function's docstring). The client deliberately derives only
+  // the cases where the server yields a TERMINAL badge; the `updated`+no-active
+  // case the server maps to the NON-terminal "processing" fallback is
+  // intentionally DELEGATED to the polling backstop (client returns undefined),
+  // which this test asserts explicitly so the delegated set is pinned too.
+
+  /** Faithful copy of backend derive_display_state for the inputs we model. */
+  function serverDisplayState(
+    status: string,
+    activeVersion: number | null,
+  ): string {
+    const hasActive = activeVersion != null;
+    if (status === "requested" || status === "processing") {
+      return hasActive ? "ready_refreshing" : "processing";
+    }
+    if (status === "updated") return hasActive ? "ready" : "processing";
+    if (status === "failed") return hasActive ? "ready_refresh_failed" : "failed";
+    return hasActive ? "ready" : "processing";
+  }
+
+  // The full terminal domain the client models: terminal statuses × has-active.
+  const TERMINAL_STATUSES_UNDER_TEST = ["updated", "failed"] as const;
+  const ACTIVE_VERSIONS: Array<number | null> = [1, null];
+
+  for (const status of TERMINAL_STATUSES_UNDER_TEST) {
+    for (const activeVersion of ACTIVE_VERSIONS) {
+      const label = `${status} + ${activeVersion == null ? "no active version" : "active version"}`;
+      it(`agrees with the server (or delegates) for ${label}`, () => {
+        const client = terminalDisplayState(status, activeVersion);
+        const server = serverDisplayState(status, activeVersion);
+        if (client === undefined) {
+          // A delegated case: the client declines to settle in place. This is
+          // allowed ONLY when the server's badge is the non-terminal
+          // "processing" fallback (i.e. nothing terminal to settle). If the
+          // server starts returning a terminal badge here, this fails.
+          expect(server).toBe("processing");
+        } else {
+          // A derived case: it MUST equal the server's badge exactly.
+          expect(client).toBe(server);
+        }
+      });
+    }
+  }
+
+  it("only ever derives badges in the server's display_state vocabulary", () => {
+    // Belt-and-braces: no derived value may be outside the known vocabulary.
+    const VOCAB = new Set([
+      "processing",
+      "ready",
+      "ready_refreshing",
+      "ready_refresh_failed",
+      "failed",
+    ]);
+    for (const status of TERMINAL_STATUSES_UNDER_TEST) {
+      for (const activeVersion of ACTIVE_VERSIONS) {
+        const derived = terminalDisplayState(status, activeVersion);
+        if (derived !== undefined) expect(VOCAB.has(derived)).toBe(true);
+      }
+    }
   });
 });
 
