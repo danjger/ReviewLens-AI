@@ -376,6 +376,13 @@ the engineering and process decisions that shaped the codebase.
   point at elements; it may never supply review text.
 - **Model IDs come from config, never literals**, and every AI call goes through
   one instrumented client (logging, global rate limit, test stub).
+- **Six AI processing steps**, all in the backend behind that one client:
+  URL pre-check, the review Locator (extraction), entity profile, sentiment,
+  themes, and guardrailed chat Q&A. For a full breakdown — what each step does,
+  the model it uses, and the cost and data-leakage mitigations (global AI-call
+  limit, prompt caching, bounded inputs, scope guard, IP hashing, SSRF, verbatim
+  review text) — see
+  [Backend README → AI processing](backend/README.md#ai-processing).
 
 ### Security & cost
 - **No sign-in; abuse controlled by layers** — WAF, per-IP and global rate
