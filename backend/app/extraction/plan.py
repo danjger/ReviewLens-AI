@@ -165,6 +165,25 @@ def _texts_agree(
 # ---------------------------------------------------------------------------
 
 
+def _selector_covers_verified(
+    recovered: list[VerifiedReview],
+    verified: list[VerifiedReview],
+) -> bool:
+    """True when every verified review's text is reproduced by a recovered one.
+
+    Normalized-containment match (consistent with selector validation): a
+    verified review is covered when its normalized text is contained in some
+    recovered review's normalized text (or vice versa). Used to confirm the
+    selector's fuller extraction is a SUPERSET of what the Locator verified,
+    so recovery only adds missed reviews and never swaps in a different set.
+    """
+    rec = [t for t in (_normalize(r.text) for r in recovered) if t]
+    ver = [t for t in (_normalize(r.text) for r in verified) if t]
+    if not ver:
+        return True
+    return all(any(v in r or r in v for r in rec) for v in ver)
+
+
 def _recover_underlisted_selectors(
     html: str,
     locator_result: LocatorResult,
@@ -196,10 +215,16 @@ def _recover_underlisted_selectors(
     fuller set is adopted only when it **strictly exceeds** what the Locator
     listed; otherwise the recovery is a no-op (returns ``None``).
     """
-    if validation.is_valid or validation.agreement < 1.0:
+    if validation.is_valid:
         return None
-    # Build a minimal plan carrying just the selectors + rating scale so the
-    # shared selector extractor can run (it reads only these fields).
+    item_selector = locator_result.selectors.item
+    if item_selector is None or not item_selector.strip():
+        return None
+
+    # Re-read reviews from the selector's own items with the SAME code + filters
+    # the ``selectors`` method uses on later pages (short text, bad rating,
+    # dedupe), so recovered reviews meet the same bar and genuine noise is
+    # dropped.
     probe_plan = ExtractionPlan(
         version=1,
         created_at="",
@@ -216,9 +241,23 @@ def _recover_underlisted_selectors(
         degraded=False,
     )
     recovered, _ = extract_by_selectors(html, probe_plan)
-    if len(recovered) > len(verified):
-        return recovered
-    return None
+
+    # Only recover when the selector genuinely found MORE than the Locator
+    # listed (the under-listing signature). If it found no more, there is
+    # nothing to gain and we must not override the normal choice.
+    if len(recovered) <= len(verified):
+        return None
+
+    # Soundness (Property 8): the selector must reproduce EVERY review the
+    # Locator did verify — i.e. the extra items are additional reviews the
+    # Locator missed, not a different (noisier) set. With an empty verified set
+    # (the Locator under-listed so hard nothing survived post-processing) there
+    # is nothing to contradict, and the recovered set already passed the shared
+    # review filters, so the uniform selector extraction is trusted.
+    if verified and not _selector_covers_verified(recovered, verified):
+        return None
+
+    return recovered
 
 
 # ---------------------------------------------------------------------------

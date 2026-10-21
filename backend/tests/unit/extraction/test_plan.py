@@ -429,6 +429,26 @@ class TestUnderlistedSelectorRecovery:
         assert len(page.reviews) == 1
         assert page.method_used == "ai_direct"
 
+    @mock_aws
+    def test_zero_listed_items_with_valid_selector_recovers(self) -> None:
+        """The hard case: the Locator lists NO items but gives a correct item
+        selector (observed as run-to-run variance with some models). The
+        verified set is empty, so there is nothing to validate against and
+        the old `agreement == 1.0` guard skipped recovery, collapsing to zero
+        reviews. The selector still matches all 5 cards and they pass the
+        shared review filters, so recovery adopts them and chooses
+        ``selectors``."""
+        _create_rate_limit_table()
+        html = _reviews_html()  # 5 cards, no structured data
+        _install(_ScriptedClient([_tool_use_response(_locator_input(html, items=[]))]))
+
+        plan, page = build_plan(html, "https://x.test/reviews", "Reviews", now=_now)
+
+        assert plan.method == "selectors"
+        assert plan.selectors.item == "article.review-card"
+        assert len(page.reviews) == 5
+        assert page.method_used == "selectors"
+
 
 # ---------------------------------------------------------------------------
 # Degraded plan (Requirement 4.4) and error propagation
