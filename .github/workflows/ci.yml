@@ -1,20 +1,24 @@
 # CI pipeline – platform-foundation task 7.1
 #
-# Stages run in order; each job `needs:` the previous one, so a failure in any
-# stage stops the pipeline and no later stage (and therefore no deploy) runs
-# (Req 8.4). deploy.yml triggers on `workflow_run` of this workflow completing
-# with conclusion == success on `main`, so a green run of CI is the deploy gate.
+# Triggers on pull_request and on push to main only (see ci-usage-reduction spec).
+# A `changes` job path-filters the diff; jobs run in two tiers:
 #
-#   lint-and-typecheck → unit-tests → build-images → integration-tests
-#                      → scale-test → cdk-synth
+#   Always (every PR + push to main):  lint-and-typecheck → unit-tests → build-images
+#   Heavy / opt-in (main push, PR base=main, or `full-ci` label; area-gated):
+#       integration-tests → scale-test, plus cdk-synth (infra only) and perf-test
 #
-# The workflow name MUST stay "CI" because deploy.yml references it by name in
-# its `workflow_run.workflows` trigger.
+# A push to main runs ALL tiers, so the deploy gate is unchanged: deploy.yml
+# triggers on `workflow_run` of this workflow completing success on `main`
+# (Req 8.4). The workflow name MUST stay "CI" because deploy.yml references it
+# by name in its `workflow_run.workflows` trigger.
 name: CI
 
 on:
+  # Push to main only (merges) — this is the deploy gate. Feature-branch
+  # commits are covered by the pull_request trigger, so CI runs once per
+  # change instead of once for the branch push AND once for the PR.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 # Cancel superseded runs on the same ref so only the latest commit is tested.
@@ -24,12 +28,46 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
 
 jobs:
+  # 0. Classify the diff so heavy jobs can be skipped for irrelevant changes.
+  #    Outputs: backend / frontend / infra (code areas) and docs_only.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      infra: ${{ steps.filter.outputs.infra }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'Makefile'
+              - 'docker-compose.yml'
+              - '.env.example'
+              - 'fixtures-site/**'
+              - 'evals/**'
+            frontend:
+              - 'frontend/**'
+            infra:
+              - 'infra/**'
+            docs_only:
+              - '**/*.md'
+              - 'docs/**'
+              - 'sessions/**'
+              - '.kiro/**'
+
   # 1. Lint + type checks: ruff, ruff format --check, mypy (backend); eslint, tsc (frontend).
   lint-and-typecheck:
     name: Lint and type check
@@ -163,7 +201,12 @@ jobs:
   integration-tests:
     name: Container integration tests
     runs-on: ubuntu-latest
-    needs: build-images
+    needs: [changes, build-images]
+    if: >-
+      needs.changes.outputs.backend == 'true' &&
+      ( github.ref == 'refs/heads/main' ||
+        github.base_ref == 'main' ||
+        contains(github.event.pull_request.labels.*.name, 'full-ci') )
     steps:
       - uses: actions/checkout@v4
 
@@ -211,7 +254,12 @@ jobs:
   scale-test:
     name: Scale test
     runs-on: ubuntu-latest
-    needs: integration-tests
+    needs: [changes, integration-tests]
+    if: >-
+      needs.changes.outputs.backend == 'true' &&
+      ( github.ref == 'refs/heads/main' ||
+        github.base_ref == 'main' ||
+        contains(github.event.pull_request.labels.*.name, 'full-ci') )
     steps:
       - uses: actions/checkout@v4
 
@@ -251,7 +299,12 @@ jobs:
   cdk-synth:
     name: CDK synth
     runs-on: ubuntu-latest
-    needs: scale-test
+    needs: [changes]
+    if: >-
+      needs.changes.outputs.infra == 'true' &&
+      ( github.ref == 'refs/heads/main' ||
+        github.base_ref == 'main' ||
+        contains(github.event.pull_request.labels.*.name, 'full-ci') )
     steps:
       - uses: actions/checkout@v4
 
@@ -282,8 +335,13 @@ jobs:
   perf-test:
     name: API performance test (non-blocking)
     runs-on: ubuntu-latest
-    needs: build-images
+    needs: [changes, build-images]
     continue-on-error: true
+    if: >-
+      needs.changes.outputs.backend == 'true' &&
+      ( github.ref == 'refs/heads/main' ||
+        github.base_ref == 'main' ||
+        contains(github.event.pull_request.labels.*.name, 'full-ci') )
     steps:
       - uses: actions/checkout@v4
 
