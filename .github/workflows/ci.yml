@@ -53,6 +53,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - '!backend/**/*.md'
               - 'Makefile'
               - 'docker-compose.yml'
               - '.env.example'
@@ -60,8 +61,10 @@ jobs:
               - 'evals/**'
             frontend:
               - 'frontend/**'
+              - '!frontend/**/*.md'
             infra:
               - 'infra/**'
+              - '!infra/**/*.md'
             docs_only:
               - '**/*.md'
               - 'docs/**'
@@ -173,6 +176,11 @@ jobs:
           # docker-container driver so type=gha cache still works.
           driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
 
+      # NOTE: the docker-container buildx driver has its own cache, so a
+      # host-level pre-pull can't feed its COPY --from. The public-ECR
+      # adapter/base layers are instead kept warm via the type=gha cache
+      # below (mode=max), so a cold-cache run is the only one that pulls from
+      # public.ecr.aws; re-run the job if it hits a transient 429 there.
       - name: Build backend image
         uses: docker/build-push-action@v6
         with:
@@ -218,6 +226,24 @@ jobs:
         run: |
           echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
+
+      - name: Pre-pull public ECR images (retry on 429)
+        # public.ecr.aws rate-limits anonymous pulls; the Lambda Web Adapter
+        # and Amazon Linux base images are pulled by the Dockerfiles / compose
+        # builds and intermittently 429 (toomanyrequests). GCR mirrors Docker
+        # Hub but not public ECR, so pre-pull these with backoff into the local
+        # image cache; buildx COPY --from and compose then reuse the cached
+        # image instead of re-hitting the registry.
+        run: |
+          images="public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 public.ecr.aws/amazonlinux/amazonlinux:2023"
+          for img in $images; do
+            n=0
+            until docker pull "$img"; do
+              n=$((n+1))
+              if [ "$n" -ge 6 ]; then echo "giving up on $img after $n attempts"; exit 1; fi
+              echo "pull of $img failed (attempt $n); backing off..."; sleep $((n*20))
+            done
+          done
 
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
@@ -271,6 +297,24 @@ jobs:
         run: |
           echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
+
+      - name: Pre-pull public ECR images (retry on 429)
+        # public.ecr.aws rate-limits anonymous pulls; the Lambda Web Adapter
+        # and Amazon Linux base images are pulled by the Dockerfiles / compose
+        # builds and intermittently 429 (toomanyrequests). GCR mirrors Docker
+        # Hub but not public ECR, so pre-pull these with backoff into the local
+        # image cache; buildx COPY --from and compose then reuse the cached
+        # image instead of re-hitting the registry.
+        run: |
+          images="public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 public.ecr.aws/amazonlinux/amazonlinux:2023"
+          for img in $images; do
+            n=0
+            until docker pull "$img"; do
+              n=$((n+1))
+              if [ "$n" -ge 6 ]; then echo "giving up on $img after $n attempts"; exit 1; fi
+              echo "pull of $img failed (attempt $n); backing off..."; sleep $((n*20))
+            done
+          done
 
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
@@ -353,6 +397,24 @@ jobs:
         run: |
           echo '{ "registry-mirrors": ["https://mirror.gcr.io"] }' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker
+
+      - name: Pre-pull public ECR images (retry on 429)
+        # public.ecr.aws rate-limits anonymous pulls; the Lambda Web Adapter
+        # and Amazon Linux base images are pulled by the Dockerfiles / compose
+        # builds and intermittently 429 (toomanyrequests). GCR mirrors Docker
+        # Hub but not public ECR, so pre-pull these with backoff into the local
+        # image cache; buildx COPY --from and compose then reuse the cached
+        # image instead of re-hitting the registry.
+        run: |
+          images="public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 public.ecr.aws/amazonlinux/amazonlinux:2023"
+          for img in $images; do
+            n=0
+            until docker pull "$img"; do
+              n=$((n+1))
+              if [ "$n" -ge 6 ]; then echo "giving up on $img after $n attempts"; exit 1; fi
+              echo "pull of $img failed (attempt $n); backing off..."; sleep $((n*20))
+            done
+          done
 
       - name: Set up uv (Python ${{ env.PYTHON_VERSION }})
         uses: astral-sh/setup-uv@v5
