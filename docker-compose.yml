@@ -236,6 +236,31 @@ services:
       retries: 5
       start_period: 15s
 
+  # ── Realtime dev relay (LOCAL ONLY — never deployed to AWS) ──────────────────
+  # The browser's WebSocket (useRealtime) connects here via the vite /realtime
+  # proxy, and the push-consumer POSTs frames to /broadcast. This is the local
+  # equivalent of the deployed API Gateway WebSocket API, which LocalStack does
+  # not provide. See backend/app/realtime_dev.py (LOCAL/DEV ONLY). It is never a
+  # CDK resource or a Lambda command, so production is unaffected.
+  realtime-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn app.realtime_dev:app --host 0.0.0.0 --port 8002 --reload
+    ports:
+      - "8002:8002"
+    environment:
+      ENV: local
+      SERVICE_NAME: realtime-dev
+    volumes:
+      - ./backend/app:/var/task/app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ── Push consumer ─────────────────────────────────────────────────────────────
   push-consumer:
     build:
@@ -257,10 +282,16 @@ services:
       PUSH_QUEUE_URL: http://localstack:4566/000000000000/push-queue
       WS_CONNECTIONS_TABLE: ws-connections
       EVENTBRIDGE_BUS_NAME: reviewlens-events
+      # Local-only: deliver frames to the compose realtime-dev relay instead of
+      # API Gateway postToConnection (empty in AWS, so the deployed push Lambda
+      # keeps the production apigatewaymanagementapi path). See push.py.
+      WS_LOCAL_RELAY_URL: http://realtime-dev:8002
     depends_on:
       postgres:
         condition: service_healthy
       localstack:
+        condition: service_healthy
+      realtime-dev:
         condition: service_healthy
     volumes:
       - ./backend/app:/var/task/app

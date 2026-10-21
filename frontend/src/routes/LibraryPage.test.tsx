@@ -283,7 +283,10 @@ describe("Live row update (Requirement 6.3)", () => {
     const row = await screen.findByTestId("dataset-row");
     expect(within(row).getByTestId("row-review-count")).toHaveTextContent("0");
 
-    // Push a status change for the live row through the mock socket.
+    // Push a status change for the live row through the mock socket. A terminal
+    // (`updated`) frame patches the row IN PLACE — review_count from metrics and
+    // a derived `display_state` badge (issue #10 convergence) — with no list
+    // refetch, so the row reacts immediately without re-fetching the list.
     const socket = lastMockWebSocket();
     expect(socket).toBeDefined();
     socket!.simulateMessage({

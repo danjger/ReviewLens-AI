@@ -44,6 +44,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 import boto3
+import httpx
 from botocore.exceptions import ClientError
 
 from app.consumer import MessageMeta
@@ -115,14 +116,42 @@ class PushHandler:
 
         detail = body.get("detail") or {}
         frame = self._frame(detail_type, detail)
-        payload = json.dumps(frame, default=str).encode("utf-8")
 
+        # LOCAL/dev delivery branch (Docker Compose only): when
+        # ``WS_LOCAL_RELAY_URL`` is set, POST the frame to the dev relay
+        # (app.realtime_dev) which fans it out to the browser sockets. This path
+        # exists only so make e2e has a working realtime channel without the AWS
+        # WebSocket API; the deployed push Lambda leaves the setting empty and so
+        # takes the AWS branch below, unchanged.
+        relay_url = get_settings().ws_local_relay_url
+        if relay_url:
+            self._deliver_local(relay_url, frame)
+            return
+
+        payload = json.dumps(frame, default=str).encode("utf-8")
         connection_ids = connections.list_connection_ids()
         if not connection_ids:
             logger.debug("no ws connections; nothing to push for %s", detail_type)
             return
 
         self._broadcast(connection_ids, payload)
+
+    def _deliver_local(self, relay_url: str, frame: dict[str, Any]) -> None:
+        """LOCAL/dev only: POST one frame to the compose realtime-dev relay.
+
+        Used only when ``ws_local_relay_url`` is set (Docker Compose). The relay
+        receives the identical client frame the AWS path sends via
+        ``postToConnection`` and fans it out to every connected browser socket.
+        A failure here is logged and swallowed — a dev-relay hiccup must never
+        fail the push message (same "a push failure never affects processing"
+        rule as the AWS branch). This branch is never taken in AWS.
+        """
+        url = f"{relay_url.rstrip('/')}/broadcast"
+        try:
+            response = httpx.post(url, json=frame, timeout=5.0)
+            response.raise_for_status()
+        except Exception:  # noqa: BLE001 - a dev-relay failure never fails the push
+            logger.warning("realtime-dev relay broadcast failed for %s", url, exc_info=True)
 
     def _frame(self, detail_type: str, detail: dict[str, Any]) -> dict[str, Any]:
         """Build the client frame ``{"type": <event>, ...detail}``.

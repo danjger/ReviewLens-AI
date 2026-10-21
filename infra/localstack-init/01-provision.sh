@@ -59,6 +59,24 @@ $AWS dynamodb create-table \
 echo "==> Creating EventBridge bus: reviewlens-events"
 $AWS events create-event-bus --name reviewlens-events 2>/dev/null || true
 
+# Route the two broadcast event types from the bus to the push-queue, so the
+# push-consumer actually receives domain events locally. In AWS this rule is
+# `BroadcastToPushQueue` in infra/lib/realtime-stack.ts; the detail-types here
+# MUST match BROADCAST_DETAIL_TYPES in backend/app/handlers/push.py. Without
+# this rule, published events reach the bus and are dropped (nothing targets
+# the queue), so the browser never gets a live push under make e2e.
+echo "==> Creating EventBridge rule: reviewlens-broadcast-to-push"
+$AWS events put-rule \
+    --name reviewlens-broadcast-to-push \
+    --event-bus-name reviewlens-events \
+    --event-pattern '{"source":["reviewlens"],"detail-type":["dataset.status.changed","check.updated"]}' \
+    2>/dev/null || true
+$AWS events put-targets \
+    --rule reviewlens-broadcast-to-push \
+    --event-bus-name reviewlens-events \
+    --targets 'Id=push-queue,Arn=arn:aws:sqs:us-east-1:000000000000:push-queue' \
+    2>/dev/null || true
+
 echo "==> LocalStack provisioning complete"
 
 # Write a sentinel the compose healthcheck polls, so dependents that wait

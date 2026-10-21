@@ -23,6 +23,17 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      // Realtime WebSocket (useRealtime). This is the LOCAL-DEV equivalent of
+      // the deployed VITE_WS_URL endpoint: in AWS the SPA build bakes
+      // VITE_WS_URL to the API Gateway WebSocket URL and never uses this proxy;
+      // locally VITE_WS_URL is unset, so useRealtime falls back to a same-origin
+      // ws://localhost:5173/realtime, which this rule upgrades and forwards to
+      // the compose `realtime-dev` relay on its host-published port 8002. Keep
+      // this target in sync with the realtime-dev port in docker-compose.yml.
+      "/realtime": {
+        target: "ws://localhost:8002",
+        ws: true,
+      },
     },
   },
 });

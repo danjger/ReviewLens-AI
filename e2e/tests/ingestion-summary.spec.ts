@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { fixtureUrl, liveAi } from "../support/env";
-import { expectVisibleViaReload } from "../support/live";
+import { archiveAllCreated, expectVisibleViaReload } from "../support/live";
 
 /**
  * Ingestion Summary E2E (ingestion-summary task 8).
@@ -134,14 +134,6 @@ async function seedDataset(
   return result.dataset_id;
 }
 
-/** Best-effort cleanup: archive a dataset so a re-run starts clean. */
-async function archiveViaApi(
-  request: APIRequestContext,
-  id: string,
-): Promise<void> {
-  await request.post(`/api/datasets/${id}/archive`).catch(() => undefined);
-}
-
 /**
  * Poll the dataset detail endpoint until its `active_version` is set (a version
  * is ready) or the deadline passes. Returns true once a version is active. Used
@@ -218,6 +210,23 @@ function skipNoSeed(): void {
 }
 
 test.describe("ingestion summary", () => {
+  // Every dataset a test creates is tracked here so the afterEach archives ALL
+  // of them, even on a mid-test failure. This keeps the shared default list
+  // from accumulating across tests, bounding the sibling churn that a navigated
+  // detail page's shared TanStack Query cache could otherwise observe (fix #12).
+  const createdIds = new Set<string>();
+
+  /** Register a seeded dataset for teardown; returns the id for convenience. */
+  function track(id: string): string {
+    createdIds.add(id);
+    return id;
+  }
+
+  test.afterEach(async ({ request }) => {
+    await archiveAllCreated(request, createdIds);
+    createdIds.clear();
+  });
+
   // ─────────────────────────────────────────────────────────────────────────
   // Scenario 1 — open a processed dataset's detail page and verify the summary
   //   header, metrics, snapshot, completeness, and a filtered reviews table.
@@ -246,11 +255,16 @@ test.describe("ingestion summary", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
     const ready = await waitForActiveVersion(request, datasetId);
     expect(ready, "seeded dataset reached an active version").toBe(true);
 
     // Navigate to the detail route the same way the SPA does (`/datasets/{id}`,
-    // per routes.ts `datasetDetailPath`). A full load mounts the detail page.
+    // per routes.ts `datasetDetailPath`). This is a FULL document load, which
+    // remounts the SPA and starts the TanStack Query cache / useRealtime
+    // connection fresh — so the Library list fetched by the initial `goto("/")`
+    // (and any sibling test's churn in it) cannot bleed into this dataset's
+    // detail view (fix #12). The detail page is scoped to this id by route.
     await page.goto(`/datasets/${datasetId}`);
 
     const detailPage = page.getByTestId("dataset-detail-page");
@@ -305,36 +319,43 @@ test.describe("ingestion summary", () => {
     // Filter by a rating (Requirement 5.2). The select drives a server query
     // (`GET /datasets/{id}/reviews?rating=`); wait for the body to settle. The
     // filtered set is either rows (all showing the chosen rating) or the empty
-    // state — both are valid outcomes of a real filter, so assert exactly one
-    // of them appears and that the filter value stuck.
+    // state — both are valid outcomes of a real filter.
     const ratingFilter = reviews.getByTestId("reviews-filter-rating");
     await ratingFilter.selectOption("5");
     await expect(ratingFilter).toHaveValue("5");
 
-    const body = reviews.getByTestId("reviews-body");
-    await expect(body).toBeVisible();
+    // Wait for the filtered body to SETTLE on a coherent end state, then assert
+    // on it. The settled state is EITHER the explicit empty state (no rows) OR
+    // rows where EVERY rendered rating cell shows the chosen "5". Folding the
+    // per-row rating check INTO the settle predicate is what makes this stable:
+    // the server refetch for `rating=5` replaces the rows asynchronously, so a
+    // snapshot taken between "the pre-filter rows are still showing" and "the
+    // refetch has landed" is stale. The previous code raced that window twice —
+    // a `toBeVisible()` on the (then-empty, hidden) <tbody>, and a per-row loop
+    // over a stale `count()` whose rows vanished before each assertion
+    // ("element(s) not found"). Polling the whole coherent condition waits out
+    // the refetch and never reads a transient snapshot (fix #12). Note an empty
+    // <tbody> legitimately reports "hidden" (zero size), so we assert the
+    // outcome, not the element's visibility.
     await expect
       .poll(
         async () => {
-          const rows = await reviews.getByTestId("review-row").count();
           const empty = await reviews.getByTestId("reviews-empty").count();
-          return rows > 0 || empty > 0;
+          if (empty > 0) return true; // filter matched nothing — valid outcome
+          const ratingCells = reviews.getByTestId("review-rating");
+          const total = await ratingCells.count();
+          if (total === 0) return false; // mid-refetch: neither rows nor empty yet
+          for (let i = 0; i < total; i += 1) {
+            const text = await ratingCells.nth(i).textContent().catch(() => null);
+            if (text == null || !text.includes("5")) return false;
+          }
+          return true; // rows present and every one shows the chosen rating
         },
         { timeout: LIVE_TIMEOUT },
       )
       .toBe(true);
 
-    // Every rendered row (if any) matches the chosen rating — the filter is
-    // applied by the server, so a stale row would be a real bug.
-    const filteredRows = reviews.getByTestId("review-row");
-    const filteredCount = await filteredRows.count();
-    for (let i = 0; i < filteredCount; i += 1) {
-      await expect(filteredRows.nth(i).getByTestId("review-rating")).toContainText(
-        "5",
-      );
-    }
-
-    await archiveViaApi(request, datasetId);
+    // Teardown archives this dataset in afterEach.
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -363,6 +384,7 @@ test.describe("ingestion summary", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
 
     // Open the detail page immediately — while the first version is still
     // processing. The page shows skeletons and a processing notice (no active
@@ -402,6 +424,6 @@ test.describe("ingestion summary", () => {
     // summary), confirming the page reached the ready state.
     await expect(page.getByTestId("skeleton-metrics")).toHaveCount(0);
 
-    await archiveViaApi(request, datasetId);
+    // Teardown archives this dataset in afterEach.
   });
 });

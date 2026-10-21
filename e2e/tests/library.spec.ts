@@ -6,7 +6,12 @@ import {
   type Page,
 } from "@playwright/test";
 import { fixtureUrl, liveAi } from "../support/env";
-import { settleViaReload } from "../support/live";
+import {
+  archiveAllCreated,
+  scopeLibraryTo,
+  searchTermFor,
+  settleViaReload,
+} from "../support/live";
 
 /**
  * Dataset Library E2E (dataset-library task 7).
@@ -147,12 +152,15 @@ async function seedDataset(
   return result.dataset_id;
 }
 
-/** Best-effort cleanup: archive a dataset so a re-run starts clean. */
+/**
+ * Best-effort cleanup: archive a dataset so a re-run starts clean. Delegates to
+ * the shared {@link archiveAllCreated} so there is one teardown path (fix #12).
+ */
 async function archiveViaApi(
   request: APIRequestContext,
   id: string,
 ): Promise<void> {
-  await request.post(`/api/datasets/${id}/archive`).catch(() => undefined);
+  await archiveAllCreated(request, [id]);
 }
 
 /**
@@ -213,6 +221,23 @@ function skipNoSeed(): void {
 }
 
 test.describe("dataset library", () => {
+  // Every dataset a test creates is tracked here so the afterEach can archive
+  // ALL of them, even if the test fails mid-way before its inline cleanup runs.
+  // This keeps the shared default (non-archived) list from accumulating across
+  // tests, which is what made whole-list assertions flaky (fix #12).
+  const createdIds = new Set<string>();
+
+  /** Register a seeded dataset for teardown; returns the id for convenience. */
+  function track(id: string): string {
+    createdIds.add(id);
+    return id;
+  }
+
+  test.afterEach(async ({ request }) => {
+    await archiveAllCreated(request, createdIds);
+    createdIds.clear();
+  });
+
   // ─────────────────────────────────────────────────────────────────────────
   // Scenario 1 — live updates across two browser contexts (no reload)
   // ─────────────────────────────────────────────────────────────────────────
@@ -252,11 +277,19 @@ test.describe("dataset library", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
 
     // With at least one tracked dataset, the Tracked section renders.
     await expect(page.getByTestId("tracked-section")).toBeVisible({
       timeout: LIVE_TIMEOUT,
     });
+
+    // Scope the list to THIS test's dataset so sibling rows / other tests'
+    // churn can't be observed by the assertions below (fix #12). The filter is
+    // the server-side `tracked-search` term; scoping is a client-side refetch
+    // that never reloads, independent of the live-push-vs-reload distinction.
+    const term = searchTermFor(fixture);
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
 
     // A sees the new row for datasetId. On a DEPLOYED stack it APPEARS with no
     // reload via the `dataset.status.changed` push; under local `make e2e`
@@ -275,15 +308,12 @@ test.describe("dataset library", () => {
 
     // It moves off `processing` to a settled badge state (ready/failed). Assert
     // via the status-badge data-state (never on count/date text).
-    const badge = newRow.getByTestId("status-badge");
     await settleViaReload(
       page,
       async () => page.locator(rowSelector).getByTestId("status-badge").getAttribute("data-state"),
       (state) => state != null && state !== "processing",
       { timeout: PROCESS_TIMEOUT, allowReload: !liveAi, description: "the badge to leave processing" },
     );
-
-    await archiveViaApi(request, datasetId);
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -310,9 +340,14 @@ test.describe("dataset library", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
+    const term = searchTermFor(fixture);
 
-    // The row is present in the default (non-archived) list.
+    // Scope the list to THIS dataset before asserting presence/absence, so
+    // sibling rows and other tests' churn never affect these assertions
+    // (fix #12). The row is present in the default (non-archived) list.
     await page.reload();
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     const theRow = row(page, datasetId);
     await expect(theRow).toBeVisible({ timeout: LIVE_TIMEOUT });
 
@@ -333,10 +368,14 @@ test.describe("dataset library", () => {
     }
     const showArchived = page.getByTestId("tracked-show-archived");
     await expect(showArchived).toBeVisible({ timeout: LIVE_TIMEOUT });
+    // Re-apply the scope (a reload cleared the search box) so the absence check
+    // is about THIS dataset only, then assert its row left the default list.
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(page.locator(rowSel)).toHaveCount(0, { timeout: LIVE_TIMEOUT });
 
-    // Toggle "Show archived" (Requirement 5.2): the archived row appears, now
-    // offering Restore.
+    // Toggle "Show archived" (Requirement 5.2): keep the search term applied so
+    // only THIS dataset's archived row shows; it appears, now offering Restore.
+    await page.getByTestId("tracked-search").fill(term);
     await showArchived.check();
     const archivedRow = row(page, datasetId);
     await expect(archivedRow).toBeVisible({ timeout: LIVE_TIMEOUT });
@@ -357,9 +396,12 @@ test.describe("dataset library", () => {
     if (await showArchivedAgain.isChecked().catch(() => false)) {
       await showArchivedAgain.uncheck();
     }
+    // Scope to THIS dataset again, then confirm the restored row is back in the
+    // default list (sibling-independent).
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(row(page, datasetId)).toBeVisible({ timeout: LIVE_TIMEOUT });
 
-    await archiveViaApi(request, datasetId);
+    // Teardown archives this dataset in afterEach.
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -386,8 +428,12 @@ test.describe("dataset library", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
+    const term = searchTermFor(fixture);
 
     await page.reload();
+    // Scope to THIS dataset so the row menu + status assertions act on it alone.
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     const theRow = row(page, datasetId);
     await expect(theRow).toBeVisible({ timeout: LIVE_TIMEOUT });
 
@@ -426,7 +472,7 @@ test.describe("dataset library", () => {
       description: "the badge to settle out of checking",
     });
 
-    await archiveViaApi(request, datasetId);
+    // Teardown archives this dataset in afterEach.
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -456,13 +502,13 @@ test.describe("dataset library", () => {
       skipNoSeed();
       return;
     }
+    track(datasetId);
+    const term = searchTermFor(fixture);
+    // Archive it so re-submitting must RESTORE the original (part of the
+    // scenario, not cleanup).
     await archiveViaApi(request, datasetId);
 
     await page.reload();
-
-    // Count the tracked rows before re-submitting, so we can prove no NEW row
-    // appears (count comparison is on the row set, not on any count/date text).
-    const rowsBefore = await page.getByTestId("dataset-row").count();
 
     // Re-submit the SAME URL (with a tracking param appended, which the backend
     // normalizes away) in the New Dataset panel.
@@ -534,17 +580,17 @@ test.describe("dataset library", () => {
       });
     }
 
-    // No NEW row appeared: exactly one row carries this dataset id, and the
-    // total row count did not grow by an extra dataset (the restored original
-    // may add one row back if it had been hidden while archived, but there is
-    // never a SECOND row for the same URL).
+    // No NEW row appeared. The sibling-independent proof is "exactly one row
+    // carries this dataset id" — re-adding a tracked URL creates no new dataset,
+    // so the same id must never appear twice. Scope the list to THIS dataset's
+    // unique term first so a whole-list refetch / another test's churn can't
+    // affect the count. The old whole-list `rowsBefore`/`rowsAfter` comparison
+    // against every rendered row was removed: it was the flaky assertion (it
+    // resolved against sibling datasets), and "exactly one row for this id" is
+    // the stronger, isolation-safe guarantee (fix #12).
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(page.locator(`[data-dataset-id="${datasetId}"]`)).toHaveCount(1);
-    const rowsAfter = await page.getByTestId("dataset-row").count();
-    // Re-adding a tracked URL creates no new dataset; the only possible change
-    // is the restored original reappearing. So the count never grows beyond
-    // "before + 1" (the restored row), and never adds a duplicate.
-    expect(rowsAfter).toBeLessThanOrEqual(rowsBefore + 1);
 
-    await archiveViaApi(request, datasetId);
+    // Teardown archives this dataset in afterEach.
   });
 });
