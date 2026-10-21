@@ -168,21 +168,19 @@ cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
 
 Latest live run (extraction model `claude-haiku-5-5`):
 
-> **⚠️ Haiku 5.5 does not currently meet the recall gate on this corpus.** The
-> live run below shows recall **86.0%** (threshold ≥ 90%) — one page
-> (`real_webscrapingdev_reviews`) under-extracts and flips `will_work`→`limited`.
-> The model upgrade (PR #30) is **blocked** on recovering recall; the shipping
-> default remains `claude-haiku-4-5-20251001` until this passes. Precision and
-> the scope-guard suite are unaffected.
-
-| Metric | Threshold | Result (Haiku 5.5) |
+| Metric | Threshold | Result |
 |---|---|---|
-| `auto` precision on `will_work` pages | ≥ 98% | **99.2%** ✓ |
-| `auto` recall on `will_work` pages | ≥ 90% | **86.0%** ✗ |
+| `auto` precision on `will_work` pages | ≥ 98% | **100.0%** ✓ |
+| `auto` recall on `will_work` pages | ≥ 90% | **96.3%** ✓ |
 | Viability verdict accuracy | ≥ 90% | **95.2%** (20/21) ✓ |
 
-For reference, Haiku 4.5 passed all three (precision 99.3%, recall 100.0%,
-verdict 95–100%).
+Haiku 5.5 initially under-listed items on one page (the Locator returned a
+correct item selector but listed only 1 of 20 reviews), which dragged `auto`
+recall to 86%. The plan builder now recovers that case: when a suggested
+selector reproduces every verified review but is rejected only on
+over-selection, it re-verifies from the selector's own items instead of
+collapsing to `ai_direct` (see `app/extraction/plan.py`
+`_recover_underlisted_selectors`). With that fix, recall returns to 96.3%.
 
 **Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
 choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,
