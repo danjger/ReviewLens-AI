@@ -262,10 +262,10 @@ class Settings(BaseSettings):
     claude_chat_model: str = "claude-sonnet-5-5"
     """Model ID used for interactive Q&A (guardrailed chat)."""
 
-    claude_extract_model: str = "claude-haiku-5-5"
+    claude_extract_model: str = "claude-haiku-4-5-20251001"
     """Model ID used for page reading and review extraction."""
 
-    claude_precheck_model: str = "claude-haiku-5-5"
+    claude_precheck_model: str = "claude-haiku-4-5-20251001"
     """Model ID used for URL viability pre-checks."""
 
     # ------------------------------------------------------------------

@@ -107,8 +107,8 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `PROCESSING_QUEUE_URL` | SQS FIFO processing queue URL | LocalStack default |
 | `PUSH_QUEUE_URL` | SQS push queue URL | LocalStack default |
 | `CLAUDE_CHAT_MODEL` | Model ID for Q&A | `claude-sonnet-5-5` |
-| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-haiku-5-5` |
-| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-haiku-5-5` |
+| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-haiku-4-5-20251001` |
+| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-haiku-4-5-20251001` |
 | `RL_CHECKS_PER_IP_HOUR` | Per-IP check rate limit | `30` |
 | `RL_QUESTIONS_PER_IP_HOUR` | Per-IP question rate limit | `120` |
 | `RL_GLOBAL_AI_CALLS_PER_HOUR` | Global AI call rate limit | `2000` |
@@ -166,21 +166,23 @@ cd backend && uv run pytest ../evals -v -m live_ai   # needs ANTHROPIC_API_KEY
 # or (numbers only, no assert):  python evals/extraction/run.py --live
 ```
 
-Latest live run (extraction model `claude-haiku-5-5`):
+Latest live run (extraction model `claude-haiku-4-5-20251001`):
 
 | Metric | Threshold | Result |
 |---|---|---|
-| `auto` precision on `will_work` pages | ≥ 98% | **100.0%** ✓ |
-| `auto` recall on `will_work` pages | ≥ 90% | **96.3%** ✓ |
-| Viability verdict accuracy | ≥ 90% | **95.2%** (20/21) ✓ |
+| `auto` precision on `will_work` pages | ≥ 98% | **99.3%** ✓ |
+| `auto` recall on `will_work` pages | ≥ 90% | **100.0%** ✓ |
+| Viability verdict accuracy | ≥ 90% | **95–100%** (20–21/21) ✓ |
 
-Haiku 5.5 initially under-listed items on one page (the Locator returned a
-correct item selector but listed only 1 of 20 reviews), which dragged `auto`
-recall to 86%. The plan builder now recovers that case: when a suggested
-selector reproduces every verified review but is rejected only on
-over-selection, it re-verifies from the selector's own items instead of
-collapsing to `ai_direct` (see `app/extraction/plan.py`
-`_recover_underlisted_selectors`). With that fix, recall returns to 96.3%.
+> **Why not Haiku 5.5?** We evaluated `claude-haiku-5-5` and it did **not**
+> reliably meet the gate: across repeated live runs it passed all thresholds
+> only ~1 in 3 times, with `auto` precision swinging 95.8–99.3% (gate ≥ 98%) and
+> verdict accuracy 85.7–95.2%, driven by run-to-run over-extraction on a few
+> edge pages. The under-listing issue 5.5 also showed was fixed generically in
+> the plan builder (`_recover_underlisted_selectors`, which recovers a correct
+> item selector the Locator under-lists — model-agnostic, kept), but the
+> precision variance is intrinsic to the model on this corpus, so the shipping
+> default stays Haiku 4.5, which passes every run.
 
 **Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
 choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,

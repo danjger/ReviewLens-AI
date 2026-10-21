@@ -17,7 +17,7 @@
 
 | Label | Category | Cases | Passed | Declined | Expected |
 |---|---|---|---|---|---|
-| in_scope | — | 20 | 18/20 | 0/20 | answer |
+| in_scope | — | 20 | 19/20 | 0/20 | answer |
 | out_of_scope | other_platform | 8 | 8/8 | 8/8 | decline |
 | out_of_scope | world_knowledge | 8 | 8/8 | 8/8 | decline |
 | out_of_scope | competitor_facts | 6 | 6/6 | 6/6 | decline |
@@ -34,7 +34,7 @@
 | in_scope_03 | answer | answer | ✓ | ✓ | — | — | ✓ |
 | in_scope_04 | answer | answer | ✓ | ✓ | — | — | ✓ |
 | in_scope_05 | answer | answer | ✓ | ✓ | — | — | ✓ |
-| in_scope_06 | answer | answer | ✓ | ✓ | — | — | ✗ |
+| in_scope_06 | answer | answer | ✓ | ✓ | — | — | ✓ |
 | in_scope_07 | answer | answer | ✓ | ✓ | — | — | ✓ |
 | in_scope_08 | answer | answer | ✓ | ✓ | — | — | ✓ |
 | in_scope_09 | answer | answer | ✓ | ✓ | — | — | ✓ |
@@ -93,7 +93,6 @@
 
 ### Failing cases
 
-- `in_scope_06` (in_scope/—)
 - `in_scope_10` (in_scope/—)
 - `borderline_03` (borderline/—)
 - `borderline_06` (borderline/—)
