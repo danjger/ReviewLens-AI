@@ -286,10 +286,10 @@ test.describe("dataset library", () => {
 
     // Scope the list to THIS test's dataset so sibling rows / other tests'
     // churn can't be observed by the assertions below (fix #12). The filter is
-    // the server-side `tracked-search` term; settle it the same way as every
-    // other live assertion (reload locally, live refetch deployed).
+    // the server-side `tracked-search` term; scoping is a client-side refetch
+    // that never reloads, independent of the live-push-vs-reload distinction.
     const term = searchTermFor(fixture);
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
 
     // A sees the new row for datasetId. On a DEPLOYED stack it APPEARS with no
     // reload via the `dataset.status.changed` push; under local `make e2e`
@@ -347,7 +347,7 @@ test.describe("dataset library", () => {
     // sibling rows and other tests' churn never affect these assertions
     // (fix #12). The row is present in the default (non-archived) list.
     await page.reload();
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     const theRow = row(page, datasetId);
     await expect(theRow).toBeVisible({ timeout: LIVE_TIMEOUT });
 
@@ -370,7 +370,7 @@ test.describe("dataset library", () => {
     await expect(showArchived).toBeVisible({ timeout: LIVE_TIMEOUT });
     // Re-apply the scope (a reload cleared the search box) so the absence check
     // is about THIS dataset only, then assert its row left the default list.
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(page.locator(rowSel)).toHaveCount(0, { timeout: LIVE_TIMEOUT });
 
     // Toggle "Show archived" (Requirement 5.2): keep the search term applied so
@@ -398,7 +398,7 @@ test.describe("dataset library", () => {
     }
     // Scope to THIS dataset again, then confirm the restored row is back in the
     // default list (sibling-independent).
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(row(page, datasetId)).toBeVisible({ timeout: LIVE_TIMEOUT });
 
     // Teardown archives this dataset in afterEach.
@@ -433,7 +433,7 @@ test.describe("dataset library", () => {
 
     await page.reload();
     // Scope to THIS dataset so the row menu + status assertions act on it alone.
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     const theRow = row(page, datasetId);
     await expect(theRow).toBeVisible({ timeout: LIVE_TIMEOUT });
 
@@ -588,7 +588,7 @@ test.describe("dataset library", () => {
     // against every rendered row was removed: it was the flaky assertion (it
     // resolved against sibling datasets), and "exactly one row for this id" is
     // the stronger, isolation-safe guarantee (fix #12).
-    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT, allowReload: !liveAi });
+    await scopeLibraryTo(page, term, { timeout: LIVE_TIMEOUT });
     await expect(page.locator(`[data-dataset-id="${datasetId}"]`)).toHaveCount(1);
 
     // Teardown archives this dataset in afterEach.

@@ -118,3 +118,48 @@ make e2e   # cd e2e && npx playwright test  (all specs, stub AI)
   only confirmed not to regress.
 
 No previously-passing spec regressed.
+
+---
+
+## 4. Follow-up: cosmetic tidy-up + independent re-verification (on `main`)
+
+Addressing the reviewer's one non-blocking note: `scopeLibraryTo` accepted a
+`SettleOptions` object but ignored the `allowReload` arg callers passed, which
+was misleading (scoping never reloads — a reload clears the search box).
+
+Change (test-only, on `main` after the fix merged):
+
+- `e2e/support/live.ts` — `scopeLibraryTo` now takes its own narrow
+  `ScopeOptions` type (`{ timeout?: number }`) instead of `SettleOptions`, so
+  there is no `allowReload` knob to pass. Docstring updated to state scoping is
+  always no-reload and the live-push-vs-reload distinction stays solely a
+  `settleViaReload` concern.
+- `e2e/tests/library.spec.ts` — dropped the dead `allowReload: !liveAi` arg from
+  all five `scopeLibraryTo(...)` call sites; fixed one misleading comment that
+  described scoping as "reload locally, live refetch deployed". The
+  `allowReload: !liveAi` wiring on `settleViaReload` / `expectVisibleViaReload`
+  is UNCHANGED (those genuinely reload), so the change #11 distinction is intact.
+  `liveAi` is still imported and used (skipNoSeed + the settle calls).
+
+Re-verification (fresh environment, from scratch):
+
+- `cd e2e && npx tsc --noEmit -p tsconfig.json` → exit 0 (E2E TSC CLEAN).
+- A stale compose project from the worktree run (`fix-e2e-shared-db-flake`) was
+  still holding host port 9090; removed it (`docker compose -p
+  fix-e2e-shared-db-flake down`). A half-created `reviewlens-ai` stack from a
+  failed first `up` had the `api` container unable to resolve `localstack`
+  (`Name or service not known`) → `POST /api/ingest/checks` returned
+  INTERNAL_ERROR (botocore `EndpointConnectionError` to
+  `http://localstack:4566/`) and every library/ingestion-summary test SKIPPED
+  via `skipNoSeed` (seeding returned null). Fixed with a clean
+  `docker compose down && up -d --wait`, then waited for LocalStack
+  "provisioning complete"; afterwards `api → http://localstack:4566/_localstack/health`
+  = 200 and a probe Check for `plain_list` returned verdict `limited` (addable),
+  so seeding works and the tests RUN.
+- Both affected specs TOGETHER, serialized, `--repeat-each=3`, run twice:
+  - run A: **18 passed** (2.3m)
+  - run B: **18 passed** (2.6m)
+  36 executions, 0 failures.
+- Full `make e2e`: **12 passed, 3 skipped, 1 failed** — the single failure is
+  the same pre-existing `main-flow.spec.ts` guardrailed-chat `needs-record-ai`
+  step (untouched file, AI-dependent), not a regression from this tidy-up.

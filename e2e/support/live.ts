@@ -144,14 +144,23 @@ export function searchTermFor(fixtureUrl: string): string {
  * status change arrives, so it uses Playwright's built-in retrying assertions
  * (which never reload) and leaves `settleViaReload`'s semantics untouched.
  *
- * `timeout` (if given via `options`) bounds the wait. The box is filled once;
- * `expect.poll` then retries reading the rendered rows until the server-side
- * filter has landed.
+ * `timeout` bounds the wait. The box is filled once; `expect.poll` then retries
+ * reading the rendered rows until the server-side filter has landed.
+ *
+ * NOTE: scoping never reloads (a reload would clear the search box), so this
+ * takes its own narrow options type rather than `SettleOptions` — there is no
+ * `allowReload` knob to pass, which keeps the live-push-vs-reload distinction
+ * (change #11) strictly a concern of `settleViaReload`.
  */
+export interface ScopeOptions {
+  /** Total time to keep polling for the filter to land (ms). */
+  timeout?: number;
+}
+
 export async function scopeLibraryTo(
   page: Page,
   term: string,
-  options: SettleOptions = {},
+  options: ScopeOptions = {},
 ): Promise<void> {
   const { timeout } = options;
   const search = page.getByTestId("tracked-search");
