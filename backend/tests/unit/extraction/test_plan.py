@@ -360,6 +360,97 @@ class TestAiDirectMethod:
 
 
 # ---------------------------------------------------------------------------
+# Under-listed-selector recovery (auto recall fix)
+# ---------------------------------------------------------------------------
+
+
+class TestUnderlistedSelectorRecovery:
+    """When the Locator suggests a correct item selector but lists only a few
+    of the reviews it matches, selector validation rejects it on over-selection
+    and the method would collapse to ``ai_direct`` with just the under-listed
+    items. The recovery re-verifies from the selector's own items so ``auto``
+    keeps the fuller set and chooses ``selectors`` — without weakening selector
+    soundness (Property 8)."""
+
+    @mock_aws
+    def test_underlisted_items_with_valid_selector_recovers_to_selectors(self) -> None:
+        _create_rate_limit_table()
+        html = _reviews_html()  # 5 review cards, no structured data
+        # Locator lists only ONE item but gives the correct item selector.
+        one_item = [
+            {
+                "item_ref": _ref_for_body(html, 0),
+                "text_ref": _ref_for_body(html, 0),
+                "kind": "review",
+            }
+        ]
+        _install(_ScriptedClient([_tool_use_response(_locator_input(html, items=one_item))]))
+
+        plan, page = build_plan(html, "https://x.test/reviews", "Reviews", now=_now)
+
+        # Recovered: the selector reproduces all 5 cards, so auto keeps 5 and
+        # chooses `selectors` rather than ai_direct with the 1 listed item.
+        assert plan.method == "selectors"
+        assert plan.selectors.item == "article.review-card"
+        assert plan.first_page.verified == 5
+        assert len(page.reviews) == 5
+        assert page.method_used == "selectors"
+        assert page.fallback is False
+
+    @mock_aws
+    def test_recovery_does_not_fire_when_selector_is_wrong(self) -> None:
+        """Guard: a bad item selector (agreement < 1.0) must NOT recover.
+
+        The one listed review is not reproduced by the wrong selector, so
+        agreement is 0, the recovery is skipped, and the method stays
+        ``ai_direct`` on the under-listed set."""
+        _create_rate_limit_table()
+        html = _reviews_html()  # no structured data
+        one_item = [
+            {
+                "item_ref": _ref_for_body(html, 0),
+                "text_ref": _ref_for_body(html, 0),
+                "kind": "review",
+            }
+        ]
+        _install(
+            _ScriptedClient(
+                [
+                    _tool_use_response(
+                        _locator_input(html, items=one_item, selectors={"item": "div.nope"})
+                    )
+                ]
+            )
+        )
+
+        plan, page = build_plan(html, "https://x.test/reviews", "Reviews", now=_now)
+
+        assert plan.method == "ai_direct"
+        assert len(page.reviews) == 1
+        assert page.method_used == "ai_direct"
+
+    @mock_aws
+    def test_zero_listed_items_with_valid_selector_recovers(self) -> None:
+        """The hard case: the Locator lists NO items but gives a correct item
+        selector (observed as run-to-run variance with some models). The
+        verified set is empty, so there is nothing to validate against and
+        the old `agreement == 1.0` guard skipped recovery, collapsing to zero
+        reviews. The selector still matches all 5 cards and they pass the
+        shared review filters, so recovery adopts them and chooses
+        ``selectors``."""
+        _create_rate_limit_table()
+        html = _reviews_html()  # 5 cards, no structured data
+        _install(_ScriptedClient([_tool_use_response(_locator_input(html, items=[]))]))
+
+        plan, page = build_plan(html, "https://x.test/reviews", "Reviews", now=_now)
+
+        assert plan.method == "selectors"
+        assert plan.selectors.item == "article.review-card"
+        assert len(page.reviews) == 5
+        assert page.method_used == "selectors"
+
+
+# ---------------------------------------------------------------------------
 # Degraded plan (Requirement 4.4) and error propagation
 # ---------------------------------------------------------------------------
 

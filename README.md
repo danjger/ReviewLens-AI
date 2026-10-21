@@ -106,9 +106,9 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `CHECK_QUEUE_URL` | SQS check queue URL | LocalStack default |
 | `PROCESSING_QUEUE_URL` | SQS FIFO processing queue URL | LocalStack default |
 | `PUSH_QUEUE_URL` | SQS push queue URL | LocalStack default |
-| `CLAUDE_CHAT_MODEL` | Model ID for Q&A | `claude-3-5-sonnet-*` |
-| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-3-5-haiku-*` |
-| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-3-5-haiku-*` |
+| `CLAUDE_CHAT_MODEL` | Model ID for Q&A | `claude-sonnet-5-5` |
+| `CLAUDE_EXTRACT_MODEL` | Model ID for extraction | `claude-haiku-4-5-20251001` |
+| `CLAUDE_PRECHECK_MODEL` | Model ID for URL pre-check | `claude-haiku-4-5-20251001` |
 | `RL_CHECKS_PER_IP_HOUR` | Per-IP check rate limit | `30` |
 | `RL_QUESTIONS_PER_IP_HOUR` | Per-IP question rate limit | `120` |
 | `RL_GLOBAL_AI_CALLS_PER_HOUR` | Global AI call rate limit | `2000` |
@@ -173,6 +173,16 @@ Latest live run (extraction model `claude-haiku-4-5-20251001`):
 | `auto` precision on `will_work` pages | ≥ 98% | **99.3%** ✓ |
 | `auto` recall on `will_work` pages | ≥ 90% | **100.0%** ✓ |
 | Viability verdict accuracy | ≥ 90% | **95–100%** (20–21/21) ✓ |
+
+> **Why not Haiku 5.5?** We evaluated `claude-haiku-5-5` and it did **not**
+> reliably meet the gate: across repeated live runs it passed all thresholds
+> only ~1 in 3 times, with `auto` precision swinging 95.8–99.3% (gate ≥ 98%) and
+> verdict accuracy 85.7–95.2%, driven by run-to-run over-extraction on a few
+> edge pages. The under-listing issue 5.5 also showed was fixed generically in
+> the plan builder (`_recover_underlisted_selectors`, which recovers a correct
+> item selector the Locator under-lists — model-agnostic, kept), but the
+> precision variance is intrinsic to the model on this corpus, so the shipping
+> default stays Haiku 4.5, which passes every run.
 
 **Default strategy — `EXTRACTION_STRATEGY=auto`.** The method totals make the
 choice clear: `auto` reaches 99.3% precision / 100% recall across the corpus,

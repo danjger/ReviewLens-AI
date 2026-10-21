@@ -60,6 +60,7 @@ from app.core.ai import resolve_model
 from app.core.config import get_settings
 from app.extraction import cleaner, locator, postprocess, selectors, structured
 from app.extraction.errors import AIUnavailable
+from app.extraction.extract import extract_by_selectors
 from app.extraction.models import (
     CleanedPage,
     ExtractionPlan,
@@ -157,6 +158,106 @@ def _texts_agree(
     # Share of the smaller set that has a counterpart in the other set.
     overlap = min(matched_v, matched_s) / smaller
     return overlap >= _AGREEMENT_OVERLAP
+
+
+# ---------------------------------------------------------------------------
+# Under-listed-selector recovery
+# ---------------------------------------------------------------------------
+
+
+def _selector_covers_verified(
+    recovered: list[VerifiedReview],
+    verified: list[VerifiedReview],
+) -> bool:
+    """True when every verified review's text is reproduced by a recovered one.
+
+    Normalized-containment match (consistent with selector validation): a
+    verified review is covered when its normalized text is contained in some
+    recovered review's normalized text (or vice versa). Used to confirm the
+    selector's fuller extraction is a SUPERSET of what the Locator verified,
+    so recovery only adds missed reviews and never swaps in a different set.
+    """
+    rec = [t for t in (_normalize(r.text) for r in recovered) if t]
+    ver = [t for t in (_normalize(r.text) for r in verified) if t]
+    if not ver:
+        return True
+    return all(any(v in r or r in v for r in rec) for v in ver)
+
+
+def _recover_underlisted_selectors(
+    html: str,
+    locator_result: LocatorResult,
+    verified: list[VerifiedReview],
+    validation: selectors.SelectorValidation,
+) -> list[VerifiedReview] | None:
+    """Re-verify from the selector's items when the Locator under-listed items.
+
+    A sound narrowing of the over-selection rule. When the Locator suggests a
+    correct ``item`` selector but lists only a few of the reviews it actually
+    matches (observed with some models), selector validation rejects it purely
+    on over-selection (the many unlisted-but-real cards look like noise), and
+    the method falls to ``ai_direct`` with only the under-listed items — a
+    recall collapse.
+
+    This recovers that case **without** weakening Property 8 (selector
+    soundness). It triggers only when:
+
+    * the selector reproduced **every** verified review (``agreement == 1.0``),
+      so the selector is proven correct on everything we did verify; and
+    * it was rejected (``not is_valid``) — i.e. only over-selection, since
+      agreement is already perfect.
+
+    It then re-reads reviews from the selector's own items with
+    :func:`app.extraction.extract.extract_by_selectors` — the exact code the
+    ``selectors`` method uses on later pages, which applies the same
+    post-processing filters (short text, bad rating, dedupe), so re-verified
+    reviews are held to the same bar and genuine noise is still dropped. The
+    fuller set is adopted only when it **strictly exceeds** what the Locator
+    listed; otherwise the recovery is a no-op (returns ``None``).
+    """
+    if validation.is_valid:
+        return None
+    item_selector = locator_result.selectors.item
+    if item_selector is None or not item_selector.strip():
+        return None
+
+    # Re-read reviews from the selector's own items with the SAME code + filters
+    # the ``selectors`` method uses on later pages (short text, bad rating,
+    # dedupe), so recovered reviews meet the same bar and genuine noise is
+    # dropped.
+    probe_plan = ExtractionPlan(
+        version=1,
+        created_at="",
+        locator_model=None,
+        prompt_version=locator.PROMPT_VERSION,
+        method="selectors",
+        selectors=locator_result.selectors,
+        rating_scale=locator_result.rating_scale,
+        next_page_rule=NextPageRule(type="none"),
+        first_page=FirstPageStats(verified=0, discarded=0, structured_count=0, per_page_rate=0),
+        reported_total=None,
+        entity_hint=None,
+        confidence=None,
+        degraded=False,
+    )
+    recovered, _ = extract_by_selectors(html, probe_plan)
+
+    # Only recover when the selector genuinely found MORE than the Locator
+    # listed (the under-listing signature). If it found no more, there is
+    # nothing to gain and we must not override the normal choice.
+    if len(recovered) <= len(verified):
+        return None
+
+    # Soundness (Property 8): the selector must reproduce EVERY review the
+    # Locator did verify — i.e. the extra items are additional reviews the
+    # Locator missed, not a different (noisier) set. With an empty verified set
+    # (the Locator under-listed so hard nothing survived post-processing) there
+    # is nothing to contradict, and the recovered set already passed the shared
+    # review filters, so the uniform selector extraction is trusted.
+    if verified and not _selector_covers_verified(recovered, verified):
+        return None
+
+    return recovered
 
 
 # ---------------------------------------------------------------------------
@@ -334,12 +435,24 @@ def build_plan(
         min_agreement=settings.selector_min_agreement,
     )
 
+    # 5b. Recover under-listed selectors: if the selector reproduces every
+    #     verified review but was rejected on over-selection (the Locator
+    #     listed only some of the reviews its own selector matches), re-verify
+    #     from the selector's items so `auto` keeps the fuller set instead of
+    #     collapsing to the under-listed `ai_direct` result.
+    recovered = _recover_underlisted_selectors(html, locator_result, verified, validation)
+    selector_valid = validation.is_valid
+    if recovered is not None:
+        verified = recovered
+        discarded = {}
+        selector_valid = True
+
     # 6. Choose the method (Requirement 4.2).
     structured_count = len(structured_result.reviews)
     locator_found = len(verified)
     texts_agree = _texts_agree(structured_result.reviews, verified)
     method = _choose_method(
-        validation.is_valid,
+        selector_valid,
         structured_count,
         locator_found,
         texts_agree,
